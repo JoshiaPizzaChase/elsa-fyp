@@ -8,5 +8,5 @@ CompileFlags:
       -Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion,
       -pedantic-errors,
       -Werror, # Treat warnings as errors
-      -fmodules,
+      -I/home/ombhandari/Projects/elsa/elsa-fyp/client_sdk/include,
     ]

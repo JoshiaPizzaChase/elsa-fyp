@@ -8,3 +8,6 @@ build-test
 
 # QUICKFIX
 store
+
+# clangd
+.clangd
