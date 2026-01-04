@@ -1,0 +1,16 @@
+# Use a predefined base style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft)
+BasedOnStyle: LLVM
+
+# Custom overrides
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: None
+
+# Language-specific overrides
+---
+Language: Cpp
+Standard: Latest
+DerivePointerAlignment: false
+PointerAlignment: Left
+BreakTemplateDeclarations: Yes
