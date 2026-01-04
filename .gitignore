@@ -11,3 +11,6 @@ store
 
 # clangd
 .clangd
+
+# IDE
+.code
