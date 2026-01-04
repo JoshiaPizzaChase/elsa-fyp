@@ -1,4 +1,5 @@
 # Style guide
+In the future, these will be enforced in a .clang-tidy file.
 
 ## Defining functions
 Prefer to use the trailing return syntax introduced in C++11. It provides consistent function formatting and less cluttering as return types get longer and longer.

@@ -6,7 +6,7 @@ CompileFlags:
       -ggdb,
       -O0,
       -Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion,
-      -pendantic-errors,
+      -pedantic-errors,
       -Werror, # Treat warnings as errors
       -fmodules,
     ]
