@@ -13,3 +13,6 @@ Always use standard library smart pointers, such as `std::unique_etr` and `std::
 
 ## For-loops
 Avoid explicit loops, prefer range-based for loops.
+
+## Containers
+Avoid node containers in release builds. Node containers are slow as they are dispersed throughout memory. For example, `std::list` is a node container implemented via a doubly linked list.
