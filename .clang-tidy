@@ -1,0 +1,12 @@
+Checks:
+  [
+    "-*",
+    "clang-analyzer-*",
+    "concurrency-*",
+    "cppcoreguidelines-*h",
+    "modernize-*",
+    "performance-*",
+    "readability-*",
+    "-modernize-use-trailing-return-type"
+  ]
+
