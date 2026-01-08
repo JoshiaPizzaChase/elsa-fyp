@@ -25,4 +25,4 @@ struct ExecutionReport {
     double remaining_qty;
 };
 
-#endif //ELSA_FYP_CLIENT_SDK_SERVER_RESPONSE_H
+#endif // ELSA_FYP_CLIENT_SDK_SERVER_RESPONSE_H

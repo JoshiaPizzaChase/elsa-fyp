@@ -9,7 +9,7 @@ auto bar(double y) -> double;
 ```
 
 ## Pointers
-Always use standard library smart pointers, such as `std::unique_etr` and `std::shared_ptr`. They enforce RAII and move semantics. Avoid naked `new` and `delete`, instead prefer `std::make_unique` and `std::make_shared` to replace `new`.
+Always use standard library smart pointers, such as `std::unique_ptr` and `std::shared_ptr`. They enforce RAII and move semantics. Avoid naked `new` and `delete`, instead prefer `std::make_unique` and `std::make_shared` to replace `new`.
 
 ## For-loops
 Avoid explicit loops, prefer range-based for loops.

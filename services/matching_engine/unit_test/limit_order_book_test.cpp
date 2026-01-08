@@ -163,7 +163,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
         limit_order_book.add_order(67, 100, 10, Side::Ask);
         limit_order_book.add_order(68, 101, 10, Side::Ask);
         limit_order_book.add_order(69, 99, 10, Side::Bid);
-        limit_order_book.add_order(70, std::numeric_limits<int>::max(), 25, Side::Bid); // Market order
+        limit_order_book.add_order(70, std::numeric_limits<int>::max(), 25,
+                                   Side::Bid); // Market order
 
         REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value());
@@ -178,7 +179,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
         limit_order_book.add_order(67, 100, 10, Side::Bid);
         limit_order_book.add_order(68, 99, 10, Side::Bid);
         limit_order_book.add_order(69, 101, 10, Side::Ask);
-        limit_order_book.add_order(70, std::numeric_limits<int>::min(), 25, Side::Ask); // Market order
+        limit_order_book.add_order(70, std::numeric_limits<int>::min(), 25,
+                                   Side::Ask); // Market order
 
         REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value());
