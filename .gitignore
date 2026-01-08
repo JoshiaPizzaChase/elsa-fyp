@@ -1,6 +1,6 @@
 # Project
-build*
-store
+build*/
+store/
 
 # Usual ignores
 .vscode
