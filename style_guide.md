@@ -16,3 +16,6 @@ Avoid explicit loops, prefer range-based for loops.
 
 ## Containers
 Avoid node containers in release builds. Node containers are slow as they are dispersed throughout memory. For example, `std::list` is a node container implemented via a doubly linked list.
+
+## Linting and formatting
+`.clang-format` and `.clang-tidy` have been defined to provide format rules and linting rules respectively. Feel free to add/remove opinionated rules.
