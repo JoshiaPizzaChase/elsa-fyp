@@ -9,6 +9,7 @@ if (BUILD_TESTS)
     add_subdirectory(integration_test)
 endif ()
 
-add_subdirectory(client)
-add_subdirectory(matching_engine)
 add_subdirectory(client_sdk)
+
+# Add new services here
+add_subdirectory(services/matching_engine)

@@ -7,7 +7,7 @@ enum class Side {
 };
 
 class Order {
-public:
+  public:
     Order(int order_id, int price, int quantity, Side side);
 
     [[nodiscard]] int get_order_id() const;
@@ -17,11 +17,11 @@ public:
 
     void fill(int fill_quantity);
 
-private:
+  private:
     const int order_id;
     int price;
     int quantity;
     Side side;
 };
 
-#endif //ELSA_FYP_ORDER_H
+#endif // ELSA_FYP_ORDER_H

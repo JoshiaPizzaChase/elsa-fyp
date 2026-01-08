@@ -1,19 +1,20 @@
 #include "fix_client.h"
 
-#include <chrono>
 #include "quickfix/FileStore.h"
 #include "quickfix/Session.h"
+#include <chrono>
 #include <iostream>
 #include <thread>
 
-FixClient::FixClient(const std::string & setting_file): Application() {
+FixClient::FixClient(const std::string& setting_file) : Application() {
     const FIX::SessionSettings settings(setting_file);
     FIX::FileStoreFactory file_store_factory(settings);
-    _initiator = std::unique_ptr<FIX::Initiator>(new FIX::SocketInitiator(*this, file_store_factory, settings));
+    _initiator = std::unique_ptr<FIX::Initiator>(
+        new FIX::SocketInitiator(*this, file_store_factory, settings));
 }
 
 void FixClient::connect(const int& timeout_sec) const {
-    std::cout << "Connecting to EduX..." << std::endl;
+    std::cout << "Connecting to EduX..." << '\n';
     _initiator->start();
     std::chrono::seconds timeout(timeout_sec);
     auto start = std::chrono::steady_clock::now();
@@ -29,37 +30,48 @@ void FixClient::connect(const int& timeout_sec) const {
 
 void FixClient::disconnect() {
     _initiator->stop();
-    std::cout << "Disconnected from EduX" << std::endl;
+    std::cout << "Disconnected from EduX" << '\n';
     _is_connected.store(false);
 }
 
 bool FixClient::is_connected() const {
     const bool res = _is_connected.load(std::memory_order_relaxed);
     if (!res) {
-        std::cerr << "Not connected to FIX server" << std::endl;
+        std::cerr << "Not connected to FIX server" << '\n';
     }
     return res;
 }
 
-bool FixClient::submit_market_order(const std::string &ticker, const double &quantity, const OrderSide &side, const std::string& custom_order_id) const {
-    if (!is_connected()) return false;
+bool FixClient::submit_market_order(const std::string& ticker, const double& quantity,
+                                    const OrderSide& side,
+                                    const std::string& custom_order_id) const {
+    if (!is_connected())
+        return false;
     try {
-        FIX42::NewOrderSingle new_order_fix_message = create_new_order_fix_request(ticker, quantity, side, custom_order_id);
+        FIX42::NewOrderSingle new_order_fix_message =
+            create_new_order_fix_request(ticker, quantity, side, custom_order_id);
         new_order_fix_message.set(FIX::OrdType(FIX::OrdType_MARKET));
         FIX::Session::sendToTarget(new_order_fix_message, get_session_id());
-        std::cout << "[FixClient] Market Order submitted: " << new_order_fix_message << std::endl;
+        std::cout << "[FixClient] Market Order submitted: " << new_order_fix_message << '\n';
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "[FixClient] Failed to submit market order: " << e.what() << std::endl;
+        std::cerr << "[FixClient] Failed to submit market order: " << e.what() << '\n';
         return false;
     }
 }
 
-bool FixClient::submit_limit_order(const std::string &ticker, const double &price, const double &quantity, const OrderSide &side, const TimeInForce& time_in_force, const std::string& custom_order_id) const {
-    if (!is_connected()) return false;
+bool FixClient::submit_limit_order(const std::string& ticker, const double& price,
+                                   const double& quantity, const OrderSide& side,
+                                   const TimeInForce& time_in_force,
+                                   const std::string& custom_order_id) const {
+    if (!is_connected())
+        return false;
     try {
-        std::cout << "[FixClient] Submitting limit order: " << (side == OrderSide::BUY ? "BUY " : "SELL ") << quantity << " " << ticker << "@" << price << std::endl;
-        FIX42::NewOrderSingle new_order_fix_message = create_new_order_fix_request(ticker, quantity, side, custom_order_id);
+        std::cout << "[FixClient] Submitting limit order: "
+                  << (side == OrderSide::BUY ? "BUY " : "SELL ") << quantity << " " << ticker << "@"
+                  << price << '\n';
+        FIX42::NewOrderSingle new_order_fix_message =
+            create_new_order_fix_request(ticker, quantity, side, custom_order_id);
         char tif;
         if (time_in_force == TimeInForce::GTC) {
             tif = FIX::TimeInForce_GOOD_TILL_CANCEL;
@@ -71,23 +83,26 @@ bool FixClient::submit_limit_order(const std::string &ticker, const double &pric
         new_order_fix_message.set(FIX::Price(price));
         new_order_fix_message.set(FIX::OrdType(FIX::OrdType_LIMIT));
         FIX::Session::sendToTarget(new_order_fix_message, get_session_id());
-        std::cout << "[FixClient] Limit Order submitted: " << new_order_fix_message << std::endl;
+        std::cout << "[FixClient] Limit Order submitted: " << new_order_fix_message << '\n';
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "[FixClient] Failed to submit limit order: " << e.what() << std::endl;
+        std::cerr << "[FixClient] Failed to submit limit order: " << e.what() << '\n';
         return false;
     }
 }
 
-bool FixClient::cancel_order(const std::string& ticker, const OrderSide& side, const std::string &custom_order_id) const {
-    if (!is_connected()) return false;
+bool FixClient::cancel_order(const std::string& ticker, const OrderSide& side,
+                             const std::string& custom_order_id) const {
+    if (!is_connected())
+        return false;
     try {
-        FIX42::OrderCancelRequest cancel_request = create_cancel_order_fix_request(ticker, side, custom_order_id);
+        FIX42::OrderCancelRequest cancel_request =
+            create_cancel_order_fix_request(ticker, side, custom_order_id);
         FIX::Session::sendToTarget(cancel_request, get_session_id());
-        std::cout << "[FixClient] Cancel order request submitted: " << cancel_request << std::endl;
+        std::cout << "[FixClient] Cancel order request submitted: " << cancel_request << '\n';
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "[FixClient] Failed to cancel order: " << e.what() << std::endl;
+        std::cerr << "[FixClient] Failed to cancel order: " << e.what() << '\n';
         return false;
     }
 }
@@ -103,7 +118,8 @@ FIX::SessionID FixClient::get_session_id() const {
 }
 
 // callback on order update
-void FixClient::onMessage(const FIX42::ExecutionReport &execution_report, const FIX::SessionID &session_id) {
+void FixClient::onMessage(const FIX42::ExecutionReport& execution_report,
+                          const FIX::SessionID& session_id) {
     FIX::OrderID order_id;
     FIX::ClOrdID client_order_id;
     FIX::ExecType exec_type;
@@ -139,33 +155,35 @@ void FixClient::onMessage(const FIX42::ExecutionReport &execution_report, const 
     exec_report.remaining_qty = leaves_qty;
 
     switch (order_status) {
-        case (FIX::OrdStatus_NEW): {
-            exec_report.status = OrderStatus::NEW;
-            break;
-        }
-        case (FIX::OrdStatus_FILLED): {
-            exec_report.status = OrderStatus::FILLED;
-        }
-        case (FIX::OrdStatus_PARTIALLY_FILLED): {
-            exec_report.status = OrderStatus::PARTIALLY_FILLED;
-        }
-        case (FIX::OrdStatus_CANCELED): {
-            exec_report.status = OrderStatus::CANCELED;
-            break;
-        }
-        default: {
-            std::cout << "[FixClient] Unsupported order status received: " << order_status << std::endl;
-        };
+    case (FIX::OrdStatus_NEW): {
+        exec_report.status = OrderStatus::NEW;
+        break;
+    }
+    case (FIX::OrdStatus_FILLED): {
+        exec_report.status = OrderStatus::FILLED;
+    }
+    case (FIX::OrdStatus_PARTIALLY_FILLED): {
+        exec_report.status = OrderStatus::PARTIALLY_FILLED;
+    }
+    case (FIX::OrdStatus_CANCELED): {
+        exec_report.status = OrderStatus::CANCELED;
+        break;
+    }
+    default: {
+        std::cout << "[FixClient] Unsupported order status received: " << order_status << '\n';
+    };
     }
     on_order_update(exec_report);
 }
 
 // callback on cancel rejected
-void FixClient::onMessage(const FIX42::OrderCancelReject &order_cancel_reject_response, const FIX::SessionID &session_id) {
+void FixClient::onMessage(const FIX42::OrderCancelReject& order_cancel_reject_response,
+                          const FIX::SessionID& session_id) {
     FIX::ClOrdID client_order_id;
     FIX::Text reason;
     order_cancel_reject_response.get(client_order_id);
     order_cancel_reject_response.get(reason);
-    std::cout << "[FixClient] cancel request custom_order_id=" << client_order_id << "rejected, reason = " << reason << std::endl;
+    std::cout << "[FixClient] cancel request custom_order_id=" << client_order_id
+              << "rejected, reason = " << reason << '\n';
     on_order_cancel_rejected(client_order_id, reason);
 }

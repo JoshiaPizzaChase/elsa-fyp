@@ -2,8 +2,9 @@
 
 #include <stdexcept>
 
-Order::Order(int order_id, int price, int quantity, Side side) : order_id{order_id}, price{price}, quantity{quantity},
-                                                                 side{side} {}
+Order::Order(int order_id, int price, int quantity, Side side)
+    : order_id{order_id}, price{price}, quantity{quantity}, side{side} {
+}
 
 int Order::get_order_id() const {
     return order_id;

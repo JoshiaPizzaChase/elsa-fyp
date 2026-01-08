@@ -7,6 +7,9 @@ Checks:
     "modernize-*",
     "performance-*",
     "readability-*",
-    "-modernize-use-trailing-return-type"
+    "-modernize-use-trailing-return-type",
+    "-readability-braces-around-statements",
+    "-readability-magic-numbers",
+    "-readability-named-parameter"
   ]
 
