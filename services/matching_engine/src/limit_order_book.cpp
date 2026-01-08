@@ -33,7 +33,7 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
     while (!far_side.empty() && quantity > 0) {
         const auto best_entry = (side == Side::Bid) ? std::prev(far_side.end()) : far_side.begin();
 
-        auto& best_entry_price = best_entry->first;
+        const auto& best_entry_price = best_entry->first;
         if ((side == Side::Bid && price < best_entry_price) ||
             (side == Side::Ask && price > best_entry_price)) {
             break;
@@ -90,20 +90,21 @@ std::expected<void, std::string> LimitOrderBook::cancel_order(int order_id) {
 
 std::expected<std::reference_wrapper<const Order>, std::string>
 LimitOrderBook::get_best_order(Side side) const {
-    if (const auto& side_map = (side == Side::Bid) ? bids : asks; side_map.empty()) {
+    const auto& side_map = (side == Side::Bid) ? bids : asks;
+    if (side_map.empty()) {
         return std::unexpected(
             std::format("No {} orders in order book", (side == Side::Bid) ? "bid" : "ask"));
-    } else {
-        return (side == Side::Bid) ? side_map.rbegin()->second.front()
-                                   : side_map.begin()->second.front();
     }
+
+    return (side == Side::Bid) ? side_map.rbegin()->second.front()
+                               : side_map.begin()->second.front();
 }
 
 std::expected<std::reference_wrapper<const Order>, std::string>
 LimitOrderBook::get_order_by_id(int order_id) const {
-    const auto it = order_id_map.find(order_id);
-    if (it == order_id_map.end()) {
+    const auto iter = order_id_map.find(order_id);
+    if (iter == order_id_map.end()) {
         return std::unexpected(std::format("Order ID {} not found in order book", order_id));
     }
-    return *(it->second);
+    return *(iter->second);
 }

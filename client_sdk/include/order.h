@@ -28,16 +28,16 @@ struct Order {
     std::string custom_order_id; // custom id for client's reference only
     TimeInForce time_in_force;
 
-    Order(const std::string& symbol, const double px, const double qty, const OrderSide side,
+    Order(const std::string& symbol, const double price, const double quantity, const OrderSide side,
           const OrderType order_type, const TimeInForce time_in_force)
-        : symbol(symbol), side(side), order_type(order_type), quantity(qty), price(px),
+        : symbol(symbol), side(side), order_type(order_type), quantity(quantity), price(price),
           time_in_force(time_in_force) {
     }
 
     // for Limit order
-    Order(const std::string& symbol, const double qty, const OrderSide side,
+    Order(const std::string& symbol, const double quantity, const OrderSide side,
           const OrderType order_type, const TimeInForce time_in_force)
-        : symbol(symbol), side(side), order_type(order_type), quantity(qty), price(0.0),
+        : symbol(symbol), side(side), order_type(order_type), quantity(quantity), price(0.0),
           time_in_force(time_in_force) {
     }
 };
