@@ -1,14 +1,14 @@
 #ifndef ELSA_FYP_LIMIT_ORDER_BOOK_H
 #define ELSA_FYP_LIMIT_ORDER_BOOK_H
 
+#include "order.h"
 #include <expected>
 #include <list>
 #include <map>
 #include <string>
 #include <unordered_map>
 
-#include "order.h"
-
+namespace engine { 
 class LimitOrderBook {
   public:
     std::expected<void, std::string> add_order(int order_id, int price, int quantity, Side side);
@@ -28,5 +28,7 @@ class LimitOrderBook {
                      std::map<int, std::list<Order>>& far_side, int price, int quantity,
                      int order_id, Side side);
 };
+
+} // namespace engine
 
 #endif // ELSA_FYP_LIMIT_ORDER_BOOK_H
