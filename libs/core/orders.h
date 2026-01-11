@@ -25,19 +25,23 @@ enum class TimeInForce {
 
 // For some reason, this is also needed.
 enum class ExecTransType {
-    neww,
-    cancel,
+    exectrans_new,     // New information contained in execution report.
+    exectrans_cancel,  // Cancelling the execution report.
+    exectrans_correct, // Correction in information contained in previous execution report.
+    exectrans_status // No new information contained in execution report. Only a summary of status.
 };
 
 // Not supposed to be used directly.
-// For some reason, ExecType and OrderStatus are both required but use the same possible values.
+// ExecType and OrderStatus are both required but use the same possible values.
+// ExecType describes what caused the emission of report, OrderStatus always describes current
+// state of orders.
 enum class ExecTypeOrOrderStatus {
-    neww,
-    partiallyFilled,
-    filled,
-    canceled,
-    pendingCancel,
-    rejected,
+    status_new,
+    status_partiallyFilled,
+    status_filled,
+    status_canceled,
+    status_pendingCancel,
+    status_rejected,
 };
 
 using ExecType = ExecTypeOrOrderStatus;

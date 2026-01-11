@@ -2,7 +2,6 @@
 #define CORE_CONTAINERS_H
 
 #include "orders.h"
-#include <cstdint>
 #include <optional>
 #include <stdfloat>
 #include <string>
@@ -12,6 +11,8 @@ namespace core {
 // TODO: Add constructors to ensure all members won't be accidentally missed to initialized on
 // creation.
 // TODO: Extract an abstract base struct with sender and target comp ids to enable dynamic dispatch.
+// TODO: Consider trimming these containers. We probably don't need it to be a one-to-one mapping with FIX protocol, and depends on what we need downstream.
+
 // https://www.onixs.biz/fix-dictionary/4.2/msgtype_f_70.html
 struct NewOrderRequestContainer {
     std::string senderCompId;
