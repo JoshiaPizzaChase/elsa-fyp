@@ -49,17 +49,17 @@ struct CancelOrderRequestContainer {
 struct ExecutionReportContainer {
     std::string senderCompId;
     std::string targetCompId;
-    std::string orderId;                    // Our internal ID for the order.
-    std::string clOrderId;                  // Client-defined.
-    std::optional<std::string> origClOrdID; // Only required for response to cancel order requests.
-    std::string execId;                     // Unique ID for this execution report.
-    ExecTransType execTransType;            // Describes the type of execution report.
-    ExecType execType;                      // Order event that caused the issuance of this report.
-    OrderStatus ordStatus;                  // Always the order status.
+    std::string orderId;
+    std::string clOrderId;
+    std::optional<std::string> origClOrdID;
+    std::string execId;
+    ExecTransType execTransType;
+    ExecType execType;
+    OrderStatus ordStatus;
     std::string ordRejectReason;
     std::string symbol;
     Side side;
-    std::optional<double> price; // Only required in response to limit orders.
+    std::optional<double> price;
     std::optional<TimeInForce> timeInForce;
     double leavesQty;
     double cumQty;
