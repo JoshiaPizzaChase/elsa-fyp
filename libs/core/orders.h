@@ -43,10 +43,9 @@ enum class ExecTypeOrOrderStatus {
 using ExecType = ExecTypeOrOrderStatus;
 using OrderStatus = ExecTypeOrOrderStatus;
 
-// TODO: Move these to a cpp file to prevent ODR violation
-
+// TODO: Move these to a cpp file to prevent ODR violation and inlining everything
 // Convert from FIX types to internal types
-Side convertToInternal(const FIX::Side& side) {
+inline Side convertToInternal(const FIX::Side& side) {
     constexpr auto errorMsg{"Unsupported Side, use buy or sell"};
     assert((side == FIX::Side_BUY || side == FIX::Side_SELL) && errorMsg);
 
@@ -60,7 +59,7 @@ Side convertToInternal(const FIX::Side& side) {
     }
 }
 
-OrderType convertToInternal(const FIX::OrdType& ordType) {
+inline OrderType convertToInternal(const FIX::OrdType& ordType) {
     constexpr auto errorMsg{"Unsupported Order Type, use limit or market"};
     assert((ordType == FIX::OrdType_LIMIT || ordType == FIX::OrdType_MARKET) && errorMsg);
 
@@ -74,7 +73,7 @@ OrderType convertToInternal(const FIX::OrdType& ordType) {
     }
 }
 
-TimeInForce convertToInternal(const FIX::TimeInForce& tif) {
+inline TimeInForce convertToInternal(const FIX::TimeInForce& tif) {
     constexpr auto errorMsg{"Unsupported Time In Force, use day"};
     assert(tif == FIX::TimeInForce_DAY && errorMsg);
 
@@ -87,7 +86,7 @@ TimeInForce convertToInternal(const FIX::TimeInForce& tif) {
 }
 
 // Convert from internal types to FIX types
-FIX::Side convertToFIX(Side side) {
+inline FIX::Side convertToFIX(Side side) {
     constexpr auto errorMsg{"Unsupported side"};
     assert((side == Side::bid || side == Side::ask) && errorMsg);
 
@@ -101,7 +100,7 @@ FIX::Side convertToFIX(Side side) {
     }
 }
 
-FIX::OrdType convertToFIX(OrderType ordType) {
+inline FIX::OrdType convertToFIX(OrderType ordType) {
     constexpr auto errorMsg{"Unsupported order type"};
     assert((ordType == OrderType::limit || ordType == OrderType::market) && errorMsg);
 
@@ -115,7 +114,7 @@ FIX::OrdType convertToFIX(OrderType ordType) {
     }
 }
 
-FIX::TimeInForce convertToFIX(TimeInForce tif) {
+inline FIX::TimeInForce convertToFIX(TimeInForce tif) {
     constexpr auto errorMsg{"Unsupported time in force"};
     assert(tif == TimeInForce::day && errorMsg);
 

@@ -1,17 +1,19 @@
 #ifndef GATEWAY_APPLICATION_H
 #define GATEWAY_APPLICATION_H
 
-#include "pods.h"
-#include "quickfix/Application.h"
-#include "quickfix/MessageCracker.h"
+#include "id_generator.h"
+#include <quickfix/Application.h>
 #include <quickfix/Except.h>
+#include <quickfix/FixCommonFields.h>
+#include <quickfix/FixFields.h>
+#include <quickfix/MessageCracker.h>
 #include <quickfix/fix42/OrderCancelRequest.h>
 
 namespace gateway {
 
 class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
   public:
-    GatewayApplication();
+    GatewayApplication() = default;
 
     void onCreate(const FIX::SessionID&) override;
     void onLogon(const FIX::SessionID&) override;
@@ -26,20 +28,22 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
                FIX::UnsupportedMessageType);
 
     /*
-     * INBOUND MESSAGE HANDLERS
-     * Only support FIX4.2.
+     * INBOUND MESSAGE HANDLERS.
+     * To handle new FIX messages, e.g. cancel-replace requests, add a new message handler here.
      */
     void onMessage(const FIX42::NewOrderSingle&, const FIX::SessionID&) override;
     void onMessage(const FIX42::OrderCancelRequest&, const FIX::SessionID&) override;
-    // TODO: Implement reject message.
 
     /*
      * OUTBOUND MESSAGE HANDLERS
      */
-    void rejectMessage();
-    void sendMessageAsync(const transport::MessagePod& pod);
+    void rejectMessage(const FIX::SenderCompID& sender, const FIX::TargetCompID& target,
+                       const FIX::ClOrdID& clOrdId, const FIX::Symbol& symbol,
+                       const FIX::Side& side, const std::string& rejectReason);
+    void sendContainer();
 
   private:
+    IDGenerator m_idGenerator;
 };
 
 } // namespace gateway
