@@ -10,9 +10,8 @@ class IDGenerator {
     IDGenerator() = default;
 
     std::string genExecutionID() {
-        const auto now_utc = std::format("{:%Y%m%d%H%M}", std::chrono::utc_clock::now());
-        // adding gateway and date to maintain uniqueness across days and services
-        return std::format("gateway_{}_{}", now_utc, std::to_string(++m_executionID));
+        // TODO: Replace with uuid + gateway id
+        return std::to_string(++m_executionID);
     }
 
   private:
