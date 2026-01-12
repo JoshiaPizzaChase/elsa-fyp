@@ -3,7 +3,6 @@
 
 #include <nlohmann/json.hpp>
 
-
 using json = nlohmann::json;
 
 namespace transport {
@@ -14,6 +13,13 @@ namespace transport {
     // send over network
     // receive from network
     // use asio 
+    
+    void toJson();
+    void fromJson();
+    void send();
+    void receive();
+
+
 
 
 }
