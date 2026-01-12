@@ -1,6 +1,6 @@
 #include "gateway_application.h"
-#include "containers.h"
-#include "orders.h"
+#include "core/containers.h"
+#include "core/orders.h"
 #include <optional>
 #include <print>
 #include <quickfix/FixFields.h>
@@ -125,13 +125,15 @@ void GatewayApplication::onMessage(const FIX42::OrderCancelRequest& message,
         };
 
         // sendContainer(cancelOrderRequest);
-        
+
     } catch (const std::exception& e) {
         std::println(stderr, "[Gateway] Error: {}", e.what());
         rejectMessage(senderCompId, targetCompId, clOrdId, symbol, side, e.what());
     }
 };
 
+// TODO: Persist these rejected messages as these never go to order manager!
+// TODO: Should we reject here or passthrough to order manager anyways?
 void GatewayApplication::rejectMessage(const FIX::SenderCompID& sender,
                                        const FIX::TargetCompID& target, const FIX::ClOrdID& clOrdId,
                                        const FIX::Symbol& symbol, const FIX::Side& side,

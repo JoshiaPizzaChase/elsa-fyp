@@ -13,3 +13,4 @@ add_subdirectory(client_sdk)
 
 # Add new services here
 add_subdirectory(services/matching_engine)
+add_subdirectory(services/gateway)
