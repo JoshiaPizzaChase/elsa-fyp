@@ -71,7 +71,7 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
         }
         message.get(timeInForce);
 
-        core::NewOrderRequestContainer newOrderRequest{
+        core::NewOrderSingleContainer newOrderRequest{
             .senderCompId = senderCompId,
             .targetCompId = targetCompId,
             .clOrdId = clOrdId,
@@ -165,8 +165,16 @@ void GatewayApplication::rejectMessage(const FIX::SenderCompID& sender,
     }
 }
 
-void GatewayApplication::sendContainer() {
+void GatewayApplication::sendContainer(const core::NewOrderSingleContainer& container) {
     throw std::runtime_error("unimplemented");
-};
+}
+
+void GatewayApplication::sendContainer(const core::CancelOrderRequestContainer& container) {
+    throw std::runtime_error("unimplemented");
+}
+
+void GatewayApplication::sendContainer(const core::ExecutionReportContainer& container) {
+    throw std::runtime_error("unimplemented");
+}
 
 } // namespace gateway

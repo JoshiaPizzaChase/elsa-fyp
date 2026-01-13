@@ -30,3 +30,7 @@ target_link_libraries(gateway_unit_test PUBLIC
 )
 target_include_directories(gateway_unit_test PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(gateway_unit_test PUBLIC ${QuickFIX_CFLAGS_OTHER})
+
+# link to catch2 library
+target_link_libraries(gateway_unit_test PRIVATE Catch2::Catch2WithMain)
+catch_discover_tests(gateway_unit_test)

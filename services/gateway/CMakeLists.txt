@@ -22,7 +22,7 @@ find_package(Threads REQUIRED)
 find_package(LibXml2 REQUIRED)
 find_package(ZLIB REQUIRED)
 
-# Find QuickFIX via pkg-config
+# Find QuickFIX via pkg-confij
 # pkg_check_modules(QuickFIX REQUIRED quickfix)
 
 # Find QuickFIX in user-installed library paths

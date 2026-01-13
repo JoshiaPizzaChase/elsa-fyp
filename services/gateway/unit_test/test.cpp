@@ -2,15 +2,29 @@
 #include "quickfix/FileStore.h"
 #include "quickfix/SessionSettings.h"
 #include "quickfix/SocketAcceptor.h"
+#include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <iostream>
+#include <websocketpp/roles/client_endpoint.hpp>
+
+#include <websocketpp/client.hpp>
+#include <websocketpp/config/asio_no_tls_client.hpp>
+
+using client = websocketpp::client<websocketpp::config::asio_client>;
+
+using websocketpp::lib::bind;
+using websocketpp::lib::placeholders::_1;
+using websocketpp::lib::placeholders::_2;
+
+// pull out the type of messages sent by our config
+using message_ptr = websocketpp::config::asio_client::message_type::ptr;
 
 namespace fs = std::filesystem;
 
-int main(int argc, char** argv) {
+int test_gateway_start_stop() {
     try {
         fs::path configFileName = "example_config_server.cfg";
-        fs::path pathToConfig = fs::current_path() / configFileName;
+        fs::path pathToConfig = fs::current_path() / "configs" / configFileName;
 
         FIX::SessionSettings settings(pathToConfig);
 
@@ -21,9 +35,16 @@ int main(int argc, char** argv) {
 
         acceptor.start();
         acceptor.stop();
+
         return 0;
     } catch (std::exception& e) {
-        std::cout << e.what() << '\n';
+        std::cerr << e.what() << '\n';
         return 1;
     }
 }
+
+
+TEST_CASE("Gateway Application starts and stops properly") {
+    REQUIRE(test_gateway_start_stop() == 0);
+}
+

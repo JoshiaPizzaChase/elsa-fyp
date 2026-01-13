@@ -1,0 +1,89 @@
+edition = "2024";
+
+package transport;
+
+// Basic enums
+
+enum OrderType {
+  ORDER_TYPE_UNSPECIFIED = 0;
+  ORDER_TYPE_LIMIT = 1;   // limit
+  ORDER_TYPE_MARKET = 2;  // market
+}
+
+enum Side {
+  SIDE_UNSPECIFIED = 0;
+  SIDE_BID = 1;  // bid
+  SIDE_ASK = 2;  // ask
+}
+
+enum TimeInForce {
+  TIF_UNSPECIFIED = 0;
+  TIF_DAY = 1;  // day
+}
+
+// Describes the "category" of the execution report.
+enum ExecTransType {
+  EXEC_TRANS_TYPE_UNSPECIFIED = 0;
+  EXEC_TRANS_NEW = 1;      // exectrans_new
+  EXEC_TRANS_CANCEL = 2;   // exectrans_cancel
+  EXEC_TRANS_CORRECT = 3;  // exectrans_correct
+  EXEC_TRANS_STATUS = 4;   // exectrans_status
+}
+
+// Shared enum for ExecType and OrderStatus.
+enum ExecTypeOrOrderStatus {
+  EXEC_TYPE_OR_ORDER_STATUS_UNSPECIFIED = 0;
+  STATUS_NEW = 1;               // status_new
+  STATUS_PARTIALLY_FILLED = 2;  // status_partiallyFilled
+  STATUS_FILLED = 3;            // status_filled
+  STATUS_CANCELED = 4;          // status_canceled
+  STATUS_PENDING_CANCEL = 5;    // status_pendingCancel
+  STATUS_REJECTED = 6;          // status_rejected
+}
+
+// New order single equivalent
+message NewOrderSingleContainer {
+  string sender_comp_id = 1;
+  string target_comp_id = 2;
+  string cl_ord_id = 3;
+  string symbol = 4;
+  Side side = 5;
+  double order_qty = 6;
+  OrderType ord_type = 7;
+  double price = 8;           // Only for limit orders.
+  TimeInForce time_in_force = 9;
+}
+
+// Order cancel request equivalent
+message CancelOrderRequestContainer {
+  string sender_comp_id = 1;
+  string target_comp_id = 2;
+  string order_id = 3;
+  string orig_cl_ord_id = 4;  // Original ClOrdID.
+  string cl_ord_id = 5;
+  string symbol = 6;
+  Side side = 7;
+  double order_qty = 8;
+}
+
+// Execution report equivalent
+message ExecutionReportContainer {
+  string sender_comp_id = 1;
+  string target_comp_id = 2;
+  string order_id = 3;                     // Internal order ID.
+  string cl_order_id = 4;                  // Client-defined.
+  string orig_cl_ord_id = 5;      // For cancel responses.
+  string exec_id = 6;                      // Unique report ID.
+  ExecTransType exec_trans_type = 7;       // Category of report.
+  ExecTypeOrOrderStatus exec_type = 8;     // Event causing report.
+  ExecTypeOrOrderStatus ord_status = 9;    // Current order status.
+  string ord_reject_reason = 10;
+  string symbol = 11;
+  Side side = 12;
+  double price = 13;              // For limit orders.
+  TimeInForce time_in_force = 14;
+  double leaves_qty = 15;
+  double cum_qty = 16;
+  double avg_px = 17;
+}
+

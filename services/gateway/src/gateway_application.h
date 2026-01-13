@@ -1,7 +1,9 @@
 #ifndef GATEWAY_APPLICATION_H
 #define GATEWAY_APPLICATION_H
 
+#include "containers.h"
 #include "id_generator.h"
+#include "transport/messaging.h"
 #include <quickfix/Application.h>
 #include <quickfix/Except.h>
 #include <quickfix/FixCommonFields.h>
@@ -13,6 +15,7 @@ namespace gateway {
 
 class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
   public:
+    // TODO: Initialise websocket client properly
     GatewayApplication() = default;
 
     void onCreate(const FIX::SessionID&) override;
@@ -40,10 +43,14 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
     void rejectMessage(const FIX::SenderCompID& sender, const FIX::TargetCompID& target,
                        const FIX::ClOrdID& clOrdId, const FIX::Symbol& symbol,
                        const FIX::Side& side, const std::string& rejectReason);
-    void sendContainer();
+    // TODO: Refactor to nicer design pattern later.
+    void sendContainer(const core::NewOrderSingleContainer& container);
+    void sendContainer(const core::CancelOrderRequestContainer& container);
+    void sendContainer(const core::ExecutionReportContainer& container);
 
   private:
     IDGenerator m_idGenerator;
+    transport::OrderManagerClient orderManagerClient;
 };
 
 } // namespace gateway

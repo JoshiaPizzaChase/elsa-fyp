@@ -9,11 +9,16 @@ namespace core {
 
 // TODO: Add constructors to ensure all members won't be accidentally missed to initialized on
 // creation.
-// TODO: Extract an abstract base struct with sender and target comp ids to enable dynamic dispatch.
-// TODO: Consider trimming these containers. We probably don't need it to be a one-to-one mapping with FIX protocol, and depends on what we need downstream.
+// TODO: Idea: Extract an abstract base struct with sender and target comp ids to enable dynamic
+// dispatch?
+// TODO: Idea 2: Consider using designated initializers (C++20) for better readability on
+// construction?
+// TODO: Idea 3: Consider using std::variant?
+// TODO: Consider trimming these containers. We probably don't need it to be a one-to-one mapping
+// with FIX protocol, and depends on what we need downstream.
 
 // https://www.onixs.biz/fix-dictionary/4.2/msgtype_f_70.html
-struct NewOrderRequestContainer {
+struct NewOrderSingleContainer {
     std::string senderCompId;
     std::string targetCompId;
     std::string clOrdId;
