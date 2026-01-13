@@ -87,3 +87,11 @@ message ExecutionReportContainer {
   double avg_px = 17;
 }
 
+// This is intended to switching upon deserialization to determine which container type is being sent.
+message ContainerWrapper {
+  oneof container {
+    NewOrderSingleContainer new_order_single = 1;
+    CancelOrderRequestContainer cancel_order_request = 2;
+    ExecutionReportContainer execution_report = 3;
+  }
+}

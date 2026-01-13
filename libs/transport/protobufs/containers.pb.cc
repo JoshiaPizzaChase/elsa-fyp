@@ -167,6 +167,32 @@ struct CancelOrderRequestContainerDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 CancelOrderRequestContainerDefaultTypeInternal _CancelOrderRequestContainer_default_instance_;
+
+inline constexpr ContainerWrapper::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : container_{},
+        _cached_size_{0},
+        _oneof_case_{} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR ContainerWrapper::ContainerWrapper(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(ContainerWrapper_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct ContainerWrapperDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ContainerWrapperDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ContainerWrapperDefaultTypeInternal() {}
+  union {
+    ContainerWrapper _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ContainerWrapperDefaultTypeInternal _ContainerWrapper_default_instance_;
 }  // namespace transport
 static const ::_pb::EnumDescriptor* PROTOBUF_NONNULL
     file_level_enum_descriptors_containers_2eproto[5];
@@ -252,6 +278,12 @@ const ::uint32_t
         13,
         14,
         15,
+        0x004, // bitmap
+        PROTOBUF_FIELD_OFFSET(::transport::ContainerWrapper, _impl_._oneof_case_[0]),
+        PROTOBUF_FIELD_OFFSET(::transport::ContainerWrapper, _impl_.container_),
+        PROTOBUF_FIELD_OFFSET(::transport::ContainerWrapper, _impl_.container_),
+        PROTOBUF_FIELD_OFFSET(::transport::ContainerWrapper, _impl_.container_),
+        PROTOBUF_FIELD_OFFSET(::transport::ContainerWrapper, _impl_.container_),
 };
 
 static const ::_pbi::MigrationSchema
@@ -259,11 +291,13 @@ static const ::_pbi::MigrationSchema
         {0, sizeof(::transport::NewOrderSingleContainer)},
         {21, sizeof(::transport::CancelOrderRequestContainer)},
         {40, sizeof(::transport::ExecutionReportContainer)},
+        {77, sizeof(::transport::ContainerWrapper)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::transport::_NewOrderSingleContainer_default_instance_._instance,
     &::transport::_CancelOrderRequestContainer_default_instance_._instance,
     &::transport::_ExecutionReportContainer_default_instance_._instance,
+    &::transport::_ContainerWrapper_default_instance_._instance,
 };
 const char descriptor_table_protodef_containers_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
@@ -292,32 +326,38 @@ const char descriptor_table_protodef_containers_2eproto[] ABSL_ATTRIBUTE_SECTION
     "ort.Side\022\r\n\005price\030\r \001(\001\022-\n\rtime_in_force"
     "\030\016 \001(\0162\026.transport.TimeInForce\022\022\n\nleaves"
     "_qty\030\017 \001(\001\022\017\n\007cum_qty\030\020 \001(\001\022\016\n\006avg_px\030\021 "
-    "\001(\001*T\n\tOrderType\022\032\n\026ORDER_TYPE_UNSPECIFI"
-    "ED\020\000\022\024\n\020ORDER_TYPE_LIMIT\020\001\022\025\n\021ORDER_TYPE"
-    "_MARKET\020\002*8\n\004Side\022\024\n\020SIDE_UNSPECIFIED\020\000\022"
-    "\014\n\010SIDE_BID\020\001\022\014\n\010SIDE_ASK\020\002*/\n\013TimeInFor"
-    "ce\022\023\n\017TIF_UNSPECIFIED\020\000\022\013\n\007TIF_DAY\020\001*\212\001\n"
-    "\rExecTransType\022\037\n\033EXEC_TRANS_TYPE_UNSPEC"
-    "IFIED\020\000\022\022\n\016EXEC_TRANS_NEW\020\001\022\025\n\021EXEC_TRAN"
-    "S_CANCEL\020\002\022\026\n\022EXEC_TRANS_CORRECT\020\003\022\025\n\021EX"
-    "EC_TRANS_STATUS\020\004*\307\001\n\025ExecTypeOrOrderSta"
-    "tus\022)\n%EXEC_TYPE_OR_ORDER_STATUS_UNSPECI"
-    "FIED\020\000\022\016\n\nSTATUS_NEW\020\001\022\033\n\027STATUS_PARTIAL"
-    "LY_FILLED\020\002\022\021\n\rSTATUS_FILLED\020\003\022\023\n\017STATUS"
-    "_CANCELED\020\004\022\031\n\025STATUS_PENDING_CANCEL\020\005\022\023"
-    "\n\017STATUS_REJECTED\020\006b\010editionsp\351\007"
+    "\001(\001\"\350\001\n\020ContainerWrapper\022>\n\020new_order_si"
+    "ngle\030\001 \001(\0132\".transport.NewOrderSingleCon"
+    "tainerH\000\022F\n\024cancel_order_request\030\002 \001(\0132&"
+    ".transport.CancelOrderRequestContainerH\000"
+    "\022\?\n\020execution_report\030\003 \001(\0132#.transport.E"
+    "xecutionReportContainerH\000B\013\n\tcontainer*T"
+    "\n\tOrderType\022\032\n\026ORDER_TYPE_UNSPECIFIED\020\000\022"
+    "\024\n\020ORDER_TYPE_LIMIT\020\001\022\025\n\021ORDER_TYPE_MARK"
+    "ET\020\002*8\n\004Side\022\024\n\020SIDE_UNSPECIFIED\020\000\022\014\n\010SI"
+    "DE_BID\020\001\022\014\n\010SIDE_ASK\020\002*/\n\013TimeInForce\022\023\n"
+    "\017TIF_UNSPECIFIED\020\000\022\013\n\007TIF_DAY\020\001*\212\001\n\rExec"
+    "TransType\022\037\n\033EXEC_TRANS_TYPE_UNSPECIFIED"
+    "\020\000\022\022\n\016EXEC_TRANS_NEW\020\001\022\025\n\021EXEC_TRANS_CAN"
+    "CEL\020\002\022\026\n\022EXEC_TRANS_CORRECT\020\003\022\025\n\021EXEC_TR"
+    "ANS_STATUS\020\004*\307\001\n\025ExecTypeOrOrderStatus\022)"
+    "\n%EXEC_TYPE_OR_ORDER_STATUS_UNSPECIFIED\020"
+    "\000\022\016\n\nSTATUS_NEW\020\001\022\033\n\027STATUS_PARTIALLY_FI"
+    "LLED\020\002\022\021\n\rSTATUS_FILLED\020\003\022\023\n\017STATUS_CANC"
+    "ELED\020\004\022\031\n\025STATUS_PENDING_CANCEL\020\005\022\023\n\017STA"
+    "TUS_REJECTED\020\006b\010editionsp\351\007"
 };
 static ::absl::once_flag descriptor_table_containers_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_containers_2eproto = {
     false,
     false,
-    1552,
+    1787,
     descriptor_table_protodef_containers_2eproto,
     "containers.proto",
     &descriptor_table_containers_2eproto_once,
     nullptr,
     0,
-    3,
+    4,
     schemas,
     file_default_instances,
     TableStruct_containers_2eproto::offsets,
@@ -2022,6 +2062,420 @@ void ExecutionReportContainer::InternalSwap(ExecutionReportContainer* PROTOBUF_R
 }
 
 ::google::protobuf::Metadata ExecutionReportContainer::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+class ContainerWrapper::_Internal {
+ public:
+  static constexpr ::int32_t kOneofCaseOffset =
+      PROTOBUF_FIELD_OFFSET(::transport::ContainerWrapper, _impl_._oneof_case_);
+};
+
+void ContainerWrapper::set_allocated_new_order_single(::transport::NewOrderSingleContainer* PROTOBUF_NULLABLE new_order_single) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  clear_container();
+  if (new_order_single) {
+    ::google::protobuf::Arena* submessage_arena = new_order_single->GetArena();
+    if (message_arena != submessage_arena) {
+      new_order_single = ::google::protobuf::internal::GetOwnedMessage(message_arena, new_order_single, submessage_arena);
+    }
+    set_has_new_order_single();
+    _impl_.container_.new_order_single_ = new_order_single;
+  }
+  // @@protoc_insertion_point(field_set_allocated:transport.ContainerWrapper.new_order_single)
+}
+void ContainerWrapper::set_allocated_cancel_order_request(::transport::CancelOrderRequestContainer* PROTOBUF_NULLABLE cancel_order_request) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  clear_container();
+  if (cancel_order_request) {
+    ::google::protobuf::Arena* submessage_arena = cancel_order_request->GetArena();
+    if (message_arena != submessage_arena) {
+      cancel_order_request = ::google::protobuf::internal::GetOwnedMessage(message_arena, cancel_order_request, submessage_arena);
+    }
+    set_has_cancel_order_request();
+    _impl_.container_.cancel_order_request_ = cancel_order_request;
+  }
+  // @@protoc_insertion_point(field_set_allocated:transport.ContainerWrapper.cancel_order_request)
+}
+void ContainerWrapper::set_allocated_execution_report(::transport::ExecutionReportContainer* PROTOBUF_NULLABLE execution_report) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  clear_container();
+  if (execution_report) {
+    ::google::protobuf::Arena* submessage_arena = execution_report->GetArena();
+    if (message_arena != submessage_arena) {
+      execution_report = ::google::protobuf::internal::GetOwnedMessage(message_arena, execution_report, submessage_arena);
+    }
+    set_has_execution_report();
+    _impl_.container_.execution_report_ = execution_report;
+  }
+  // @@protoc_insertion_point(field_set_allocated:transport.ContainerWrapper.execution_report)
+}
+ContainerWrapper::ContainerWrapper(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, ContainerWrapper_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:transport.ContainerWrapper)
+}
+PROTOBUF_NDEBUG_INLINE ContainerWrapper::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::transport::ContainerWrapper& from_msg)
+      : container_{},
+        _cached_size_{0},
+        _oneof_case_{from._oneof_case_[0]} {}
+
+ContainerWrapper::ContainerWrapper(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const ContainerWrapper& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, ContainerWrapper_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  ContainerWrapper* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  switch (container_case()) {
+    case CONTAINER_NOT_SET:
+      break;
+      case kNewOrderSingle:
+        _impl_.container_.new_order_single_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.container_.new_order_single_);
+        break;
+      case kCancelOrderRequest:
+        _impl_.container_.cancel_order_request_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.container_.cancel_order_request_);
+        break;
+      case kExecutionReport:
+        _impl_.container_.execution_report_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.container_.execution_report_);
+        break;
+  }
+
+  // @@protoc_insertion_point(copy_constructor:transport.ContainerWrapper)
+}
+PROTOBUF_NDEBUG_INLINE ContainerWrapper::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : container_{},
+        _cached_size_{0},
+        _oneof_case_{} {}
+
+inline void ContainerWrapper::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+}
+ContainerWrapper::~ContainerWrapper() {
+  // @@protoc_insertion_point(destructor:transport.ContainerWrapper)
+  SharedDtor(*this);
+}
+inline void ContainerWrapper::SharedDtor(MessageLite& self) {
+  ContainerWrapper& this_ = static_cast<ContainerWrapper&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  if (this_.has_container()) {
+    this_.clear_container();
+  }
+  this_._impl_.~Impl_();
+}
+
+void ContainerWrapper::clear_container() {
+// @@protoc_insertion_point(one_of_clear_start:transport.ContainerWrapper)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  switch (container_case()) {
+    case kNewOrderSingle: {
+      if (GetArena() == nullptr) {
+        delete _impl_.container_.new_order_single_;
+      } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+        ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.container_.new_order_single_);
+      }
+      break;
+    }
+    case kCancelOrderRequest: {
+      if (GetArena() == nullptr) {
+        delete _impl_.container_.cancel_order_request_;
+      } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+        ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.container_.cancel_order_request_);
+      }
+      break;
+    }
+    case kExecutionReport: {
+      if (GetArena() == nullptr) {
+        delete _impl_.container_.execution_report_;
+      } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+        ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.container_.execution_report_);
+      }
+      break;
+    }
+    case CONTAINER_NOT_SET: {
+      break;
+    }
+  }
+  _impl_._oneof_case_[0] = CONTAINER_NOT_SET;
+}
+
+
+inline void* PROTOBUF_NONNULL ContainerWrapper::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) ContainerWrapper(arena);
+}
+constexpr auto ContainerWrapper::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::ZeroInit(sizeof(ContainerWrapper),
+                                            alignof(ContainerWrapper));
+}
+constexpr auto ContainerWrapper::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_ContainerWrapper_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &ContainerWrapper::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<ContainerWrapper>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &ContainerWrapper::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<ContainerWrapper>(), &ContainerWrapper::ByteSizeLong,
+              &ContainerWrapper::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(ContainerWrapper, _impl_._cached_size_),
+          false,
+      },
+      &ContainerWrapper::kDescriptorMethods,
+      &descriptor_table_containers_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull ContainerWrapper_class_data_ =
+        ContainerWrapper::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+ContainerWrapper::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&ContainerWrapper_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(ContainerWrapper_class_data_.tc_table);
+  return ContainerWrapper_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<0, 3, 3, 0, 2>
+ContainerWrapper::_table_ = {
+  {
+    0,  // no _has_bits_
+    0, // no _extensions_
+    3, 0,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967288,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    3,  // num_field_entries
+    3,  // num_aux_entries
+    offsetof(decltype(_table_), aux_entries),
+    ContainerWrapper_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::transport::ContainerWrapper>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    {::_pbi::TcParser::MiniParse, {}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // .transport.NewOrderSingleContainer new_order_single = 1;
+    {PROTOBUF_FIELD_OFFSET(ContainerWrapper, _impl_.container_.new_order_single_), _Internal::kOneofCaseOffset + 0, 0, (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .transport.CancelOrderRequestContainer cancel_order_request = 2;
+    {PROTOBUF_FIELD_OFFSET(ContainerWrapper, _impl_.container_.cancel_order_request_), _Internal::kOneofCaseOffset + 0, 1, (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .transport.ExecutionReportContainer execution_report = 3;
+    {PROTOBUF_FIELD_OFFSET(ContainerWrapper, _impl_.container_.execution_report_), _Internal::kOneofCaseOffset + 0, 2, (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+  }},
+  {{
+      {::_pbi::TcParser::GetTable<::transport::NewOrderSingleContainer>()},
+      {::_pbi::TcParser::GetTable<::transport::CancelOrderRequestContainer>()},
+      {::_pbi::TcParser::GetTable<::transport::ExecutionReportContainer>()},
+  }},
+  {{
+  }},
+};
+PROTOBUF_NOINLINE void ContainerWrapper::Clear() {
+// @@protoc_insertion_point(message_clear_start:transport.ContainerWrapper)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  clear_container();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL ContainerWrapper::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const ContainerWrapper& this_ = static_cast<const ContainerWrapper&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL ContainerWrapper::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const ContainerWrapper& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:transport.ContainerWrapper)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  switch (this_.container_case()) {
+    case kNewOrderSingle: {
+      target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+          1, *this_._impl_.container_.new_order_single_, this_._impl_.container_.new_order_single_->GetCachedSize(), target,
+          stream);
+      break;
+    }
+    case kCancelOrderRequest: {
+      target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+          2, *this_._impl_.container_.cancel_order_request_, this_._impl_.container_.cancel_order_request_->GetCachedSize(), target,
+          stream);
+      break;
+    }
+    case kExecutionReport: {
+      target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+          3, *this_._impl_.container_.execution_report_, this_._impl_.container_.execution_report_->GetCachedSize(), target,
+          stream);
+      break;
+    }
+    default:
+      break;
+  }
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:transport.ContainerWrapper)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t ContainerWrapper::ByteSizeLong(const MessageLite& base) {
+  const ContainerWrapper& this_ = static_cast<const ContainerWrapper&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t ContainerWrapper::ByteSizeLong() const {
+  const ContainerWrapper& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:transport.ContainerWrapper)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  switch (this_.container_case()) {
+    // .transport.NewOrderSingleContainer new_order_single = 1;
+    case kNewOrderSingle: {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.container_.new_order_single_);
+      break;
+    }
+    // .transport.CancelOrderRequestContainer cancel_order_request = 2;
+    case kCancelOrderRequest: {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.container_.cancel_order_request_);
+      break;
+    }
+    // .transport.ExecutionReportContainer execution_report = 3;
+    case kExecutionReport: {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.container_.execution_report_);
+      break;
+    }
+    case CONTAINER_NOT_SET: {
+      break;
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void ContainerWrapper::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                            const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this =
+      static_cast<ContainerWrapper*>(&to_msg);
+  auto& from = static_cast<const ContainerWrapper&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  ::google::protobuf::Arena* arena = _this->GetArena();
+  // @@protoc_insertion_point(class_specific_merge_from_start:transport.ContainerWrapper)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  if (const uint32_t oneof_from_case =
+          from._impl_._oneof_case_[0]) {
+    const uint32_t oneof_to_case = _this->_impl_._oneof_case_[0];
+    const bool oneof_needs_init = oneof_to_case != oneof_from_case;
+    if (oneof_needs_init) {
+      if (oneof_to_case != 0) {
+        _this->clear_container();
+      }
+      _this->_impl_._oneof_case_[0] = oneof_from_case;
+    }
+
+    switch (oneof_from_case) {
+      case kNewOrderSingle: {
+        if (oneof_needs_init) {
+          _this->_impl_.container_.new_order_single_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.container_.new_order_single_);
+        } else {
+          _this->_impl_.container_.new_order_single_->MergeFrom(*from._impl_.container_.new_order_single_);
+        }
+        break;
+      }
+      case kCancelOrderRequest: {
+        if (oneof_needs_init) {
+          _this->_impl_.container_.cancel_order_request_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.container_.cancel_order_request_);
+        } else {
+          _this->_impl_.container_.cancel_order_request_->MergeFrom(*from._impl_.container_.cancel_order_request_);
+        }
+        break;
+      }
+      case kExecutionReport: {
+        if (oneof_needs_init) {
+          _this->_impl_.container_.execution_report_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.container_.execution_report_);
+        } else {
+          _this->_impl_.container_.execution_report_->MergeFrom(*from._impl_.container_.execution_report_);
+        }
+        break;
+      }
+      case CONTAINER_NOT_SET:
+        break;
+    }
+  }
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void ContainerWrapper::CopyFrom(const ContainerWrapper& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:transport.ContainerWrapper)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void ContainerWrapper::InternalSwap(ContainerWrapper* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_.container_, other->_impl_.container_);
+  swap(_impl_._oneof_case_[0], other->_impl_._oneof_case_[0]);
+}
+
+::google::protobuf::Metadata ContainerWrapper::GetMetadata() const {
   return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
 }
 // @@protoc_insertion_point(namespace_scope)

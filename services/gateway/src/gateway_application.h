@@ -1,7 +1,7 @@
 #ifndef GATEWAY_APPLICATION_H
 #define GATEWAY_APPLICATION_H
 
-#include "containers.h"
+#include "core/containers.h"
 #include "id_generator.h"
 #include "transport/messaging.h"
 #include <quickfix/Application.h>
