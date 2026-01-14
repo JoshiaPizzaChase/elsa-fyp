@@ -5,6 +5,7 @@ store/
 # Usual ignores
 .vscode
 .env
+.idea
 
 # Prerequisites
 *.d
