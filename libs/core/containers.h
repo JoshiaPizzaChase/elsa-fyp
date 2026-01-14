@@ -23,6 +23,7 @@ struct NewOrderSingleContainer {
     std::string targetCompId;
     std::string clOrdId;
     std::string symbol;
+    // TODO: add account field to let one "broker" have many "comps"
     Side side;
     double orderQty;
     OrderType ordType;
@@ -38,6 +39,7 @@ struct CancelOrderRequestContainer {
     std::string origClOrdId; // Original clOrdId for the order this cancel request is for.
     std::string clOrdId;
     std::string symbol;
+    // TODO: add account field to let one "broker" have many "comps"
     Side side;
     double orderQty;
 };

@@ -11,5 +11,6 @@ Checks:
     "-readability-braces-around-statements",
     "-readability-magic-numbers",
     "-readability-named-parameter"
+    "-readability-readability-identifier-length"
   ]
 
