@@ -3,7 +3,7 @@
 
 #include "core/containers.h"
 #include "id_generator.h"
-#include "transport/messaging.h"
+#include "transport/websocket_client.h"
 #include <quickfix/Application.h>
 #include <quickfix/Except.h>
 #include <quickfix/FixCommonFields.h>
