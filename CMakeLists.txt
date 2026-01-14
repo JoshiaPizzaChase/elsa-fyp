@@ -26,6 +26,7 @@ add_subdirectory(client_sdk)
 
 # Add new services here
 add_subdirectory(services/matching_engine)
+add_subdirectory(services/order_manager)
 add_subdirectory(services/gateway)
 add_subdirectory(services/market_data_processor)
 
