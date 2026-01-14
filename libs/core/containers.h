@@ -2,6 +2,7 @@
 #define CORE_CONTAINERS_H
 
 #include "orders.h"
+#include "protobufs/containers.pb.h"
 #include <optional>
 #include <string>
 
@@ -65,6 +66,11 @@ struct ExecutionReportContainer {
     double avgPx;
 };
 
+// TODO: Use variant or inheritance
+using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderRequestContainer,
+                               core::ExecutionReportContainer>;
+
 } // namespace core
+
 
 #endif // CORE_CONTAINERS_H

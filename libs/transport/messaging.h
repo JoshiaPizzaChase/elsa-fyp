@@ -439,10 +439,21 @@ inline std::string serializeContainer(const core::ExecutionReportContainer& cont
     return containerProto.SerializeAsString();
 }
 
-inline core::NewOrderSingleContainer deserializeContainer(const std::string& data) {
+inline void deserializeContainer(const std::string& data) {
     // switch on cases to find out whether data is NewOrderSingleContainer or
     // CancelOrderRequestContainer or ExecutionReportContainer
+    
+    // ProtoDeserialized containerWrapper = data.deserialize();
 
+    // Switch (containerWrapper.messageType) {
+    //     case NewOrderSingleType:
+    //         core::NewOrderSingleContainer container { containerWrapper.unwrap.getName, ....,}
+    //         processContainerNewOrderSingle(newOrderSingle);
+    //     case CancelOrder:
+    //         core::CanceLordercontainer { containerWrapper.unwrap.getName, ....,}
+    //         rocessContainerCancelOrder(cancelORder);
+
+    // }
     throw std::runtime_error("unimplemented");
 }
 
