@@ -1,6 +1,7 @@
 #ifndef ELSA_FYP_ORDER_H
 #define ELSA_FYP_ORDER_H
 
+namespace engine {
 enum class Side {
     Bid,
     Ask
@@ -23,5 +24,6 @@ class Order {
     int quantity;
     Side side;
 };
+} // namespace engine
 
 #endif // ELSA_FYP_ORDER_H

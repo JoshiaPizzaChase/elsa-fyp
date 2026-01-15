@@ -1,8 +1,9 @@
+#include "../src/limit_order_book.h"
+#include "../src/order.h"
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
 
-#include "../src/limit_order_book.h"
-#include "../src/order.h"
+using namespace engine;
 
 TEST_CASE("Adding order to limit order book", "[lob]") {
     LimitOrderBook limit_order_book;

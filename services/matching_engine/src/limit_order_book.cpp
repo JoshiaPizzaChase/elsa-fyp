@@ -1,9 +1,9 @@
+#include "limit_order_book.h"
 #include <expected>
 #include <format>
 #include <limits>
 
-#include "limit_order_book.h"
-
+namespace engine {
 std::expected<void, std::string> LimitOrderBook::add_order(int order_id, int price, int quantity,
                                                            Side side) {
     if (order_id_map.contains(order_id)) {
@@ -108,3 +108,5 @@ LimitOrderBook::get_order_by_id(int order_id) const {
     }
     return *(iter->second);
 }
+
+} // namespace engine
