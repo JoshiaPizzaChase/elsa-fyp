@@ -2,9 +2,9 @@
 #define CORE_CONTAINERS_H
 
 #include "orders.h"
-#include "protobufs/containers.pb.h"
 #include <optional>
 #include <string>
+#include <variant>
 
 namespace core {
 

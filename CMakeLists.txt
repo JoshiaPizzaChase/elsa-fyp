@@ -9,6 +9,7 @@ if (BUILD_TESTS)
     enable_testing()
     include(CTest)
     add_subdirectory(integration_test)
+    add_subdirectory(libs/unit_test)
 endif ()
 
 add_subdirectory(client_sdk)
