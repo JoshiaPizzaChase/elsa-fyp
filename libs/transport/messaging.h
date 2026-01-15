@@ -176,7 +176,6 @@ inline std::string serializeContainer(const core::CancelOrderRequestContainer& c
     return containerProto.SerializeAsString();
 }
 
-// TODO: Who will actually create these execution report containers? Gateway? Order Manager?
 inline std::string serializeContainer(const core::ExecutionReportContainer& container) {
     transport::ExecutionReportContainer containerProto;
 
@@ -207,22 +206,75 @@ inline std::string serializeContainer(const core::ExecutionReportContainer& cont
     return containerProto.SerializeAsString();
 }
 
-inline void deserializeContainer(const std::string& data) {
-    // switch on cases to find out whether data is NewOrderSingleContainer or
-    // CancelOrderRequestContainer or ExecutionReportContainer
+inline core::Container deserializeContainer(const std::string& data) {
+    transport::ContainerWrapper containerWrapper;
 
-    // ProtoDeserialized containerWrapper = data.deserialize();
+    if (!containerWrapper.ParseFromString(data)) {
+        throw std::invalid_argument("Failed to parse ContainerWrapper from string");
+    }
 
-    // Switch (containerWrapper.messageType) {
-    //     case NewOrderSingleType:
-    //         core::NewOrderSingleContainer container { containerWrapper.unwrap.getName, ....,}
-    //         processContainerNewOrderSingle(newOrderSingle);
-    //     case CancelOrder:
-    //         core::CanceLordercontainer { containerWrapper.unwrap.getName, ....,}
-    //         rocessContainerCancelOrder(cancelORder);
+    switch (containerWrapper.container_case()) {
+    case transport::ContainerWrapper::kNewOrderSingle: {
+        const auto& proto = containerWrapper.new_order_single();
+        core::NewOrderSingleContainer container;
+        container.clOrdId = proto.cl_ord_id();
+        container.senderCompId = proto.sender_comp_id();
+        container.targetCompId = proto.target_comp_id();
+        container.symbol = proto.symbol();
+        container.side = convertToInternal(proto.side());
+        container.orderQty = proto.order_qty();
+        container.ordType = convertToInternal(proto.ord_type());
+        if (proto.has_price()) {
+            container.price = proto.price();
+        }
+        container.timeInForce = convertToInternal(proto.time_in_force());
+        return container;
+    }
+    case transport::ContainerWrapper::kCancelOrderRequest: {
+        const auto& proto = containerWrapper.cancel_order_request();
+        core::CancelOrderRequestContainer container;
+        container.clOrdId = proto.cl_ord_id();
+        container.senderCompId = proto.sender_comp_id();
+        container.targetCompId = proto.target_comp_id();
+        container.orderId = proto.order_id();
+        container.origClOrdId = proto.orig_cl_ord_id();
+        container.symbol = proto.symbol();
+        container.side = convertToInternal(proto.side());
+        container.orderQty = proto.order_qty();
+        return container;
+    }
+    case transport::ContainerWrapper::kExecutionReport: {
+        const auto& proto = containerWrapper.execution_report();
+        core::ExecutionReportContainer container;
+        container.senderCompId = proto.sender_comp_id();
+        container.targetCompId = proto.target_comp_id();
+        container.orderId = proto.order_id();
+        container.clOrderId = proto.cl_order_id();
+        if (proto.has_orig_cl_ord_id()) {
+            container.origClOrdID = proto.orig_cl_ord_id();
+        }
+        container.execId = proto.exec_id();
+        container.execTransType = convertToInternal(proto.exec_trans_type());
+        container.execType = convertToInternal(proto.exec_type());
+        container.ordStatus = convertToInternal(proto.ord_status());
+        container.ordRejectReason = proto.ord_reject_reason();
+        container.symbol = proto.symbol();
+        container.side = convertToInternal(proto.side());
+        if (proto.has_price()) {
+            container.price = proto.price();
+        }
+        if (proto.has_time_in_force()) {
+            container.timeInForce = convertToInternal(proto.time_in_force());
+        }
+        container.leavesQty = proto.leaves_qty();
+        container.cumQty = proto.cum_qty();
+        container.avgPx = proto.avg_px();
 
-    // }
-    throw std::runtime_error("unimplemented");
+        return container;
+    }
+    default:
+        throw std::invalid_argument("Unknown ContainerWrapper case");
+    }
 }
 
 } // namespace transport
