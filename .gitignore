@@ -1,8 +1,8 @@
 # Project
 build*/
 store/
-*.pp.cc
-*.pp.h
+*.pb.cc
+*.pb.h
 
 # Usual ignores
 .vscode
