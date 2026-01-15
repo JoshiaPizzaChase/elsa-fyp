@@ -20,13 +20,13 @@ namespace transport {
 
 using Client = websocketpp::client<websocketpp::config::asio_client>;
 
-class OrderManagerClient : public WebsocketManager<Client> {
+class WebsocketManagerClient : public WebsocketManager<Client> {
   public:
-    OrderManagerClient() {
+    WebsocketManagerClient() {
         // Set logging settings here
     }
 
-    ~OrderManagerClient() {
+    ~WebsocketManagerClient() {
         m_endpoint.stop_perpetual();
         // Do I need to call parent class destructor here to close connections?
     }

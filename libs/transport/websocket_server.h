@@ -15,9 +15,9 @@ namespace transport {
 
 using Server = websocketpp::server<websocketpp::config::asio>;
 
-class OrderManagerServer : public WebsocketManager<Server> {
+class WebsocketManagerServer : public WebsocketManager<Server> {
   public:
-    OrderManagerServer(int port) : m_port{port} {
+    WebsocketManagerServer(int port) : m_port{port} {
         // Set logging settings here
 
         m_endpoint.set_open_handler([this](ConnectionHandle handle) {
@@ -38,7 +38,7 @@ class OrderManagerServer : public WebsocketManager<Server> {
         });
     }
 
-    ~OrderManagerServer() {
+    ~WebsocketManagerServer() {
     }
 
     /*

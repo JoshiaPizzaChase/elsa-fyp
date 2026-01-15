@@ -9,7 +9,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    transport::OrderManagerClient omc;
+    transport::WebsocketManagerClient omc;
     std::string uri{"ws://localhost:"};
     uri += argv[1];
 
