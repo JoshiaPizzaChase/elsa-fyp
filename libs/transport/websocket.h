@@ -1,7 +1,6 @@
 #ifndef TRANSPORT_WEBSOCKET_H
 #define TRANSPORT_WEBSOCKET_H
 
-#include <absl/strings/str_format.h>
 #include <boost/asio/placeholders.hpp>
 #include <expected>
 #include <print>
