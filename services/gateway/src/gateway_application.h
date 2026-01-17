@@ -50,7 +50,7 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
 
   private:
     IDGenerator m_idGenerator;
-    transport::OrderManagerClient orderManagerClient;
+    transport::WebsocketManagerClient orderManagerClient;
 };
 
 } // namespace gateway
