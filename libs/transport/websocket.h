@@ -7,6 +7,7 @@
 #include <queue>
 #include <sstream>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <websocketpp/close.hpp>
 #include <websocketpp/common/connection_hdl.hpp>
