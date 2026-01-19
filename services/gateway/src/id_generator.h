@@ -1,7 +1,6 @@
 #ifndef GATEWAY_ID_GENERATOR_H
 #define GATEWAY_ID_GENERATOR_H
 
-#include <chrono>
 #include <string>
 
 namespace gateway {
