@@ -25,6 +25,7 @@ add_subdirectory(client_sdk)
 add_subdirectory(services/matching_engine)
 add_subdirectory(services/order_manager)
 add_subdirectory(services/gateway)
+add_subdirectory(services/order_manager)
 
 # Internal libraries
 # Protobuf
@@ -38,4 +39,3 @@ protobuf_generate(
         TARGET proto-objects
         IMPORT_DIRS "${PROTO_BINARY_DIR}"
         PROTOC_OUT_DIR "${PROTO_BINARY_DIR}")
-
