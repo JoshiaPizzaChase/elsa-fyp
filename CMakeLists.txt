@@ -19,7 +19,7 @@ add_subdirectory(services/matching_engine)
 add_subdirectory(services/gateway)
 
 # Internal libraries
-## Protobuf
+# Protobuf
 find_package(protobuf CONFIG REQUIRED) # Having the keyword CONFIG is IMPORTANT to avoid abseil errors!!!!!
 
 ### Generates header files and cpp files automatically instead of running cli command ourselves.
@@ -27,7 +27,7 @@ set(PROTO_BINARY_DIR "${CMAKE_SOURCE_DIR}/libs/transport/protobufs")
 add_library(proto-objects OBJECT "${PROTO_BINARY_DIR}/containers.proto")
 target_link_libraries(proto-objects PUBLIC protobuf::libprotobuf)
 protobuf_generate(
-    TARGET proto-objects
-    IMPORT_DIRS "${PROTO_BINARY_DIR}" 
-    PROTOC_OUT_DIR "${PROTO_BINARY_DIR}")
+        TARGET proto-objects
+        IMPORT_DIRS "${PROTO_BINARY_DIR}"
+        PROTOC_OUT_DIR "${PROTO_BINARY_DIR}")
 

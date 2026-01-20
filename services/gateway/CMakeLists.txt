@@ -8,6 +8,7 @@ add_library(gateway
 target_include_directories(gateway
         PUBLIC
         ${CMAKE_SOURCE_DIR}/libs
+        /opt/homebrew/include
 )
 
 target_compile_options(gateway PRIVATE -Wall -Wextra -Wpedantic)
@@ -22,18 +23,19 @@ find_package(Threads REQUIRED)
 find_package(LibXml2 REQUIRED)
 find_package(ZLIB REQUIRED)
 
+
 # Find QuickFIX via pkg-confij
 # pkg_check_modules(QuickFIX REQUIRED quickfix)
 
 # Find QuickFIX in user-installed library paths
 find_library(quickfix
-  NAMES libquickfix
-  PATHS /usr/local/lib
+        NAMES libquickfix
+        PATHS /usr/local/lib
 )
 
 # Link QuickFIX & matching engine
 target_link_libraries(gateway PUBLIC
-        quickfix 
+        quickfix
         matching_engine_lib
         ${QuickFIX_LIBRARIES}
         Threads::Threads
@@ -43,6 +45,6 @@ target_link_libraries(gateway PUBLIC
 target_include_directories(gateway PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(gateway PUBLIC ${QuickFIX_CFLAGS_OTHER})
 
-if(BUILD_TESTS)
+if (BUILD_TESTS)
     add_subdirectory(unit_test)
-endif()
+endif ()

@@ -8,12 +8,14 @@ add_executable(order_manager_ws_server_test test_server.cpp)
 target_include_directories(order_manager_ws_client_test
         PUBLIC
         ${CMAKE_SOURCE_DIR}/libs
+        /opt/homebrew/include
 )
 
 
 target_include_directories(order_manager_ws_server_test
         PUBLIC
         ${CMAKE_SOURCE_DIR}/libs
+        /opt/homebrew/include
 )
 
 target_compile_options(order_manager_ws_client_test PRIVATE -Wall -Wextra -Wpedantic)
