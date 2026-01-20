@@ -13,35 +13,35 @@ namespace gateway {
 
 /* Temporarily implemented to log on invokation. */
 void GatewayApplication::onCreate(const FIX::SessionID& sessionId) {
-    std::println("[Gateway] Created - {}", sessionId.toString());
+    logger->info("[Gateway] Created - {}", sessionId.toString());
 };
 
 void GatewayApplication::onLogon(const FIX::SessionID& sessionId) {
-    std::println("[Gateway] Logged on - {}", sessionId.toString());
+    logger->info("[Gateway] Logged on - {}", sessionId.toString());
 };
 
 void GatewayApplication::onLogout(const FIX::SessionID& sessionId) {
-    std::println("[Gateway] Logged out - {}", sessionId.toString());
+    logger->info("[Gateway] Logged out - {}", sessionId.toString());
 };
 
 void GatewayApplication::toAdmin(FIX::Message& message, const FIX::SessionID& sessionId) {
-    std::println("[Gateway] To admin: {} - {}", message.toString(), sessionId.toString());
+    logger->info("[Gateway] To admin: {} - {}", message.toString(), sessionId.toString());
 };
 
 void GatewayApplication::toApp(FIX::Message& message, const FIX::SessionID& sessionId)
     EXCEPT(FIX::DoNotSend) {
-    std::println("[Gateway] To app: {} - {}", message.toString(), sessionId.toString());
+    logger->info("[Gateway] To app: {} - {}", message.toString(), sessionId.toString());
 };
 
 void GatewayApplication::fromAdmin(const FIX::Message& message, const FIX::SessionID& sessionId)
     EXCEPT(FIX::FieldNotFound, FIX::IncorrectDataFormat, FIX::IncorrectTagValue, FIX::RejectLogon) {
-    std::println("[Gateway] From admin: {} - {}", message.toString(), sessionId.toString());
+    logger->info("[Gateway] From admin: {} - {}", message.toString(), sessionId.toString());
 };
 
 void GatewayApplication::fromApp(const FIX::Message& message, const FIX::SessionID& sessionId)
     EXCEPT(FIX::FieldNotFound, FIX::IncorrectDataFormat, FIX::IncorrectTagValue,
            FIX::UnsupportedMessageType) {
-    std::println("[Gateway] From app: {} - {}", message.toString(), sessionId.toString());
+    logger->info("[Gateway] From app: {} - {}", message.toString(), sessionId.toString());
 };
 
 void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
@@ -86,7 +86,7 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
         // sendContainer(newOrderRequest);
 
     } catch (const std::exception& e) {
-        std::println(stderr, "[Gateway] Error: {}", e.what());
+        logger->error("[Gateway] Error: {}", e.what());
         rejectMessage(senderCompId, targetCompId, clOrdId, symbol, side, e.what());
     }
 };
@@ -127,7 +127,7 @@ void GatewayApplication::onMessage(const FIX42::OrderCancelRequest& message,
         // sendContainer(cancelOrderRequest);
 
     } catch (const std::exception& e) {
-        std::println(stderr, "[Gateway] Error: {}", e.what());
+        logger->error("[Gateway] Error: {}", e.what());
         rejectMessage(senderCompId, targetCompId, clOrdId, symbol, side, e.what());
     }
 };
@@ -161,7 +161,7 @@ void GatewayApplication::rejectMessage(const FIX::SenderCompID& sender,
     try {
         FIX::Session::sendToTarget(execReport, senderCompID, targetCompID);
     } catch (const FIX::SessionNotFound& e) {
-        std::println(stderr, "[Gateway] Error: {}", e.what());
+        logger->error("[Gateway] Error: {}", e.what());
     }
 }
 

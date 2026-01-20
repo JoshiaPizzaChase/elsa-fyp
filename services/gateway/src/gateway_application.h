@@ -11,6 +11,10 @@
 #include <quickfix/MessageCracker.h>
 #include <quickfix/fix42/OrderCancelRequest.h>
 
+#include "spdlog/async.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/spdlog.h"
+
 namespace gateway {
 
 class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
@@ -51,6 +55,8 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
   private:
     IDGenerator m_idGenerator;
     transport::WebsocketManagerClient orderManagerClient;
+    std::shared_ptr<spdlog::logger> logger =
+        spdlog::basic_logger_mt<spdlog::async_factory>("gateway_logger", "logs/gateway.log");
 };
 
 } // namespace gateway
