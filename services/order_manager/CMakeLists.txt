@@ -7,6 +7,12 @@ add_library(order_manager_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/src/balance_checker.cpp
 )
 
+target_include_directories(order_manager_lib
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/libs
+        /opt/homebrew/include
+)
+
 target_link_libraries(order_manager PRIVATE order_manager_lib)
 
 target_compile_options(order_manager PRIVATE -Wall -Wextra -Wpedantic)
