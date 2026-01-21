@@ -231,3 +231,35 @@ TEST_CASE("Cancelling order in limit order book", "[lob]") {
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
     }
 }
+
+TEST_CASE("Getting level aggregate", "[lob]") {
+    LimitOrderBook limit_order_book;
+
+    SECTION("Getting level aggregate of empty order book") {
+        auto level_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 0);
+        REQUIRE(level_aggregate.has_value() == false);
+    }
+
+    SECTION("Getting level aggregate with valid level number") {
+        limit_order_book.add_order(67, 100, 10, Side::Bid);
+        limit_order_book.add_order(68, 100, 10, Side::Bid);
+        limit_order_book.add_order(69, 101, 10, Side::Bid);
+
+        auto level_zero_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 0).value();
+        auto level_one_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 1).value();
+
+        REQUIRE(level_zero_aggregate.price == 101);
+        REQUIRE(level_zero_aggregate.quantity == 10);
+
+        REQUIRE(level_one_aggregate.price == 100);
+        REQUIRE(level_one_aggregate.quantity == 20);
+    }
+
+    SECTION("Getting level aggregate with invalid level number") {
+        limit_order_book.add_order(67, 100, 10, Side::Bid);
+
+        auto level_ten_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 10);
+
+        REQUIRE(level_ten_aggregate.has_value() == false);
+    }
+}

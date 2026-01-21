@@ -8,13 +8,26 @@
 #include <string>
 #include <unordered_map>
 
-namespace engine { 
+namespace engine {
+
+struct LevelAggregate {
+    int price{};
+    int quantity{};
+};
+
 class LimitOrderBook {
   public:
     std::expected<void, std::string> add_order(int order_id, int price, int quantity, Side side);
     std::expected<void, std::string> cancel_order(int order_id);
+
+    [[nodiscard]] const std::map<int, std::list<Order>>& get_side(Side side) const;
+
     [[nodiscard]] std::expected<std::reference_wrapper<const Order>, std::string>
     get_best_order(Side side) const;
+
+    [[nodiscard]] std::expected<LevelAggregate, std::string> get_level_aggregate(Side side,
+                                                                                 int level) const;
+
     [[nodiscard]] std::expected<std::reference_wrapper<const Order>, std::string>
     get_order_by_id(int order_id) const;
 
@@ -27,6 +40,8 @@ class LimitOrderBook {
     void match_order(std::map<int, std::list<Order>>& near_side,
                      std::map<int, std::list<Order>>& far_side, int price, int quantity,
                      int order_id, Side side);
+
+    [[nodiscard]] std::map<int, std::list<Order>>& get_side_mut(Side side);
 };
 
 } // namespace engine

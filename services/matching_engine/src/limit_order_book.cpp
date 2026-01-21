@@ -74,7 +74,7 @@ std::expected<void, std::string> LimitOrderBook::cancel_order(int order_id) {
     const int price = order_it->get_price();
     const Side side = order_it->get_side();
 
-    auto& side_map = (side == Side::Bid) ? bids : asks;
+    auto& side_map = get_side_mut(side);
     auto& orders_at_price = side_map[price];
     orders_at_price.erase(order_it);
 
@@ -89,7 +89,7 @@ std::expected<void, std::string> LimitOrderBook::cancel_order(int order_id) {
 
 std::expected<std::reference_wrapper<const Order>, std::string>
 LimitOrderBook::get_best_order(Side side) const {
-    const auto& side_map = (side == Side::Bid) ? bids : asks;
+    const auto& side_map = get_side(side);
     if (side_map.empty()) {
         return std::unexpected(
             std::format("No {} orders in order book", (side == Side::Bid) ? "bid" : "ask"));
@@ -108,4 +108,37 @@ LimitOrderBook::get_order_by_id(int order_id) const {
     return *(iter->second);
 }
 
+std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(Side side,
+                                                                               int level) const {
+    const auto& side_map = get_side(side);
+    if (side_map.empty()) {
+        return std::unexpected(
+            std::format("No {} orders in order book", (side == Side::Bid) ? "bid" : "ask"));
+    }
+
+    if (level >= side_map.size()) {
+        return std::unexpected(std::format("Level {} does not exist in {} side", level,
+                                           (side == Side::Bid) ? "bid" : "ask"));
+    }
+
+    const auto it = (side == Side::Bid) ? std::prev(side_map.cend(), level + 1)
+                                        : std::next(side_map.cbegin(), level);
+
+    const int level_price = it->first;
+
+    int level_quantity = 0;
+    for (const auto& order : it->second) {
+        level_quantity += order.get_quantity();
+    }
+
+    return LevelAggregate{.price=level_price, .quantity=level_quantity};
+}
+
+const std::map<int, std::list<Order>>& LimitOrderBook::get_side(Side side) const {
+    return (side == Side::Bid) ? bids : asks;
+}
+
+std::map<int, std::list<Order>>& LimitOrderBook::get_side_mut(Side side) {
+    return (side == Side::Bid) ? bids : asks;
+}
 } // namespace engine
