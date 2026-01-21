@@ -3,8 +3,8 @@
 #include <thread>
 #include <chrono>
 #include <vector>
-#include "mpsc_shared_memory_ring_buffer.h" // Adjust the include path as per your project structure
-#include "test.h"
+#include "inter_process/mpsc_shared_memory_ring_buffer.h"
+#include "test_mpsc.h"
 
 constexpr int num_producers = 3;
 constexpr int data_per_producer = 5;
