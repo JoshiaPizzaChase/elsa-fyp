@@ -32,10 +32,10 @@ class LimitOrderBook {
     get_order_by_id(int order_id) const;
 
   private:
-    std::map<int, std::list<Order>> bids;
-    std::map<int, std::list<Order>> asks;
+    std::map<int, std::list<Order>> bids{};
+    std::map<int, std::list<Order>> asks{};
 
-    std::unordered_map<int, std::list<Order>::const_iterator> order_id_map;
+    std::unordered_map<int, std::list<Order>::const_iterator> order_id_map{};
 
     void match_order(std::map<int, std::list<Order>>& near_side,
                      std::map<int, std::list<Order>>& far_side, int price, int quantity,
