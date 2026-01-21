@@ -9,7 +9,6 @@
 #include <string>
 #include <type_traits>
 #include <fcntl.h>
-#include <semaphore>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -35,7 +34,6 @@ private:
     alignas(cache_line_padding_size) std::atomic<std::uint64_t> initialized_{0};
     alignas(cache_line_padding_size) std::atomic<std::size_t> head_;
     alignas(cache_line_padding_size) std::atomic<std::size_t> tail_;
-    alignas(cache_line_padding_size) sem_t semaphore_;
     alignas(cache_line_padding_size) Slot slots_[POWER_OF_2_CAPACITY];
 
 public:
@@ -45,12 +43,10 @@ public:
         for (std::size_t i = 0; i < POWER_OF_2_CAPACITY; ++i) {
             slots_[i].sequence.store(i, std::memory_order_relaxed);
         }
-        sem_init(&semaphore_, 1, 0);
         initialized_.store(magic_number, std::memory_order_release);
     }
 
     void destroy() {
-        sem_destroy(&semaphore_);
         initialized_.store(0, std::memory_order_release);
     }
 
@@ -70,7 +66,6 @@ public:
                 if (head_.compare_exchange_weak(position, position + 1, std::memory_order_relaxed)) {
                     slot.data = value;
                     slot.sequence.store(position + 1, std::memory_order_release);
-                    sem_post(&semaphore_);
                     return true;
                 }
             } else if (difference < 0) {
@@ -106,14 +101,6 @@ public:
         return result;
     }
 
-    T pop_blocking() {
-        while (true) {
-            if (auto result = try_pop()) {
-                return *result;
-            }
-            sem_wait(&semaphore_);
-        }
-    }
 
     bool empty() const {
         std::size_t head = head_.load(std::memory_order_acquire);
@@ -223,10 +210,6 @@ public:
 
     void push_blocking(T &value) {
         buffer_->push_blocking(value);
-    }
-
-    T pop_blocking() {
-        return buffer_->pop_blocking();
     }
 
     bool try_push(T &value) {
