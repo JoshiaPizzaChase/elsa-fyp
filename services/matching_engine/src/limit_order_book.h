@@ -1,6 +1,7 @@
 #ifndef ELSA_FYP_LIMIT_ORDER_BOOK_H
 #define ELSA_FYP_LIMIT_ORDER_BOOK_H
 
+#include <array>
 #include "order.h"
 #include <expected>
 #include <list>
@@ -10,9 +11,16 @@
 
 namespace engine {
 
+constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
+
 struct LevelAggregate {
-    int price{};
-    int quantity{};
+    int price{0};
+    int quantity{0};
+};
+
+struct TopOrderBookLevelAggregates {
+    std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
+    std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
 };
 
 class LimitOrderBook {
@@ -27,6 +35,7 @@ class LimitOrderBook {
 
     [[nodiscard]] std::expected<LevelAggregate, std::string> get_level_aggregate(Side side,
                                                                                  int level) const;
+    [[nodiscard]] TopOrderBookLevelAggregates get_top_order_book_level_aggregate() const;
 
     [[nodiscard]] std::expected<std::reference_wrapper<const Order>, std::string>
     get_order_by_id(int order_id) const;

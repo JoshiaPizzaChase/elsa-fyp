@@ -108,6 +108,14 @@ LimitOrderBook::get_order_by_id(int order_id) const {
     return *(iter->second);
 }
 
+const std::map<int, std::list<Order>>& LimitOrderBook::get_side(Side side) const {
+    return (side == Side::Bid) ? bids : asks;
+}
+
+std::map<int, std::list<Order>>& LimitOrderBook::get_side_mut(Side side) {
+    return (side == Side::Bid) ? bids : asks;
+}
+
 std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(Side side,
                                                                                int level) const {
     const auto& side_map = get_side(side);
@@ -131,14 +139,30 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
         level_quantity += order.get_quantity();
     }
 
-    return LevelAggregate{.price=level_price, .quantity=level_quantity};
+    return LevelAggregate{.price = level_price, .quantity = level_quantity};
 }
 
-const std::map<int, std::list<Order>>& LimitOrderBook::get_side(Side side) const {
-    return (side == Side::Bid) ? bids : asks;
-}
+TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
+    TopOrderBookLevelAggregates top_aggregate{};
 
-std::map<int, std::list<Order>>& LimitOrderBook::get_side_mut(Side side) {
-    return (side == Side::Bid) ? bids : asks;
+    for (int i = 0; i < bids.size(); i++) {
+        if (const auto level_aggregate = get_level_aggregate(Side::Bid, i);
+            level_aggregate.has_value()) {
+            top_aggregate.bid_level_aggregates.at(i) = level_aggregate.value();
+        } else {
+            break;
+        }
+    }
+
+    for (int i = 0; i < asks.size(); i++) {
+        if (const auto level_aggregate = get_level_aggregate(Side::Ask, i);
+            level_aggregate.has_value()) {
+            top_aggregate.ask_level_aggregates.at(i) = level_aggregate.value();
+        } else {
+            break;
+        }
+    }
+
+    return top_aggregate;
 }
 } // namespace engine

@@ -263,3 +263,53 @@ TEST_CASE("Getting level aggregate", "[lob]") {
         REQUIRE(level_ten_aggregate.has_value() == false);
     }
 }
+
+TEST_CASE("Getting top limit order book level aggregates", "[lob]") {
+    LimitOrderBook limit_order_book;
+
+    SECTION("Getting aggregate of empty limit order book") {
+        const auto top_aggregate = limit_order_book.get_top_order_book_level_aggregate();
+
+        for (int i = 0; i < ORDER_BOOK_AGGREGATE_LEVELS; i++) {
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).quantity == 0);
+
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).quantity == 0);
+        }
+    }
+
+    SECTION("Getting aggregate of filled limit order book") {
+        limit_order_book.add_order(67, 100, 10, Side::Bid);
+        limit_order_book.add_order(68, 100, 10, Side::Bid);
+        limit_order_book.add_order(69, 101, 10, Side::Bid);
+
+        limit_order_book.add_order(70, 200, 10, Side::Ask);
+        limit_order_book.add_order(71, 200, 10, Side::Ask);
+        limit_order_book.add_order(72, 201, 10, Side::Ask);
+
+        const auto top_aggregate = limit_order_book.get_top_order_book_level_aggregate();
+
+        REQUIRE(top_aggregate.bid_level_aggregates.at(0).price == 101);
+        REQUIRE(top_aggregate.bid_level_aggregates.at(0).quantity == 10);
+
+        REQUIRE(top_aggregate.bid_level_aggregates.at(1).price == 100);
+        REQUIRE(top_aggregate.bid_level_aggregates.at(1).quantity == 20);
+
+        for (int i = 2; i < ORDER_BOOK_AGGREGATE_LEVELS; i++) {
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).quantity == 0);
+        }
+
+        REQUIRE(top_aggregate.ask_level_aggregates.at(0).price == 200);
+        REQUIRE(top_aggregate.ask_level_aggregates.at(0).quantity == 20);
+
+        REQUIRE(top_aggregate.ask_level_aggregates.at(1).price == 201);
+        REQUIRE(top_aggregate.ask_level_aggregates.at(1).quantity == 10);
+
+        for (int i = 2; i < ORDER_BOOK_AGGREGATE_LEVELS; i++) {
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).quantity == 0);
+        }
+    }
+}
