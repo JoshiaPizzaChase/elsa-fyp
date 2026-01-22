@@ -7,6 +7,12 @@ add_library(matching_engine_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/src/order.cpp
 )
 
+target_include_directories(matching_engine_lib
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/libs
+        /opt/homebrew/include
+)
+
 target_link_libraries(matching_engine PRIVATE matching_engine_lib)
 
 target_compile_options(matching_engine PRIVATE -Wall -Wextra -Wpedantic)

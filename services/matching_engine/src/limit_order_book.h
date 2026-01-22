@@ -2,26 +2,14 @@
 #define ELSA_FYP_LIMIT_ORDER_BOOK_H
 
 #include "order.h"
-#include <array>
 #include <expected>
 #include <list>
 #include <map>
 #include <string>
 #include <unordered_map>
+#include "core/orderbook_snapshot.h"
 
 namespace engine {
-
-constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
-
-struct LevelAggregate {
-    int price{0};
-    int quantity{0};
-};
-
-struct TopOrderBookLevelAggregates {
-    std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
-    std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
-};
 
 class LimitOrderBook {
   public:
