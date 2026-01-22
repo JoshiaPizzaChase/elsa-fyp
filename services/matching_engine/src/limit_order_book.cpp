@@ -1,9 +1,15 @@
 #include "limit_order_book.h"
 #include <expected>
 #include <format>
-#include <limits>
 
 namespace engine {
+LimitOrderBook::LimitOrderBook(std::string_view ticker) : ticker{ticker} {
+}
+
+std::string_view LimitOrderBook::get_ticker() const {
+    return ticker;
+}
+
 std::expected<void, std::string> LimitOrderBook::add_order(int order_id, int price, int quantity,
                                                            Side side) {
     if (order_id_map.contains(order_id)) {

@@ -29,6 +29,10 @@ struct TopOrderBookLevelAggregates {
 
 class LimitOrderBook {
   public:
+    LimitOrderBook(std::string_view ticker);
+
+    [[nodiscard]] std::string_view get_ticker() const;
+
     std::expected<void, std::string> add_order(int order_id, int price, int quantity, Side side);
     std::expected<void, std::string> cancel_order(int order_id);
 
@@ -45,6 +49,8 @@ class LimitOrderBook {
     get_order_by_id(int order_id) const;
 
   private:
+    std::string_view ticker{};
+
     std::map<int, std::list<Order>> bids{};
     std::map<int, std::list<Order>> asks{};
 
