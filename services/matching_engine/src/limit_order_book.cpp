@@ -10,7 +10,7 @@ std::expected<void, std::string> LimitOrderBook::add_order(int order_id, int pri
         return std::unexpected(std::format("Order ID {} already exists in order book", order_id));
     }
 
-    if (price != std::numeric_limits<int>::min() && price <= 0) {
+    if (price != MARKET_ASK_ORDER_PRICE && price <= 0) {
         return std::unexpected("Price must be positive integers or int min");
     }
 

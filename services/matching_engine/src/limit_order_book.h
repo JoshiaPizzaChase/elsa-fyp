@@ -4,12 +4,16 @@
 #include "order.h"
 #include <array>
 #include <expected>
+#include <limits>
 #include <list>
 #include <map>
 #include <string>
 #include <unordered_map>
 
 namespace engine {
+
+constexpr int MARKET_BID_ORDER_PRICE = std::numeric_limits<int>::max();
+constexpr int MARKET_ASK_ORDER_PRICE = std::numeric_limits<int>::min();
 
 constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
 
