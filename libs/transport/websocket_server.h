@@ -3,6 +3,7 @@
 
 #include "websocket.h"
 #include <boost/asio/placeholders.hpp>
+#include <expected>
 #include <websocketpp/common/connection_hdl.hpp>
 #include <websocketpp/common/memory.hpp>
 #include <websocketpp/common/thread.hpp>
@@ -23,7 +24,7 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
         m_endpoint.set_open_handler([this](ConnectionHandle handle) {
             int newId = m_nextId++;
             ConnectionMetadata::connMetaSharedPtr metadataPtr{
-            // TODO: Get uri from env/config files
+                // TODO: Get uri from env/config files
                 std::make_shared<ConnectionMetadata>(newId, handle, "localhost")};
 
             m_idToConnectionMap.emplace(newId, metadataPtr);
@@ -61,6 +62,26 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
         }
 
         m_thread = std::make_shared<websocketpp::lib::thread>(&Server::run, &m_endpoint);
+        return {};
+    }
+
+    /*
+     * Server-side specific command to send the same message to all connections. If some of the
+     * connections fail to send, broadcasting does not halt. It returns a vector of those failed
+     * ids.
+     */
+    std::expected<void, std::vector<int>> sendToAll(const std::string& message) {
+        std::vector<int> failedIds;
+        for (const auto& it : m_idToConnectionMap) {
+            if (!send(it.first, message)) {
+                failedIds.push_back(it.first);
+            }
+        }
+
+        if (!failedIds.empty()) {
+            return std::unexpected(failedIds);
+        }
+
         return {};
     }
 
