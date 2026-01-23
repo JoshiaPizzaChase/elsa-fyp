@@ -7,7 +7,7 @@ using namespace engine;
 constexpr std::string_view TEST_TICKER{"GME"};
 
 TEST_CASE("Adding order to limit order book", "[lob]") {
-    LimitOrderBook limit_order_book = LimitOrderBook(TEST_TICKER);
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Adding invalid orders") {
         // Order ID collision
@@ -195,14 +195,14 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
 }
 
 TEST_CASE("Getting best order from empty limit order book", "[lob]") {
-    LimitOrderBook limit_order_book = LimitOrderBook(TEST_TICKER);
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value() == false);
     REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value() == false);
 }
 
 TEST_CASE("Getting order by ID from limit order book", "[lob]") {
-    LimitOrderBook limit_order_book = LimitOrderBook(TEST_TICKER);
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Getting existing order") {
         limit_order_book.add_order(67, 100, 10, Side::Bid);
@@ -220,7 +220,7 @@ TEST_CASE("Getting order by ID from limit order book", "[lob]") {
 }
 
 TEST_CASE("Cancelling order in limit order book", "[lob]") {
-    LimitOrderBook limit_order_book = LimitOrderBook(TEST_TICKER);
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Cancelling non-existing order") {
         REQUIRE(limit_order_book.cancel_order(67).has_value() == false);
@@ -234,7 +234,7 @@ TEST_CASE("Cancelling order in limit order book", "[lob]") {
 }
 
 TEST_CASE("Getting level aggregate", "[lob]") {
-    LimitOrderBook limit_order_book = LimitOrderBook(TEST_TICKER);
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Getting level aggregate of empty order book") {
         auto level_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 0);
@@ -266,7 +266,7 @@ TEST_CASE("Getting level aggregate", "[lob]") {
 }
 
 TEST_CASE("Getting top limit order book level aggregates", "[lob]") {
-    LimitOrderBook limit_order_book = LimitOrderBook(TEST_TICKER);
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Getting aggregate of empty limit order book") {
         const auto top_aggregate = limit_order_book.get_top_order_book_level_aggregate();
