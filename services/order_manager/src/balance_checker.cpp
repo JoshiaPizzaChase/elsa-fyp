@@ -3,6 +3,7 @@
 #include <cassert>
 #include <format>
 
+namespace om {
 void BalanceChecker::update_balance(const std::string& broker_id, int delta) {
     auto it = balance_map.find(broker_id);
 
@@ -27,4 +28,5 @@ bool BalanceChecker::has_sufficient_balance(const std::string& broker_id, int de
     assert(balance_map.contains(broker_id) && "Balance record of Broker ID does not exist");
 
     return get_balance(broker_id) + delta >= 0;
+}
 }
