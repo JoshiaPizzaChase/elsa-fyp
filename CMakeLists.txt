@@ -4,9 +4,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # This generates compile_commands.json!
 set(CMAKE_BUILD_RPATH "/usr/local/lib") # This sets runtime path for dynamic linking, needed for self-compiled 3rd party libraries!
 project(elsa_fyp)
 
-if(NOT TARGET spdlog)
+if (NOT TARGET spdlog)
     find_package(spdlog REQUIRED)
-endif()
+endif ()
 
 if (BUILD_TESTS)
     enable_testing()
@@ -15,9 +15,9 @@ if (BUILD_TESTS)
     add_subdirectory(libs/unit_test)
 endif ()
 
-if(BUILD_EXAMPLES)
+if (BUILD_EXAMPLES)
     add_subdirectory(logger_examples)
-endif()
+endif ()
 
 add_subdirectory(client_sdk)
 
@@ -25,7 +25,6 @@ add_subdirectory(client_sdk)
 add_subdirectory(services/matching_engine)
 add_subdirectory(services/order_manager)
 add_subdirectory(services/gateway)
-add_subdirectory(services/order_manager)
 
 # Internal libraries
 # Protobuf
