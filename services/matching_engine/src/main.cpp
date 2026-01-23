@@ -3,7 +3,8 @@
 
 int main() {
     auto ring_buffer = OrderbookSnapshotRingBuffer::open_exist_shm(ORDERBOOK_SNAPSHOT_SHM_FILE);
-    auto snapshot = TopOrderBookLevelAggregates{};
+    auto snapshot = TopOrderBookLevelAggregates{"APPL"};
+
     for (int i = 0; i < 1024; i++) {
         int j = i % 50;
         snapshot.bid_level_aggregates[j].price = i;

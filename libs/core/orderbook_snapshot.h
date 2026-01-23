@@ -4,6 +4,7 @@
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
 #include <array>
 #include <iostream>
+#include <cassert>
 
 constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
 
@@ -13,12 +14,20 @@ struct LevelAggregate {
 };
 
 struct TopOrderBookLevelAggregates {
+    char ticker[10]{};
     std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
     std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
 
+    TopOrderBookLevelAggregates(const char* ticker_str) {
+        size_t len = strlen(ticker_str);
+        assert(len > 0 && len < sizeof(ticker));
+        memcpy(ticker, ticker_str, len);
+        ticker[len + 1] = '\0';
+    }
+
     friend std::ostream& operator<<(std::ostream& os,
                                     const TopOrderBookLevelAggregates& aggregates) {
-        os << "bids:[";
+        os << "ticker:" << aggregates.ticker << ",bids:[";
         for (const auto& level : aggregates.bid_level_aggregates) {
             os << level.quantity << "@" << level.price << ",";
         }

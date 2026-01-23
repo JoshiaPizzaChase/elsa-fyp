@@ -29,6 +29,7 @@ class LimitOrderBook {
     get_order_by_id(int order_id) const;
 
   private:
+    std::string ticker;
     std::map<int, std::list<Order>> bids{};
     std::map<int, std::list<Order>> asks{};
 
