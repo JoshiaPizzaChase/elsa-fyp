@@ -59,6 +59,11 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
                 remaining_quantity -= order_quantity;
                 order_id_map.erase(best_level_orders.front().get_order_id());
                 best_level_orders.pop_front();
+
+                Trade new_trade = create_trade(order_id, front_order.get_order_id(), matched_price,
+                                               order_quantity)
+                                      .value();
+
             } else {
                 front_order.fill(remaining_quantity);
 
@@ -181,5 +186,23 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
     }
 
     return top_aggregate;
+}
+
+std::expected<Trade, std::string>
+LimitOrderBook::create_trade(int taker_order_id, int maker_order_id, int price, int quantity) {
+    if (price <= 0) {
+        return std::unexpected("Price must be positive integers");
+    }
+
+    if (quantity <= 0) {
+        return std::unexpected("Quantity must be positive integers");
+    }
+
+    // TODO: Add random trade_id generation
+
+    return Trade{.taker_order_id = taker_order_id,
+                 .maker_order_id = maker_order_id,
+                 .price = price,
+                 .quantity = quantity};
 }
 } // namespace engine

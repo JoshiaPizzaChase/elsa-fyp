@@ -48,6 +48,8 @@ class LimitOrderBook {
     void match_order(std::map<int, std::list<Order>>& near_side,
                      std::map<int, std::list<Order>>& far_side, int price, int remaining_quantity,
                      int order_id, Side side);
+    [[nodiscard]] static std::expected<Trade, std::string>
+    create_trade(int taker_order_id, int maker_order_id, int price, int quantity);
 
     [[nodiscard]] std::map<int, std::list<Order>>& get_side_mut(Side side);
 };
