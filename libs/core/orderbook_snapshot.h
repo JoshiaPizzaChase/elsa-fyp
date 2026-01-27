@@ -6,6 +6,7 @@
 #include <iostream>
 
 constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
+constexpr int MAX_TICKER_LENGTH = 5;
 
 struct LevelAggregate {
     int price{0};
@@ -13,6 +14,7 @@ struct LevelAggregate {
 };
 
 struct TopOrderBookLevelAggregates {
+    char ticker[MAX_TICKER_LENGTH]{};
     std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
     std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
 

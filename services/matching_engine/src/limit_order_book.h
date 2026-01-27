@@ -1,6 +1,8 @@
 #ifndef ELSA_FYP_LIMIT_ORDER_BOOK_H
 #define ELSA_FYP_LIMIT_ORDER_BOOK_H
 
+#include "core/orderbook_snapshot.h"
+#include "core/trade.h"
 #include "order.h"
 #include <expected>
 #include <limits>
@@ -8,7 +10,6 @@
 #include <map>
 #include <string>
 #include <unordered_map>
-#include "core/orderbook_snapshot.h"
 
 namespace engine {
 
@@ -45,7 +46,7 @@ class LimitOrderBook {
     std::unordered_map<int, std::list<Order>::const_iterator> order_id_map{};
 
     void match_order(std::map<int, std::list<Order>>& near_side,
-                     std::map<int, std::list<Order>>& far_side, int price, int quantity,
+                     std::map<int, std::list<Order>>& far_side, int price, int remaining_quantity,
                      int order_id, Side side);
 
     [[nodiscard]] std::map<int, std::list<Order>>& get_side_mut(Side side);
