@@ -1,8 +1,8 @@
-#include <iostream>
+#include "order_manager.h"
 
 int main(int argc, char* argv[]) {
 
-    // init socket server to start receiving connections
+    om::OrderManager order_manager{};
 
     return 0;
 }

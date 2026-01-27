@@ -2,6 +2,8 @@
 
 #include "../src/balance_checker.h"
 
+using namespace om;
+
 TEST_CASE("Updating balance of a broker", "[om]") {
     BalanceChecker balance_checker = BalanceChecker();
 

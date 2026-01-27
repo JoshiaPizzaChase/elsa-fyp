@@ -1,3 +1,7 @@
 #include "order_manager.h"
 
-namespace om {}
+namespace om {
+OrderManager::OrderManager() {
+    ws_server.start();
+}
+} // namespace om
