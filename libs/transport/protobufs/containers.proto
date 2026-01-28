@@ -48,9 +48,9 @@ message NewOrderSingleContainer {
   string cl_ord_id = 3;
   string symbol = 4;
   Side side = 5;
-  double order_qty = 6;
+  int32 order_qty = 6;
   OrderType ord_type = 7;
-  double price = 8;           // Only for limit orders.
+  int32 price = 8;           // Only for limit orders.
   TimeInForce time_in_force = 9;
 }
 
@@ -63,7 +63,7 @@ message CancelOrderRequestContainer {
   string cl_ord_id = 5;
   string symbol = 6;
   Side side = 7;
-  double order_qty = 8;
+  int32 order_qty = 8;
 }
 
 // Execution report equivalent
@@ -80,11 +80,11 @@ message ExecutionReportContainer {
   string ord_reject_reason = 10;
   string symbol = 11;
   Side side = 12;
-  double price = 13;              // For limit orders.
+  int32 price = 13;              // For limit orders.
   TimeInForce time_in_force = 14;
-  double leaves_qty = 15;
-  double cum_qty = 16;
-  double avg_px = 17;
+  int32 leaves_qty = 15;
+  int32 cum_qty = 16;
+  int32 avg_px = 17;
 }
 
 // This is intended to switching upon deserialization to determine which container type is being sent.

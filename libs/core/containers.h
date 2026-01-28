@@ -26,9 +26,10 @@ struct NewOrderSingleContainer {
     std::string symbol;
     // TODO: add account field to let one "broker" have many "comps"
     Side side;
-    double orderQty;
+    std::int32_t orderQty;
     OrderType ordType;
-    std::optional<double> price; // Only required for limit orders. No price for market orders.
+    std::optional<std::int32_t>
+        price; // Only required for limit orders. No price for market orders.
     TimeInForce timeInForce;
 };
 
@@ -42,14 +43,14 @@ struct CancelOrderRequestContainer {
     std::string symbol;
     // TODO: add account field to let one "broker" have many "comps"
     Side side;
-    double orderQty;
+    std::int32_t orderQty;
 };
 
 // https://www.onixs.biz/fix-dictionary/4.2/msgtype_8_8.html
 struct ExecutionReportContainer {
     std::string senderCompId;
     std::string targetCompId;
-    std::string orderId;                    // Our internal ID for the order.
+    std::string orderId;                    // Our std::int32_ternal ID for the order.
     std::string clOrderId;                  // Client-defined.
     std::optional<std::string> origClOrdID; // Only required for response to cancel order requests.
     std::string execId;                     // Unique ID for this execution report.
@@ -59,11 +60,11 @@ struct ExecutionReportContainer {
     std::string ordRejectReason;
     std::string symbol;
     Side side;
-    std::optional<double> price; // Only required in response to limit orders.
+    std::optional<std::int32_t> price; // Only required in response to limit orders.
     std::optional<TimeInForce> timeInForce;
-    double leavesQty;
-    double cumQty;
-    double avgPx;
+    std::int32_t leavesQty;
+    std::int32_t cumQty;
+    std::int32_t avgPx;
 };
 
 // TODO: Use variant or inheritance
@@ -71,6 +72,5 @@ using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderR
                                core::ExecutionReportContainer>;
 
 } // namespace core
-
 
 #endif // CORE_CONTAINERS_H
