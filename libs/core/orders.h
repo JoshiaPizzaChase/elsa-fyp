@@ -1,12 +1,14 @@
 #ifndef CORE_ORDERS_H
 #define CORE_ORDERS_H
 
-#include <chrono>
+#include <cstdint>
 #include <quickfix/FixFields.h>
 #include <quickfix/FixValues.h>
 #include <stdexcept>
 
 namespace core {
+
+inline constexpr auto decimal_to_int_multiplier{100};
 
 enum class OrderType {
     limit,
@@ -128,6 +130,16 @@ inline FIX::TimeInForce convertToFIX(TimeInForce tif) {
     default:
         throw std::logic_error(errorMsg);
     }
+}
+
+// Input price is the true, dollar.cent amount!
+inline constexpr std::int32_t convert_to_internal_price(double price) {
+    return static_cast<std::int32_t>(price * decimal_to_int_multiplier);
+}
+
+// Input quantity is the true, dollar.cent amount!
+inline constexpr std::int32_t convert_to_internal_quantity(double quantity) {
+    return static_cast<std::int32_t>(quantity * decimal_to_int_multiplier);
 }
 
 } // namespace core

@@ -1,8 +1,9 @@
 #include "gateway_application.h"
 #include "core/containers.h"
 #include "core/orders.h"
+#include <cmath>
+#include <cstddef>
 #include <optional>
-#include <print>
 #include <quickfix/FixFields.h>
 #include <quickfix/FixValues.h>
 #include <quickfix/fix42/ExecutionReport.h>
@@ -77,9 +78,11 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
             .clOrdId = clOrdId,
             .symbol = symbol,
             .side = core::convertToInternal(side),
-            .orderQty = orderQty,
+            .orderQty = core::convert_to_internal_quantity(orderQty),
             .ordType = core::convertToInternal(ordType),
-            .price = (ordType == FIX::OrdType_LIMIT) ? std::make_optional(price) : std::nullopt,
+            .price = (ordType == FIX::OrdType_LIMIT)
+                         ? std::make_optional(core::convert_to_internal_price(price))
+                         : std::nullopt,
             .timeInForce = core::convertToInternal(timeInForce),
         };
 
@@ -121,7 +124,7 @@ void GatewayApplication::onMessage(const FIX42::OrderCancelRequest& message,
             .clOrdId = clOrdId,
             .symbol = symbol,
             .side = core::convertToInternal(side),
-            .orderQty = orderQty,
+            .orderQty = core::convert_to_internal_quantity(orderQty),
         };
 
         // sendContainer(cancelOrderRequest);
