@@ -2,11 +2,13 @@
 #define ELSA_FYP_CLIENT_SDK_ORDERBOOK_SNAPSHOT_H
 
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
+#include "nlohmann/json.hpp"
 #include <array>
-#include <iostream>
 #include <cassert>
+#include <iostream>
 
 constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
+using json = nlohmann::json;
 
 struct LevelAggregate {
     int price{0};
@@ -37,6 +39,33 @@ struct TopOrderBookLevelAggregates {
         }
         os << "]";
         return os;
+    }
+
+    void to_json(json& j) {
+        j = json{{"ticker", ticker}, {"bids", json::array()}, {"asks", json::array()}};
+
+        for (const auto& level : bid_level_aggregates) {
+            j["bids"].push_back(json{{"price", level.price}, {"quantity", level.quantity}});
+        }
+
+        for (const auto& level : ask_level_aggregates) {
+            j["asks"].push_back(json{{"price", level.price}, {"quantity", level.quantity}});
+        }
+    }
+
+    static TopOrderBookLevelAggregates from_json(const json& j) {
+        std::string ticker_str = j.at("ticker").get<std::string>();
+        TopOrderBookLevelAggregates snapshot{ticker_str.c_str()};
+
+        for (size_t i = 0; i < snapshot.bid_level_aggregates.size(); ++i) {
+            snapshot.bid_level_aggregates[i].price = j.at("bids")[i].at("price").get<int>();
+            snapshot.bid_level_aggregates[i].quantity = j.at("bids")[i].at("quantity").get<int>();
+        }
+
+        for (size_t i = 0; i < snapshot.ask_level_aggregates.size(); ++i) {
+            snapshot.ask_level_aggregates[i].price = j.at("asks")[i].at("price").get<int>();
+            snapshot.ask_level_aggregates[i].quantity = j.at("asks")[i].at("quantity").get<int>();
+        }
     }
 };
 
