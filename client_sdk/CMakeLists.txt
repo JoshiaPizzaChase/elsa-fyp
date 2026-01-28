@@ -40,6 +40,7 @@ target_link_libraries(client_sdk PUBLIC
         Threads::Threads
         LibXml2::LibXml2
         ZLIB::ZLIB
+        fmt
 )
 target_include_directories(client_sdk PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(client_sdk PUBLIC ${QuickFIX_CFLAGS_OTHER})

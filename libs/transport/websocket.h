@@ -61,7 +61,7 @@ struct ConnectionMetadata {
 
     void onMessage(websocketpp::connection_hdl handle, Endpoint::message_ptr msg) {
         // TODO: handle different opcode formats?
-        m_messageQueue.emplace(websocketpp::utility::to_hex(msg->get_payload()));
+        m_messageQueue.emplace(msg->get_payload());
     }
 
     websocketpp::connection_hdl getHandle() const {
@@ -165,7 +165,7 @@ class WebsocketManager {
         }
 
         m_endpoint.send(metadata_it->second->getHandle(), message,
-                        websocketpp::frame::opcode::binary, errorCode);
+                        websocketpp::frame::opcode::text, errorCode);
         if (errorCode) {
             std::println("Error sending message: {}", errorCode.message());
             return std::unexpected{-1};
