@@ -3,15 +3,16 @@
 
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
 #include "nlohmann/json.hpp"
+#include "orders.h"
+
 #include <array>
 #include <cassert>
-#include <iostream>
 
 constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
 using json = nlohmann::json;
 
 struct LevelAggregate {
-    int price{0};
+    int price{0}; // NOTE: this price is real price multiply by decimal_to_int_multiplier
     int quantity{0};
 };
 
@@ -31,11 +32,11 @@ struct TopOrderBookLevelAggregates {
                                     const TopOrderBookLevelAggregates& aggregates) {
         os << "ticker:" << aggregates.ticker << ",bids:[";
         for (const auto& level : aggregates.bid_level_aggregates) {
-            os << level.quantity << "@" << level.price << ",";
+            os << level.quantity << "@" << level.price / core::decimal_to_int_multiplier << ",";
         }
         os << "],asks:[";
         for (const auto& level : aggregates.ask_level_aggregates) {
-            os << level.quantity << "@" << level.price << ",";
+            os << level.quantity << "@" << level.price / core::decimal_to_int_multiplier << ",";
         }
         os << "]";
         return os;
@@ -45,11 +46,11 @@ struct TopOrderBookLevelAggregates {
         j = json{{"ticker", ticker}, {"bids", json::array()}, {"asks", json::array()}};
 
         for (const auto& level : bid_level_aggregates) {
-            j["bids"].push_back(json{{"price", level.price}, {"quantity", level.quantity}});
+            j["bids"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier}, {"quantity", level.quantity}});
         }
 
         for (const auto& level : ask_level_aggregates) {
-            j["asks"].push_back(json{{"price", level.price}, {"quantity", level.quantity}});
+            j["asks"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier}, {"quantity", level.quantity}});
         }
     }
 
@@ -58,14 +59,15 @@ struct TopOrderBookLevelAggregates {
         TopOrderBookLevelAggregates snapshot{ticker_str.c_str()};
 
         for (size_t i = 0; i < snapshot.bid_level_aggregates.size(); ++i) {
-            snapshot.bid_level_aggregates[i].price = j.at("bids")[i].at("price").get<int>();
+            snapshot.bid_level_aggregates[i].price = static_cast<int>(j.at("bids")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
             snapshot.bid_level_aggregates[i].quantity = j.at("bids")[i].at("quantity").get<int>();
         }
 
         for (size_t i = 0; i < snapshot.ask_level_aggregates.size(); ++i) {
-            snapshot.ask_level_aggregates[i].price = j.at("asks")[i].at("price").get<int>();
+            snapshot.ask_level_aggregates[i].price = static_cast<int>(j.at("asks")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
             snapshot.ask_level_aggregates[i].quantity = j.at("asks")[i].at("quantity").get<int>();
         }
+        return snapshot;
     }
 };
 

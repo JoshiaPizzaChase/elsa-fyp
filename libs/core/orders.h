@@ -8,7 +8,7 @@
 
 namespace core {
 
-inline constexpr auto decimal_to_int_multiplier{100};
+inline constexpr double decimal_to_int_multiplier{100.0};
 
 enum class OrderType {
     limit,
