@@ -95,6 +95,10 @@ struct ConnectionMetadata {
         return m_message_queue.dequeue();
     }
 
+    std::string wait_and_dequeue_message() {
+        return m_message_queue.wait_and_dequeue();
+    }
+
     void record_sent_message(std::string_view message) {
         m_message_store.emplace_back(message);
     }
@@ -198,7 +202,7 @@ class WebsocketManager {
             m_logger->error("Error initiating close: {}", error_code.message());
             return std::unexpected{-1};
         }
-    
+
         return {};
     }
 
@@ -207,23 +211,23 @@ class WebsocketManager {
 
         std::vector<int> failed_ids;
         for (const auto& it : m_id_to_connection_map) {
-            const auto id { it.second->get_id() };
+            const auto id{it.second->get_id()};
             if (it.second->get_status() != ConnectionStatus::open) {
                 m_logger->info("Connection id {} has status {}, skipping.", id,
                                static_cast<int>(it.second->get_status()));
                 continue;
             }
 
-            m_logger->info("Closing connection: {} with status {}", id, static_cast<int>(it.second->get_status()));
+            m_logger->info("Closing connection: {} with status {}", id,
+                           static_cast<int>(it.second->get_status()));
 
             websocketpp::lib::error_code error_code;
             m_endpoint.close(it.second->get_handle(), websocketpp::close::status::going_away, "",
                              error_code);
             if (error_code) {
-                m_logger->error("Error closing connection {}: {}", id,
-                                error_code.message());
+                m_logger->error("Error closing connection {}: {}", id, error_code.message());
                 failed_ids.push_back(id);
-            } 
+            }
         }
 
         if (!failed_ids.empty()) {
@@ -241,6 +245,19 @@ class WebsocketManager {
         }
 
         return it->second->dequeue_message();
+    }
+    
+    // THIS IS A BLOCKING DEQUEUE METHOD.
+    // It sleeps the thread if queue is non-emoty, do not use this if you want busy-waiting!
+    // Returns a null optional if no id is found.
+    std::optional<std::string> wait_and_dequeue_message(int id) {
+        auto it{m_id_to_connection_map.find(id)};
+
+        if (it == m_id_to_connection_map.end()) {
+            return std::nullopt;
+        }
+
+        return it->second->wait_and_dequeue_message();
     }
 
     ConnectionMetadata::conn_meta_shared_ptr get_metadata(int id) const {
