@@ -3,7 +3,7 @@
 MarketDataProcessor::MarketDataProcessor(int ws_port)
     : orderbook_snapshot_ring_buffer(
           OrderbookSnapshotRingBuffer::create(ORDERBOOK_SNAPSHOT_SHM_FILE)),
-      websocket_server(transport::WebsocketManagerServer{ws_port}) {
+      websocket_server(transport::WebsocketManagerServer{ws_port, "localhost"}) {
 }
 
 [[noreturn]] void MarketDataProcessor::start() {
@@ -15,7 +15,7 @@ MarketDataProcessor::MarketDataProcessor(int ws_port)
         auto orderbook_snapshot_res = orderbook_snapshot_ring_buffer.try_pop();
         if (orderbook_snapshot_res.has_value()) {
             orderbook_snapshot_res.value().to_json(orderbook_snapshot_json);
-            auto res = websocket_server.sendToAll(orderbook_snapshot_json.dump());
+            auto res = websocket_server.send_to_all(orderbook_snapshot_json.dump());
             if (!res.has_value()) {
                 auto failed_ids = res.error();
                 std::string error_msg = "MDP failed to publish orderbook snapshot to client id=";
