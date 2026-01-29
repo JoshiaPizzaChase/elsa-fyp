@@ -28,3 +28,5 @@ set_target_properties(test_mdp_client PROPERTIES
         CXX_STANDARD_REQUIRED ON
 )
 
+target_link_libraries(test_md_producer PRIVATE fmt)
+target_link_libraries(test_mdp_client PRIVATE fmt)

@@ -7,7 +7,7 @@ int main(int argc, char* argv[]) {
     auto id = client.connect("ws://localhost:9000").value();
     std::cout << id << std::endl;
     while (true) {
-        auto res = client.dequeueMessage(id);
+        auto res = client.dequeue_message(id);
         if (res.has_value()) {
             std::cout << res.value() << std::endl;
         }

@@ -11,7 +11,7 @@ target_include_directories(market_data_processor_lib
 )
 find_package(nlohmann_json REQUIRED)
 target_link_libraries(market_data_processor PRIVATE market_data_processor_lib)
-target_link_libraries(market_data_processor PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(market_data_processor PRIVATE nlohmann_json::nlohmann_json fmt)
 target_compile_options(market_data_processor PRIVATE -Wall -Wextra -Wpedantic)
 
 set_target_properties(market_data_processor PROPERTIES
