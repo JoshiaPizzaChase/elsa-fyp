@@ -8,7 +8,7 @@ namespace core {
 
 /*
  * Standard LOCK-BASED thread-safe queue using standard library std::queue.
- * TODO: Unsafe if throwable copy/move constructors. Check the dequeue method.
+ * TODO: Exceptoin-unsafe if throwable copy/move constructors. Check the dequeue method.
  */
 template <typename T>
 class ThreadSafeQueue {
@@ -18,12 +18,18 @@ class ThreadSafeQueue {
         m_queue.emplace(std::move(message));
     }
 
+    // A copy or move occurs when returning message into std::optional<T>.
+    // If that throws, we have lost the value due to m_queue.pop().
+    // Alternatives:
+    // - pass in a reference (assuming T is copy/move-assignable), or
+    // - return a shared pointer, which won't throw.
     std::optional<T> dequeue() {
         std::lock_guard lock{m_mutex};
         if (m_queue.empty()) {
             return std::nullopt;
         }
-        auto message{std::move(m_queue.front())};
+        auto message{
+            std::move(m_queue.front())}; // If this throws, we are fine as no popping has occured.
         m_queue.pop();
         return message;
     }
