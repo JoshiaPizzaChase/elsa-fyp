@@ -14,7 +14,10 @@ namespace transport {
 
 class WebsocketManagerClient : public WebsocketManager<Client> {
   public:
-    WebsocketManagerClient() : WebsocketManager{"client_websocket_logger"} {
+    WebsocketManagerClient(std::shared_ptr<spdlog::logger> logger) : WebsocketManager{logger} {
+    }
+
+    WebsocketManagerClient(const std::string& logger_name) : WebsocketManager{logger_name} {
     }
 
     ~WebsocketManagerClient() {

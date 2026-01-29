@@ -13,8 +13,31 @@ namespace transport {
 
 class WebsocketManagerServer : public WebsocketManager<Server> {
   public:
+    WebsocketManagerServer(int port, std::string_view uri, std::shared_ptr<spdlog::logger> logger,
+                           bool reuse_addr = true)
+        : m_port{port}, WebsocketManager{logger} {
+        init_handlers(uri, reuse_addr);
+        m_logger->info("WebSocket server initialized on port {}, uri {}", m_port, uri);
+    }
+
     WebsocketManagerServer(int port, std::string_view uri, bool reuse_addr = true)
         : m_port{port}, WebsocketManager{"server_websocket_logger"} {
+        init_handlers(uri, reuse_addr);
+        m_logger->info("WebSocket server initialized on port {}, uri {}", m_port, uri);
+    }
+
+    ~WebsocketManagerServer() {
+        websocketpp::lib::error_code error_code;
+        m_endpoint.stop_listening(error_code);
+
+        if (error_code) {
+            m_logger->error(
+                "Websocket manager server failed to stop listening during destruction: {}",
+                error_code.message());
+        }
+    }
+
+    void init_handlers(std::string_view uri, bool reuse_addr) {
         m_endpoint.set_reuse_addr(reuse_addr);
 
         m_endpoint.set_open_handler([this, uri](ConnectionHandle handle) {
@@ -48,18 +71,6 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
             m_endpoint.pong(handle, str);
             return true;
         });
-        m_logger->info("WebSocket server initialized on port {}, uri {}", m_port, uri);
-    }
-
-    ~WebsocketManagerServer() {
-        websocketpp::lib::error_code error_code;
-        m_endpoint.stop_listening(error_code);
-
-        if (error_code) {
-            m_logger->error(
-                "Websocket manager server failed to stop listening during destruction: {}",
-                error_code.message());
-        }
     }
 
     /*
