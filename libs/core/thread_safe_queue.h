@@ -40,8 +40,8 @@ class ThreadSafeQueue {
     // Tries to dequeue the object only when the queue in non-empty, in a thread safe manner.
     // Using in a while-true loop is safe as condition variables sleeps the thread.
     T wait_and_dequeue() {
-        std::lock_guard lock{m_mutex};
-        m_condition_var.wait(m_mutex, [this]() { return !m_queue.empty(); });
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_condition_var.wait(lock, [this]() { return !m_queue.empty(); });
         auto value{std::move(m_queue.front())};
         m_queue.pop();
         return value;
