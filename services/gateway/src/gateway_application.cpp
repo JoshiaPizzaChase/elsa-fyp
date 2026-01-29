@@ -73,17 +73,17 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
         message.get(timeInForce);
 
         core::NewOrderSingleContainer newOrderRequest{
-            .senderCompId = senderCompId,
-            .targetCompId = targetCompId,
-            .clOrdId = clOrdId,
+            .sender_comp_id = senderCompId,
+            .target_comp_id = targetCompId,
+            .cl_ord_id = clOrdId,
             .symbol = symbol,
-            .side = core::convertToInternal(side),
-            .orderQty = core::convert_to_internal_quantity(orderQty),
-            .ordType = core::convertToInternal(ordType),
+            .side = core::convert_to_internal(side),
+            .order_qty = core::convert_to_internal_quantity(orderQty),
+            .ord_type = core::convert_to_internal(ordType),
             .price = (ordType == FIX::OrdType_LIMIT)
                          ? std::make_optional(core::convert_to_internal_price(price))
                          : std::nullopt,
-            .timeInForce = core::convertToInternal(timeInForce),
+            .time_in_force = core::convert_to_internal(timeInForce),
         };
 
         // sendContainer(newOrderRequest);
@@ -117,14 +117,14 @@ void GatewayApplication::onMessage(const FIX42::OrderCancelRequest& message,
         message.get(side);
 
         core::CancelOrderRequestContainer cancelOrderRequest{
-            .senderCompId = senderCompId,
-            .targetCompId = targetCompId,
-            .orderId = orderId,
-            .origClOrdId = origClOrdId,
-            .clOrdId = clOrdId,
+            .sender_comp_id = senderCompId,
+            .target_comp_id = targetCompId,
+            .order_id = orderId,
+            .orig_cl_ord_id = origClOrdId,
+            .cl_ord_id = clOrdId,
             .symbol = symbol,
-            .side = core::convertToInternal(side),
-            .orderQty = core::convert_to_internal_quantity(orderQty),
+            .side = core::convert_to_internal(side),
+            .order_qty = core::convert_to_internal_quantity(orderQty),
         };
 
         // sendContainer(cancelOrderRequest);
@@ -148,7 +148,7 @@ void GatewayApplication::rejectMessage(const FIX::SenderCompID& sender,
     // TODO: Set up preconditions, e.g. asserting session existence, to catch bugs in debug build.
 
     FIX42::ExecutionReport execReport{FIX::OrderID(clOrdId.getValue()),
-                                      FIX::ExecID(m_idGenerator.genExecutionID()),
+                                      FIX::ExecID(m_idGenerator.genExecutionId()),
                                       FIX::ExecTransType(FIX::ExecTransType_NEW),
                                       FIX::ExecType(FIX::ExecType_REJECTED),
                                       FIX::OrdStatus(FIX::ExecType_REJECTED),

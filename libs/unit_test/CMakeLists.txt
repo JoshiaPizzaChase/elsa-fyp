@@ -53,3 +53,5 @@ set_target_properties(test_mpsc_consumer PROPERTIES
         CXX_STANDARD_REQUIRED ON
 )
 
+target_link_libraries(order_manager_ws_client_test PRIVATE fmt)
+target_link_libraries(order_manager_ws_server_test PRIVATE fmt)

@@ -8,13 +8,13 @@ class IDGenerator {
   public:
     IDGenerator() = default;
 
-    std::string genExecutionID() {
+    std::string genExecutionId() {
         // TODO: Replace with uuid + gateway id
-        return std::to_string(++m_executionID);
+        return std::to_string(++m_executionId);
     }
 
   private:
-    long m_executionID{};
+    long m_executionId{};
 };
 } // namespace gateway
 #endif // GATEWAY_ID_GENERATOR_H

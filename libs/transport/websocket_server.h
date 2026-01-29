@@ -7,57 +7,76 @@
 #include <websocketpp/common/connection_hdl.hpp>
 #include <websocketpp/common/memory.hpp>
 #include <websocketpp/common/thread.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/frame.hpp>
-#include <websocketpp/roles/server_endpoint.hpp>
-#include <websocketpp/server.hpp>
 
 namespace transport {
 
-using Server = websocketpp::server<websocketpp::config::asio>;
-
 class WebsocketManagerServer : public WebsocketManager<Server> {
   public:
-    WebsocketManagerServer(int port) : m_port{port} {
-        // Set logging settings here
+    WebsocketManagerServer(int port, std::string_view uri, bool reuse_addr = true)
+        : m_port{port}, WebsocketManager{"server_websocket_logger"} {
+        m_endpoint.set_reuse_addr(reuse_addr);
 
-        m_endpoint.set_open_handler([this](ConnectionHandle handle) {
-            int newId = m_nextId++;
-            ConnectionMetadata::connMetaSharedPtr metadataPtr{
-                // TODO: Get uri from env/config files
-                std::make_shared<ConnectionMetadata>(newId, handle, "localhost")};
+        m_endpoint.set_open_handler([this, uri](ConnectionHandle handle) {
+            int new_id = m_next_id++;
+            ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{
+                std::make_shared<ConnectionMetadata>(new_id, handle, uri)};
 
-            m_idToConnectionMap.emplace(newId, metadataPtr);
-            m_handleToConnectionMap.emplace(handle, std::move(metadataPtr));
+            m_id_to_connection_map.emplace(new_id, metadata_ptr);
+            m_handle_to_connection_map.emplace(handle, std::move(metadata_ptr));
         });
-
         m_endpoint.set_message_handler([this](ConnectionHandle handle, Server::message_ptr msg) {
-            if (auto it{m_handleToConnectionMap.find(handle)};
-                it != m_handleToConnectionMap.end()) {
-                it->second->onMessage(handle, msg);
+            if (auto it{m_handle_to_connection_map.find(handle)};
+                it != m_handle_to_connection_map.end()) {
+                it->second->on_message(handle, msg);
             }
         });
+        m_endpoint.set_close_handler([this](ConnectionHandle handle) {
+            if (auto it{m_handle_to_connection_map.find(handle)};
+                it != m_handle_to_connection_map.end()) {
+                it->second->on_close(&m_endpoint, handle);
+            }
+        });
+        m_endpoint.set_fail_handler([this](ConnectionHandle handle) {
+            if (auto it{m_handle_to_connection_map.find(handle)};
+                it != m_handle_to_connection_map.end()) {
+                it->second->on_fail(&m_endpoint, handle);
+            }
+        });
+        m_endpoint.set_ping_handler([this](ConnectionHandle handle, std::string str) {
+            m_logger->info("Received ping from connection.");
+            m_endpoint.pong(handle, str);
+            return true;
+        });
+        m_logger->info("WebSocket server initialized on port {}, uri {}", m_port, uri);
     }
 
     ~WebsocketManagerServer() {
+        websocketpp::lib::error_code error_code;
+        m_endpoint.stop_listening(error_code);
+
+        if (error_code) {
+            m_logger->error(
+                "Websocket manager server failed to stop listening during destruction: {}",
+                error_code.message());
+        }
     }
 
     /*
      * Initialises asio config on server endpoint.
      * Starts listening to connections on port.
      * Launches new thread to handle network processing.
-     * Returns false if failed to start.
      */
-    // TODO: Replace error code return value with std::expected!!!
     std::expected<void, int> start() override {
         m_endpoint.init_asio();
 
         m_endpoint.listen(m_port);
 
-        websocketpp::lib::error_code errorCode;
-        m_endpoint.start_accept(errorCode);
+        websocketpp::lib::error_code error_code;
+        m_endpoint.start_accept(error_code);
 
-        if (errorCode) {
+        if (error_code) {
+            m_logger->error("Error starting server: {}", error_code.message());
             return std::unexpected{-1};
         }
 
@@ -66,30 +85,55 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
     }
 
     /*
+     * Stops websocket server gracefully.
+     */
+    std::expected<void, int> stop() override {
+
+        websocketpp::lib::error_code error_code;
+        m_endpoint.stop_listening(error_code);
+
+        if (error_code) {
+            m_logger->error(
+                "Websocket manager server failed to stop listening during manual stop: {}",
+                error_code.message());
+            return std::unexpected{-1};
+        }
+
+        if (!close_all().has_value()) {
+            m_logger->error("Websocket manager server failed to close some connections.");
+            return std::unexpected{-1};
+        }
+
+        return {};
+    }
+
+    /*
      * Server-side specific command to send the same message to all connections. If some of the
      * connections fail to send, broadcasting does not halt. It returns a vector of those failed
      * ids.
      */
-    std::expected<void, std::vector<int>> sendToAll(const std::string& message) {
-        std::vector<int> failedIds;
-        for (const auto& it : m_idToConnectionMap) {
+    std::expected<void, std::vector<int>> send_to_all(const std::string& message) {
+        std::vector<int> failed_ids;
+        for (const auto& it : m_id_to_connection_map) {
             if (!send(it.first, message)) {
-                failedIds.push_back(it.first);
+                failed_ids.push_back(it.first);
             }
         }
 
-        if (!failedIds.empty()) {
-            return std::unexpected(failedIds);
+        if (!failed_ids.empty()) {
+            m_logger->error("Failed to send message to some ids.");
+            return std::unexpected(failed_ids);
         }
 
         return {};
     }
 
   private:
-    using HandleToConnectionMap = std::map<ConnectionHandle, ConnectionMetadata::connMetaSharedPtr,
-                                           std::owner_less<ConnectionHandle>>;
+    using handle_to_connection_map =
+        std::map<ConnectionHandle, ConnectionMetadata::conn_meta_shared_ptr,
+                 std::owner_less<ConnectionHandle>>;
     int m_port;
-    HandleToConnectionMap m_handleToConnectionMap;
+    handle_to_connection_map m_handle_to_connection_map;
 };
 
 } // namespace transport

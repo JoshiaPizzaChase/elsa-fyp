@@ -27,10 +27,10 @@ enum class TimeInForce {
 
 // For some reason, this is also needed.
 enum class ExecTransType {
-    exectrans_new,     // New information contained in execution report.
-    exectrans_cancel,  // Cancelling the execution report.
-    exectrans_correct, // Correction in information contained in previous execution report.
-    exectrans_status // No new information contained in execution report. Only a summary of status.
+    exec_trans_new,     // New information contained in execution report.
+    exec_trans_cancel,  // Cancelling the execution report.
+    exec_trans_correct, // Correction in information contained in previous execution report.
+    exec_trans_status // No new information contained in execution report. Only a summary of status.
 };
 
 // Not supposed to be used directly.
@@ -39,10 +39,10 @@ enum class ExecTransType {
 // state of orders.
 enum class ExecTypeOrOrderStatus {
     status_new,
-    status_partiallyFilled,
+    status_partially_filled,
     status_filled,
     status_canceled,
-    status_pendingCancel,
+    status_pending_cancel,
     status_rejected,
 };
 
@@ -51,9 +51,9 @@ using OrderStatus = ExecTypeOrOrderStatus;
 
 // TODO: Move these to a cpp file to prevent ODR violation and inlining everything
 // Convert from FIX types to internal types
-inline Side convertToInternal(const FIX::Side& side) {
-    constexpr auto errorMsg{"Unsupported Side, use buy or sell"};
-    assert((side == FIX::Side_BUY || side == FIX::Side_SELL) && errorMsg);
+inline Side convert_to_internal(const FIX::Side& side) {
+    constexpr auto error_msg{"Unsupported Side, use buy or sell"};
+    assert((side == FIX::Side_BUY || side == FIX::Side_SELL) && error_msg);
 
     switch (side) {
     case FIX::Side_BUY:
@@ -61,40 +61,40 @@ inline Side convertToInternal(const FIX::Side& side) {
     case FIX::Side_SELL:
         return Side::ask;
     default:
-        throw std::logic_error(errorMsg);
+        throw std::logic_error(error_msg);
     }
 }
 
-inline OrderType convertToInternal(const FIX::OrdType& ordType) {
-    constexpr auto errorMsg{"Unsupported Order Type, use limit or market"};
-    assert((ordType == FIX::OrdType_LIMIT || ordType == FIX::OrdType_MARKET) && errorMsg);
+inline OrderType convert_to_internal(const FIX::OrdType& ord_type) {
+    constexpr auto error_msg{"Unsupported Order Type, use limit or market"};
+    assert((ord_type == FIX::OrdType_LIMIT || ord_type == FIX::OrdType_MARKET) && error_msg);
 
-    switch (ordType) {
+    switch (ord_type) {
     case FIX::OrdType_LIMIT:
         return OrderType::limit;
     case FIX::OrdType_MARKET:
         return OrderType::market;
     default:
-        throw std::logic_error(errorMsg);
+        throw std::logic_error(error_msg);
     }
 }
 
-inline TimeInForce convertToInternal(const FIX::TimeInForce& tif) {
-    constexpr auto errorMsg{"Unsupported Time In Force, use day"};
-    assert(tif == FIX::TimeInForce_DAY && errorMsg);
+inline TimeInForce convert_to_internal(const FIX::TimeInForce& tif) {
+    constexpr auto error_msg{"Unsupported Time In Force, use day"};
+    assert(tif == FIX::TimeInForce_DAY && error_msg);
 
     switch (tif) {
     case FIX::TimeInForce_DAY:
         return TimeInForce::day;
     default:
-        throw std::logic_error(errorMsg);
+        throw std::logic_error(error_msg);
     }
 }
 
 // Convert from internal types to FIX types
-inline FIX::Side convertToFIX(Side side) {
-    constexpr auto errorMsg{"Unsupported side"};
-    assert((side == Side::bid || side == Side::ask) && errorMsg);
+inline FIX::Side convert_to_fix(Side side) {
+    constexpr auto error_msg{"Unsupported side"};
+    assert((side == Side::bid || side == Side::ask) && error_msg);
 
     switch (side) {
     case Side::bid:
@@ -102,33 +102,33 @@ inline FIX::Side convertToFIX(Side side) {
     case Side::ask:
         return FIX::Side_SELL;
     default:
-        throw std::logic_error(errorMsg);
+        throw std::logic_error(error_msg);
     }
 }
 
-inline FIX::OrdType convertToFIX(OrderType ordType) {
-    constexpr auto errorMsg{"Unsupported order type"};
-    assert((ordType == OrderType::limit || ordType == OrderType::market) && errorMsg);
+inline FIX::OrdType convert_to_fix(OrderType ord_type) {
+    constexpr auto error_msg{"Unsupported order type"};
+    assert((ord_type == OrderType::limit || ord_type == OrderType::market) && error_msg);
 
-    switch (ordType) {
+    switch (ord_type) {
     case OrderType::limit:
         return FIX::OrdType_LIMIT;
     case OrderType::market:
         return FIX::OrdType_MARKET;
     default:
-        throw std::logic_error(errorMsg);
+        throw std::logic_error(error_msg);
     }
 }
 
-inline FIX::TimeInForce convertToFIX(TimeInForce tif) {
-    constexpr auto errorMsg{"Unsupported time in force"};
-    assert(tif == TimeInForce::day && errorMsg);
+inline FIX::TimeInForce convert_to_fix(TimeInForce tif) {
+    constexpr auto error_msg{"Unsupported time in force"};
+    assert(tif == TimeInForce::day && error_msg);
 
     switch (tif) {
     case TimeInForce::day:
         return FIX::TimeInForce_DAY;
     default:
-        throw std::logic_error(errorMsg);
+        throw std::logic_error(error_msg);
     }
 }
 

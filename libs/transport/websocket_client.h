@@ -4,31 +4,21 @@
 #include "websocket.h"
 #include <boost/asio/placeholders.hpp>
 #include <memory>
-#include <print>
 #include <websocketpp/client.hpp>
 #include <websocketpp/common/connection_hdl.hpp>
 #include <websocketpp/common/memory.hpp>
 #include <websocketpp/common/thread.hpp>
-#include <websocketpp/config/asio_no_tls.hpp>
-#include <websocketpp/config/asio_no_tls_client.hpp>
 #include <websocketpp/frame.hpp>
-#include <websocketpp/roles/client_endpoint.hpp>
-#include <websocketpp/roles/server_endpoint.hpp>
-#include <websocketpp/server.hpp>
 
 namespace transport {
 
-using Client = websocketpp::client<websocketpp::config::asio_client>;
-
 class WebsocketManagerClient : public WebsocketManager<Client> {
   public:
-    WebsocketManagerClient() {
-        // Set logging settings here
+    WebsocketManagerClient() : WebsocketManager{"client_websocket_logger"} {
     }
 
     ~WebsocketManagerClient() {
         m_endpoint.stop_perpetual();
-        // Do I need to call parent class destructor here to close connections?
     }
 
     /*
@@ -45,33 +35,57 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
         return {};
     }
 
-    // TODO: Replace error code return value with std::expected!!!
+    /*
+     * Stops websocket client gracefully.
+     */
+    std::expected<void, int> stop() override {
+        m_logger->info("Manually stopping websocket manager client...");
+
+        m_endpoint.stop_perpetual();
+
+        if (!close_all().has_value()) {
+            m_logger->error("Websocket manager client failed to close some connections.");
+            return std::unexpected{-1};
+        }
+        m_logger->info("Websocket manager client closed all connections successfully.");
+
+        return {};
+    }
+
+    /*
+     * Connects to a server endpoint based on uri.
+     * An example of uri is ws://localhost:6767.
+     * Returns the connection id if successful.
+     */
     std::expected<int, int> connect(std::string const& uri) {
-        websocketpp::lib::error_code errorCode;
+        websocketpp::lib::error_code error_code;
 
-        Client::connection_ptr connection = m_endpoint.get_connection(uri, errorCode);
+        Client::connection_ptr connection = m_endpoint.get_connection(uri, error_code);
 
-        if (errorCode) {
-            std::println("Connect initialization error: {}", errorCode.message());
+        if (error_code) {
+            m_logger->error("Connect initialization error: {}", error_code.message());
             return std::unexpected{-1};
         }
 
-        int new_id = m_nextId++;
+        int new_id = m_next_id++;
 
-        ConnectionMetadata::connMetaSharedPtr metadata_ptr{
+        ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{
             std::make_shared<ConnectionMetadata>(new_id, connection->get_handle(), uri)};
 
-        m_idToConnectionMap[new_id] = metadata_ptr;
+        m_id_to_connection_map[new_id] = metadata_ptr;
 
         connection->set_open_handler([metadata_ptr, capture0 = &m_endpoint](auto&& PH1) {
-            metadata_ptr->onOpen(capture0, std::forward<decltype(PH1)>(PH1));
+            metadata_ptr->on_open(capture0, std::forward<decltype(PH1)>(PH1));
         });
         connection->set_fail_handler([metadata_ptr, capture0 = &m_endpoint](auto&& PH1) {
-            metadata_ptr->onFail(capture0, std::forward<decltype(PH1)>(PH1));
+            metadata_ptr->on_fail(capture0, std::forward<decltype(PH1)>(PH1));
+        });
+        connection->set_close_handler([metadata_ptr, capture0 = &m_endpoint](auto&& PH1) {
+            metadata_ptr->on_close(capture0, std::forward<decltype(PH1)>(PH1));
         });
         connection->set_message_handler([metadata_ptr](auto&& PH1, auto&& PH2) {
-            metadata_ptr->onMessage(std::forward<decltype(PH1)>(PH1),
-                                    std::forward<decltype(PH2)>(PH2));
+            metadata_ptr->on_message(std::forward<decltype(PH1)>(PH1),
+                                     std::forward<decltype(PH2)>(PH2));
         });
 
         m_endpoint.connect(connection);
