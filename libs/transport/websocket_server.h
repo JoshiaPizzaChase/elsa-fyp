@@ -17,13 +17,15 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
                            bool reuse_addr = true)
         : m_port{port}, WebsocketManager{logger} {
         init_handlers(uri, reuse_addr);
-        m_logger->info("WebSocket server initialized on port {}, uri {}", m_port, uri);
+        m_logger->info("Websocket server initialized on port {}, uri {}", m_port, uri);
     }
 
-    WebsocketManagerServer(int port, std::string_view uri, bool reuse_addr = true)
-        : m_port{port}, WebsocketManager{"server_websocket_logger"} {
+    WebsocketManagerServer(int port, std::string_view uri,
+                           const std::string& logger_name = "server_websocket_logger",
+                           bool reuse_addr = true)
+        : m_port{port}, WebsocketManager{logger_name} {
         init_handlers(uri, reuse_addr);
-        m_logger->info("WebSocket server initialized on port {}, uri {}", m_port, uri);
+        m_logger->info("Websocket server initialized on port {}, uri {}", m_port, uri);
     }
 
     ~WebsocketManagerServer() {
@@ -45,6 +47,7 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
             ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{
                 std::make_shared<ConnectionMetadata>(new_id, handle, uri)};
 
+            metadata_ptr->on_open(&m_endpoint, handle);
             m_id_to_connection_map.emplace(new_id, metadata_ptr);
             m_handle_to_connection_map.emplace(handle, std::move(metadata_ptr));
         });
