@@ -139,6 +139,21 @@ class WebsocketManager {
     using ConnectionHandle = websocketpp::connection_hdl;
 
   public:
+    // Constructor if you already have a logger, usually when a top-level class owns
+    // a WebsocketManager object.
+    WebsocketManager(std::shared_ptr<spdlog::logger> logger) : m_logger{logger} {
+        // Intensive logging
+        m_endpoint.set_access_channels(websocketpp::log::alevel::all);
+        m_endpoint.set_error_channels(websocketpp::log::elevel::all);
+
+        // Redirect endpoint logs to separate file from spdlogs
+        std::ostream* log_stream =
+            new std::ofstream(std::format("logs/{}_endpoint.log", m_logger->name()));
+        m_endpoint.get_alog().set_ostream(log_stream);
+        m_endpoint.get_elog().set_ostream(log_stream);
+    }
+
+    // Constructor for stand-alone WebsocketManager objects.
     WebsocketManager(const std::string& logger_name)
         : m_logger{spdlog::basic_logger_mt<spdlog::async_factory>(
               logger_name, std::format("logs/{}.log", logger_name))} {
@@ -246,7 +261,7 @@ class WebsocketManager {
 
         return it->second->dequeue_message();
     }
-    
+
     // THIS IS A BLOCKING DEQUEUE METHOD.
     // It sleeps the thread if queue is non-emoty, do not use this if you want busy-waiting!
     // Returns a null optional if no id is found.
