@@ -7,8 +7,7 @@
 
 namespace transport {
 
-// TODO: Improve these conversion functions. Is there any way to avoid boilerplate?
-inline transport::Side convertToProto(core::Side side) {
+inline transport::Side convert_to_proto(core::Side side) {
     switch (side) {
     case core::Side::bid:
         return transport::Side::SIDE_BID;
@@ -19,8 +18,8 @@ inline transport::Side convertToProto(core::Side side) {
     }
 }
 
-inline transport::OrderType convertToProto(core::OrderType ordType) {
-    switch (ordType) {
+inline transport::OrderType convert_to_proto(core::OrderType ord_type) {
+    switch (ord_type) {
     case core::OrderType::limit:
         return transport::OrderType::ORDER_TYPE_LIMIT;
     case core::OrderType::market:
@@ -30,7 +29,7 @@ inline transport::OrderType convertToProto(core::OrderType ordType) {
     }
 }
 
-inline transport::TimeInForce convertToProto(core::TimeInForce tif) {
+inline transport::TimeInForce convert_to_proto(core::TimeInForce tif) {
     switch (tif) {
     case core::TimeInForce::day:
         return transport::TimeInForce::TIF_DAY;
@@ -39,15 +38,15 @@ inline transport::TimeInForce convertToProto(core::TimeInForce tif) {
     }
 }
 
-inline transport::ExecTransType convertToProto(core::ExecTransType execTransType) {
-    switch (execTransType) {
-    case core::ExecTransType::exectrans_new:
+inline transport::ExecTransType convert_to_proto(core::ExecTransType exec_trans_type) {
+    switch (exec_trans_type) {
+    case core::ExecTransType::exec_trans_new:
         return transport::ExecTransType::EXEC_TRANS_NEW;
-    case core::ExecTransType::exectrans_cancel:
+    case core::ExecTransType::exec_trans_cancel:
         return transport::ExecTransType::EXEC_TRANS_CANCEL;
-    case core::ExecTransType::exectrans_correct:
+    case core::ExecTransType::exec_trans_correct:
         return transport::ExecTransType::EXEC_TRANS_CORRECT;
-    case core::ExecTransType::exectrans_status:
+    case core::ExecTransType::exec_trans_status:
         return transport::ExecTransType::EXEC_TRANS_STATUS;
     default:
         throw std::invalid_argument("Unknown ExecTransType enum value");
@@ -55,17 +54,17 @@ inline transport::ExecTransType convertToProto(core::ExecTransType execTransType
 }
 
 inline transport::ExecTypeOrOrderStatus
-convertToProto(core::ExecTypeOrOrderStatus execTypeOrOrderStatus) {
-    switch (execTypeOrOrderStatus) {
+convert_to_proto(core::ExecTypeOrOrderStatus exec_type_or_order_status) {
+    switch (exec_type_or_order_status) {
     case core::ExecTypeOrOrderStatus::status_new:
         return transport::ExecTypeOrOrderStatus::STATUS_NEW;
-    case core::ExecTypeOrOrderStatus::status_partiallyFilled:
+    case core::ExecTypeOrOrderStatus::status_partially_filled:
         return transport::ExecTypeOrOrderStatus::STATUS_PARTIALLY_FILLED;
     case core::ExecTypeOrOrderStatus::status_filled:
         return transport::ExecTypeOrOrderStatus::STATUS_FILLED;
     case core::ExecTypeOrOrderStatus::status_canceled:
         return transport::ExecTypeOrOrderStatus::STATUS_CANCELED;
-    case core::ExecTypeOrOrderStatus::status_pendingCancel:
+    case core::ExecTypeOrOrderStatus::status_pending_cancel:
         return transport::ExecTypeOrOrderStatus::STATUS_PENDING_CANCEL;
     case core::ExecTypeOrOrderStatus::status_rejected:
         return transport::ExecTypeOrOrderStatus::STATUS_REJECTED;
@@ -75,7 +74,7 @@ convertToProto(core::ExecTypeOrOrderStatus execTypeOrOrderStatus) {
 }
 
 // From proto enum to core enum
-inline core::Side convertToInternal(transport::Side side) {
+inline core::Side convert_to_internal(transport::Side side) {
     switch (side) {
     case transport::Side::SIDE_BID:
         return core::Side::bid;
@@ -86,8 +85,8 @@ inline core::Side convertToInternal(transport::Side side) {
     }
 }
 
-inline core::OrderType convertToInternal(transport::OrderType ordType) {
-    switch (ordType) {
+inline core::OrderType convert_to_internal(transport::OrderType ord_type) {
+    switch (ord_type) {
     case transport::OrderType::ORDER_TYPE_LIMIT:
         return core::OrderType::limit;
     case transport::OrderType::ORDER_TYPE_MARKET:
@@ -97,7 +96,7 @@ inline core::OrderType convertToInternal(transport::OrderType ordType) {
     }
 }
 
-inline core::TimeInForce convertToInternal(transport::TimeInForce tif) {
+inline core::TimeInForce convert_to_internal(transport::TimeInForce tif) {
     switch (tif) {
     case transport::TimeInForce::TIF_DAY:
         return core::TimeInForce::day;
@@ -106,34 +105,34 @@ inline core::TimeInForce convertToInternal(transport::TimeInForce tif) {
     }
 }
 
-inline core::ExecTransType convertToInternal(transport::ExecTransType execTransType) {
-    switch (execTransType) {
+inline core::ExecTransType convert_to_internal(transport::ExecTransType exec_trans_type) {
+    switch (exec_trans_type) {
     case transport::ExecTransType::EXEC_TRANS_NEW:
-        return core::ExecTransType::exectrans_new;
+        return core::ExecTransType::exec_trans_new;
     case transport::ExecTransType::EXEC_TRANS_CANCEL:
-        return core::ExecTransType::exectrans_cancel;
+        return core::ExecTransType::exec_trans_cancel;
     case transport::ExecTransType::EXEC_TRANS_CORRECT:
-        return core::ExecTransType::exectrans_correct;
+        return core::ExecTransType::exec_trans_correct;
     case transport::ExecTransType::EXEC_TRANS_STATUS:
-        return core::ExecTransType::exectrans_status;
+        return core::ExecTransType::exec_trans_status;
     default:
         throw std::invalid_argument("Unknown ExecTransType enum value");
     }
 }
 
 inline core::ExecTypeOrOrderStatus
-convertToInternal(transport::ExecTypeOrOrderStatus execTypeOrOrderStatus) {
-    switch (execTypeOrOrderStatus) {
+convert_to_internal(transport::ExecTypeOrOrderStatus exec_type_or_order_status) {
+    switch (exec_type_or_order_status) {
     case transport::ExecTypeOrOrderStatus::STATUS_NEW:
         return core::ExecTypeOrOrderStatus::status_new;
     case transport::ExecTypeOrOrderStatus::STATUS_PARTIALLY_FILLED:
-        return core::ExecTypeOrOrderStatus::status_partiallyFilled;
+        return core::ExecTypeOrOrderStatus::status_partially_filled;
     case transport::ExecTypeOrOrderStatus::STATUS_FILLED:
         return core::ExecTypeOrOrderStatus::status_filled;
     case transport::ExecTypeOrOrderStatus::STATUS_CANCELED:
         return core::ExecTypeOrOrderStatus::status_canceled;
     case transport::ExecTypeOrOrderStatus::STATUS_PENDING_CANCEL:
-        return core::ExecTypeOrOrderStatus::status_pendingCancel;
+        return core::ExecTypeOrOrderStatus::status_pending_cancel;
     case transport::ExecTypeOrOrderStatus::STATUS_REJECTED:
         return core::ExecTypeOrOrderStatus::status_rejected;
     default:
@@ -142,133 +141,133 @@ convertToInternal(transport::ExecTypeOrOrderStatus execTypeOrOrderStatus) {
 }
 
 // Serializer and deserializer functions
-inline std::string serializeContainer(const core::NewOrderSingleContainer& container) {
-    transport::NewOrderSingleContainer containerProto;
+inline std::string serialize_container(const core::NewOrderSingleContainer& container) {
+    transport::NewOrderSingleContainer container_proto;
 
-    containerProto.set_cl_ord_id(container.clOrdId);
-    containerProto.set_sender_comp_id(container.senderCompId);
-    containerProto.set_target_comp_id(container.targetCompId);
-    containerProto.set_symbol(container.symbol);
-    containerProto.set_side(convertToProto(container.side));
-    containerProto.set_order_qty(container.orderQty);
-    containerProto.set_ord_type(convertToProto(container.ordType));
+    container_proto.set_cl_ord_id(container.cl_ord_id);
+    container_proto.set_sender_comp_id(container.sender_comp_id);
+    container_proto.set_target_comp_id(container.target_comp_id);
+    container_proto.set_symbol(container.symbol);
+    container_proto.set_side(convert_to_proto(container.side));
+    container_proto.set_order_qty(container.order_qty);
+    container_proto.set_ord_type(convert_to_proto(container.ord_type));
     // Don't serialize price if not set to save some space
     if (container.price.has_value()) {
-        containerProto.set_price(container.price.value());
+        container_proto.set_price(container.price.value());
     }
-    containerProto.set_time_in_force(convertToProto(container.timeInForce));
+    container_proto.set_time_in_force(convert_to_proto(container.time_in_force));
 
-    return containerProto.SerializeAsString();
+    return container_proto.SerializeAsString();
 }
 
-inline std::string serializeContainer(const core::CancelOrderRequestContainer& container) {
-    transport::CancelOrderRequestContainer containerProto;
+inline std::string serialize_container(const core::CancelOrderRequestContainer& container) {
+    transport::CancelOrderRequestContainer container_proto;
 
-    containerProto.set_cl_ord_id(container.clOrdId);
-    containerProto.set_sender_comp_id(container.senderCompId);
-    containerProto.set_target_comp_id(container.targetCompId);
-    containerProto.set_order_id(container.orderId);
-    containerProto.set_orig_cl_ord_id(container.origClOrdId);
-    containerProto.set_symbol(container.symbol);
-    containerProto.set_side(convertToProto(container.side));
-    containerProto.set_order_qty(container.orderQty);
+    container_proto.set_cl_ord_id(container.cl_ord_id);
+    container_proto.set_sender_comp_id(container.sender_comp_id);
+    container_proto.set_target_comp_id(container.target_comp_id);
+    container_proto.set_order_id(container.order_id);
+    container_proto.set_orig_cl_ord_id(container.orig_cl_ord_id);
+    container_proto.set_symbol(container.symbol);
+    container_proto.set_side(convert_to_proto(container.side));
+    container_proto.set_order_qty(container.order_qty);
 
-    return containerProto.SerializeAsString();
+    return container_proto.SerializeAsString();
 }
 
-inline std::string serializeContainer(const core::ExecutionReportContainer& container) {
-    transport::ExecutionReportContainer containerProto;
+inline std::string serialize_container(const core::ExecutionReportContainer& container) {
+    transport::ExecutionReportContainer container_proto;
 
-    containerProto.set_sender_comp_id(container.senderCompId);
-    containerProto.set_target_comp_id(container.targetCompId);
-    containerProto.set_order_id(container.orderId);
-    containerProto.set_cl_order_id(container.clOrderId);
-    if (container.origClOrdID.has_value()) {
-        containerProto.set_orig_cl_ord_id(container.origClOrdID.value());
+    container_proto.set_sender_comp_id(container.sender_comp_id);
+    container_proto.set_target_comp_id(container.target_comp_id);
+    container_proto.set_order_id(container.order_id);
+    container_proto.set_cl_order_id(container.cl_order_id);
+    if (container.orig_cl_ord_id.has_value()) {
+        container_proto.set_orig_cl_ord_id(container.orig_cl_ord_id.value());
     }
-    containerProto.set_exec_id(container.execId);
-    containerProto.set_exec_trans_type(convertToProto(container.execTransType));
-    containerProto.set_exec_type(convertToProto(container.execType));
-    containerProto.set_ord_status(convertToProto(container.ordStatus));
-    containerProto.set_ord_reject_reason(container.ordRejectReason);
-    containerProto.set_symbol(container.symbol);
-    containerProto.set_side(convertToProto(container.side));
+    container_proto.set_exec_id(container.exec_id);
+    container_proto.set_exec_trans_type(convert_to_proto(container.exec_trans_type));
+    container_proto.set_exec_type(convert_to_proto(container.exec_type));
+    container_proto.set_ord_status(convert_to_proto(container.ord_status));
+    container_proto.set_ord_reject_reason(container.ord_reject_reason);
+    container_proto.set_symbol(container.symbol);
+    container_proto.set_side(convert_to_proto(container.side));
     if (container.price.has_value()) {
-        containerProto.set_price(container.price.value());
+        container_proto.set_price(container.price.value());
     }
-    if (container.timeInForce.has_value()) {
-        containerProto.set_time_in_force(convertToProto(container.timeInForce.value()));
+    if (container.time_in_force.has_value()) {
+        container_proto.set_time_in_force(convert_to_proto(container.time_in_force.value()));
     }
-    containerProto.set_leaves_qty(container.leavesQty);
-    containerProto.set_cum_qty(container.cumQty);
-    containerProto.set_avg_px(container.avgPx);
+    container_proto.set_leaves_qty(container.leaves_qty);
+    container_proto.set_cum_qty(container.cum_qty);
+    container_proto.set_avg_px(container.avg_px);
 
-    return containerProto.SerializeAsString();
+    return container_proto.SerializeAsString();
 }
 
-inline core::Container deserializeContainer(const std::string& data) {
-    transport::ContainerWrapper containerWrapper;
+inline core::Container deserialize_container(const std::string& data) {
+    transport::ContainerWrapper container_wrapper;
 
-    if (!containerWrapper.ParseFromString(data)) {
+    if (!container_wrapper.ParseFromString(data)) {
         throw std::invalid_argument("Failed to parse ContainerWrapper from string");
     }
 
-    switch (containerWrapper.container_case()) {
+    switch (container_wrapper.container_case()) {
     case transport::ContainerWrapper::kNewOrderSingle: {
-        const auto& proto = containerWrapper.new_order_single();
+        const auto& proto = container_wrapper.new_order_single();
         core::NewOrderSingleContainer container;
-        container.clOrdId = proto.cl_ord_id();
-        container.senderCompId = proto.sender_comp_id();
-        container.targetCompId = proto.target_comp_id();
+        container.cl_ord_id = proto.cl_ord_id();
+        container.sender_comp_id = proto.sender_comp_id();
+        container.target_comp_id = proto.target_comp_id();
         container.symbol = proto.symbol();
-        container.side = convertToInternal(proto.side());
-        container.orderQty = proto.order_qty();
-        container.ordType = convertToInternal(proto.ord_type());
+        container.side = convert_to_internal(proto.side());
+        container.order_qty = proto.order_qty();
+        container.ord_type = convert_to_internal(proto.ord_type());
         if (proto.has_price()) {
             container.price = proto.price();
         }
-        container.timeInForce = convertToInternal(proto.time_in_force());
+        container.time_in_force = convert_to_internal(proto.time_in_force());
         return container;
     }
     case transport::ContainerWrapper::kCancelOrderRequest: {
-        const auto& proto = containerWrapper.cancel_order_request();
+        const auto& proto = container_wrapper.cancel_order_request();
         core::CancelOrderRequestContainer container;
-        container.clOrdId = proto.cl_ord_id();
-        container.senderCompId = proto.sender_comp_id();
-        container.targetCompId = proto.target_comp_id();
-        container.orderId = proto.order_id();
-        container.origClOrdId = proto.orig_cl_ord_id();
+        container.cl_ord_id = proto.cl_ord_id();
+        container.sender_comp_id = proto.sender_comp_id();
+        container.target_comp_id = proto.target_comp_id();
+        container.order_id = proto.order_id();
+        container.orig_cl_ord_id = proto.orig_cl_ord_id();
         container.symbol = proto.symbol();
-        container.side = convertToInternal(proto.side());
-        container.orderQty = proto.order_qty();
+        container.side = convert_to_internal(proto.side());
+        container.order_qty = proto.order_qty();
         return container;
     }
     case transport::ContainerWrapper::kExecutionReport: {
-        const auto& proto = containerWrapper.execution_report();
+        const auto& proto = container_wrapper.execution_report();
         core::ExecutionReportContainer container;
-        container.senderCompId = proto.sender_comp_id();
-        container.targetCompId = proto.target_comp_id();
-        container.orderId = proto.order_id();
-        container.clOrderId = proto.cl_order_id();
+        container.sender_comp_id = proto.sender_comp_id();
+        container.target_comp_id = proto.target_comp_id();
+        container.order_id = proto.order_id();
+        container.cl_order_id = proto.cl_order_id();
         if (proto.has_orig_cl_ord_id()) {
-            container.origClOrdID = proto.orig_cl_ord_id();
+            container.orig_cl_ord_id = proto.orig_cl_ord_id();
         }
-        container.execId = proto.exec_id();
-        container.execTransType = convertToInternal(proto.exec_trans_type());
-        container.execType = convertToInternal(proto.exec_type());
-        container.ordStatus = convertToInternal(proto.ord_status());
-        container.ordRejectReason = proto.ord_reject_reason();
+        container.exec_id = proto.exec_id();
+        container.exec_trans_type = convert_to_internal(proto.exec_trans_type());
+        container.exec_type = convert_to_internal(proto.exec_type());
+        container.ord_status = convert_to_internal(proto.ord_status());
+        container.ord_reject_reason = proto.ord_reject_reason();
         container.symbol = proto.symbol();
-        container.side = convertToInternal(proto.side());
+        container.side = convert_to_internal(proto.side());
         if (proto.has_price()) {
             container.price = proto.price();
         }
         if (proto.has_time_in_force()) {
-            container.timeInForce = convertToInternal(proto.time_in_force());
+            container.time_in_force = convert_to_internal(proto.time_in_force());
         }
-        container.leavesQty = proto.leaves_qty();
-        container.cumQty = proto.cum_qty();
-        container.avgPx = proto.avg_px();
+        container.leaves_qty = proto.leaves_qty();
+        container.cum_qty = proto.cum_qty();
+        container.avg_px = proto.avg_px();
 
         return container;
     }

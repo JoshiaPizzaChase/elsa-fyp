@@ -1,5 +1,6 @@
 #ifndef MPSC_TEST_H
 #define MPSC_TEST_H
+#include "inter_process/mpsc_shared_memory_ring_buffer.h"
 struct ComplexObject {
     int id;                   // Trivial type
     char data[20];           // Fixed-size char array

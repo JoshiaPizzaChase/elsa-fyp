@@ -1,105 +1,118 @@
 #ifndef TRANSPORT_WEBSOCKET_H
 #define TRANSPORT_WEBSOCKET_H
 
+#include "core/thread_safe_queue.h"
+#include "spdlog/async.h"
+#include "spdlog/sinks/basic_file_sink.h"
 #include <boost/asio/placeholders.hpp>
+#include <concepts>
 #include <expected>
-#include <print>
-#include <queue>
-#include <sstream>
+#include <fstream>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
+#include <websocketpp/client.hpp>
 #include <websocketpp/close.hpp>
 #include <websocketpp/common/connection_hdl.hpp>
 #include <websocketpp/common/memory.hpp>
 #include <websocketpp/common/thread.hpp>
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/config/asio_no_tls_client.hpp>
 #include <websocketpp/frame.hpp>
+#include <websocketpp/server.hpp>
 
 namespace transport {
 
-// TODO: Impose a Concept here
-template <typename Endpoint>
+using Client = websocketpp::client<websocketpp::config::asio_client>;
+using Server = websocketpp::server<websocketpp::config::asio>;
+
+template <typename T>
+concept ClientOrServer = std::same_as<T, Client> || std::same_as<T, Server>;
+
+enum class ConnectionStatus {
+    connecting,
+    open,
+    failed,
+    closed,
+};
+
+template <ClientOrServer Endpoint>
 struct ConnectionMetadata {
   public:
-    using connMetaSharedPtr = websocketpp::lib::shared_ptr<ConnectionMetadata>;
+    using conn_meta_shared_ptr = websocketpp::lib::shared_ptr<ConnectionMetadata>;
 
     ConnectionMetadata(int id, websocketpp::connection_hdl handle, std::string_view uri)
-        : m_id{id}, m_handle{std::move(handle)}, m_status{"Connecting"}, m_uri{uri},
-          m_counterParty{"N/A"} {
+        : m_id{id}, m_handle{handle}, m_status{ConnectionStatus::connecting}, m_uri{uri},
+          m_counter_party{"N/A"} {
     }
 
-    // Handler
-    // TODO: Maybe convert to non-const reference instead of raw pointers... not sure why the
-    // getters are non-const methods.
-    void onOpen(Endpoint* endpoint, websocketpp::connection_hdl handle) {
-        m_status = "Open";
+    // Handlers
+    void on_open(Endpoint* endpoint, websocketpp::connection_hdl handle) {
+        m_status = ConnectionStatus::open;
 
-        typename Endpoint::connection_ptr connection =
-            endpoint->get_con_from_hdl(std::move(handle));
-        m_counterParty = connection->get_response_header("Server");
+        typename Endpoint::connection_ptr connection = endpoint->get_con_from_hdl(handle);
+        m_counter_party = connection->get_response_header("Server");
     }
 
-    void onFail(Endpoint* endpoint, websocketpp::connection_hdl handle) {
-        m_status = "Failed";
+    void on_fail(Endpoint* endpoint, websocketpp::connection_hdl handle) {
+        m_status = ConnectionStatus::failed;
 
-        typename Endpoint::connection_ptr connection =
-            endpoint->get_con_from_hdl(std::move(handle));
-        m_counterParty = connection->get_response_header("Server");
-        m_errorReason = connection->get_ec().message();
+        typename Endpoint::connection_ptr connection = endpoint->get_con_from_hdl(handle);
+        m_counter_party = connection->get_response_header("Server");
+        m_error_reason = connection->get_ec().message();
     }
 
-    void onClose(Endpoint* endpoint, websocketpp::connection_hdl handle) {
-        m_status = "Closed";
-        typename Endpoint::connection_ptr connection =
-            endpoint->get_con_from_hdl(std::move(handle));
-        std::stringstream s;
-        s << "close code: " << connection->get_remote_close_code() << " ("
-          << websocketpp::close::status::get_string(connection->get_remote_close_code())
-          << "), close reason: " << connection->get_remote_close_reason();
-        m_errorReason = s.str();
+    void on_close(Endpoint* endpoint, websocketpp::connection_hdl handle) {
+        m_status = ConnectionStatus::closed;
+
+        typename Endpoint::connection_ptr connection = endpoint->get_con_from_hdl(handle);
+        m_error_reason = std::format(
+            "Close code: {} ({}), close reason: {}", connection->get_remote_close_code(),
+            websocketpp::close::status::get_string(connection->get_remote_close_code()),
+            connection->get_remote_close_reason());
     }
 
-    void onMessage(websocketpp::connection_hdl handle, Endpoint::message_ptr msg) {
-        // TODO: handle different opcode formats?
-        m_messageQueue.emplace(websocketpp::utility::to_hex(msg->get_payload()));
+    void on_message(websocketpp::connection_hdl handle, Endpoint::message_ptr msg) {
+        // TODO: handle different opcode formats more efficiently?
+        m_message_queue.enqueue(std::move(msg->get_payload()));
     }
 
-    websocketpp::connection_hdl getHandle() const {
+    // Getters
+    websocketpp::connection_hdl get_handle() const {
         return m_handle;
     }
 
-    int getId() const {
+    int get_id() const {
         return m_id;
     }
 
-    std::string getStatus() const {
+    ConnectionStatus get_status() const {
         return m_status;
     }
 
-    std::optional<std::string> dequeueMessage() {
-        if (m_messageQueue.empty()) {
-            return std::nullopt;
-        }
-        const auto first{m_messageQueue.front()};
-        m_messageQueue.pop();
-        return first;
+    // Message queuing and storing
+    std::optional<std::string> dequeue_message() {
+        return m_message_queue.dequeue();
     }
 
-    void recordSentMessage(std::string_view message) {
-        m_messageStore.emplace_back(message);
+    std::string wait_and_dequeue_message() {
+        return m_message_queue.wait_and_dequeue();
+    }
+
+    void record_sent_message(std::string_view message) {
+        m_message_store.emplace_back(message);
     }
 
     friend std::ostream& operator<<(std::ostream& out, ConnectionMetadata const& data) {
         out << "> URI: " << data.m_uri << "\n"
-            << "> Status: " << data.m_status << "\n"
-            << "> Remote Server: "
-            << (data.m_counterParty.empty() ? "None Specified" : data.m_counterParty) << "\n"
+            << "> Status: " << static_cast<int>(data.m_status) << "\n"
+            << (data.m_counter_party.empty() ? "None Specified" : data.m_counter_party) << "\n"
             << "> Error/close reason: "
-            << (data.m_errorReason.empty() ? "N/A" : data.m_errorReason);
+            << (data.m_error_reason.empty() ? "N/A" : data.m_error_reason);
 
-        out << "> Messages Processed: (" << data.m_messageStore.size() << ") \n";
+        out << "> Messages Processed: (" << data.m_message_store.size() << ") \n";
 
-        for (const auto& message : data.m_messageStore) {
+        for (const auto& message : data.m_message_store) {
             out << message << "\n";
         }
 
@@ -109,105 +122,157 @@ struct ConnectionMetadata {
   private:
     int m_id;
     websocketpp::connection_hdl m_handle;
-    std::string m_status;
+    ConnectionStatus m_status;
     std::string m_uri;
-    // TODO: m_counterParty may either be server or client, how would we handle these cases
+    // TODO: m_counter_party may either be server or client, how would we handle these cases
     // separately? We may have to change the config...
-    std::string m_counterParty;
-    std::string m_errorReason;
-    std::vector<std::string> m_messageStore;
-    std::queue<std::string> m_messageQueue;
+    std::string m_counter_party;
+    std::string m_error_reason;
+    std::vector<std::string> m_message_store;
+    core::ThreadSafeQueue<std::string> m_message_queue;
 };
 
-// TODO: Impose a Concept here
-template <typename Endpoint>
+template <ClientOrServer Endpoint>
 class WebsocketManager {
   protected:
     using ConnectionMetadata = ConnectionMetadata<Endpoint>;
     using ConnectionHandle = websocketpp::connection_hdl;
 
   public:
-    WebsocketManager() = default;
+    // Constructor if you already have a logger, usually when a top-level class owns
+    // a WebsocketManager object.
+    WebsocketManager(std::shared_ptr<spdlog::logger> logger) : m_logger{logger} {
+        init_logging(logger->name());
+    }
+
+    // Constructor for stand-alone WebsocketManager objects.
+    WebsocketManager(const std::string& logger_name)
+        : m_logger{spdlog::basic_logger_mt<spdlog::async_factory>(
+              logger_name, std::format("logs/{}.log", logger_name))} {
+        init_logging(logger_name);
+    }
 
     virtual ~WebsocketManager() {
-        for (const auto& it : m_idToConnectionMap) {
-            if (it.second->getStatus() != "Open") {
-                // Only close open connections. Lol but what happens if we don't?
-                continue;
-            }
-
-            std::println("Closing connection: {}", it.second->getId());
-
-            websocketpp::lib::error_code errorCode;
-            m_endpoint.close(it.second->getHandle(), websocketpp::close::status::going_away, "",
-                             errorCode);
-            if (errorCode) {
-                std::println("Error closing connection {}: {}", it.second->getId(),
-                             errorCode.message());
-            }
+        if (!close_all().has_value()) {
+            m_logger->error("Failed to close some ids during destruction.");
         }
 
-        // TODO: Use thread guards instead of manual joins!
         if (m_thread->joinable()) {
             m_thread->join();
         }
     }
 
     virtual std::expected<void, int> start() = 0;
+    virtual std::expected<void, int> stop() = 0;
 
-    virtual std::expected<void, int> send(int id, const std::string& message) {
-        websocketpp::lib::error_code errorCode;
+    void init_logging(const std::string& logger_name) {
+        // Intensive logging
+        m_endpoint.set_access_channels(websocketpp::log::alevel::all);
+        m_endpoint.set_error_channels(websocketpp::log::elevel::all);
 
-        auto metadata_it = m_idToConnectionMap.find(id);
-        if (metadata_it == m_idToConnectionMap.end()) {
-            std::println("No connection found with id {}", id);
+        // Redirect endpoint logs to separate file from spdlogs
+        std::ostream* log_stream =
+            new std::ofstream(std::format("logs/{}_endpoint.log", logger_name));
+        m_endpoint.get_alog().set_ostream(log_stream);
+        m_endpoint.get_elog().set_ostream(log_stream);
+    }
+
+    std::expected<void, int> send(int id, const std::string& message) {
+        websocketpp::lib::error_code error_code;
+
+        auto metadata_it = m_id_to_connection_map.find(id);
+        if (metadata_it == m_id_to_connection_map.end()) {
+            m_logger->error("Sending failed, no connection found with id: {}", id);
             return std::unexpected{-1};
         }
 
-        m_endpoint.send(metadata_it->second->getHandle(), message,
-                        websocketpp::frame::opcode::binary, errorCode);
-        if (errorCode) {
-            std::println("Error sending message: {}", errorCode.message());
+        m_endpoint.send(metadata_it->second->get_handle(), message,
+                        websocketpp::frame::opcode::text, error_code);
+        if (error_code) {
+            m_logger->error("Error sending message: {}", error_code.message());
             return std::unexpected{-1};
         }
 
-        metadata_it->second->recordSentMessage(message);
+        metadata_it->second->record_sent_message(message);
         return {};
     }
 
-    virtual std::expected<void, int> close(int id, websocketpp::close::status::value code) {
-        websocketpp::lib::error_code errorCode;
+    std::expected<void, int> close(int id, websocketpp::close::status::value code) {
+        websocketpp::lib::error_code error_code;
 
-        auto metadata_it = m_idToConnectionMap.find(id);
-        if (metadata_it == m_idToConnectionMap.end()) {
-            std::println("No connection found with id {}", id);
+        auto metadata_it = m_id_to_connection_map.find(id);
+
+        if (metadata_it == m_id_to_connection_map.end()) {
+            m_logger->error("No connection found with id: {}", id);
             return std::unexpected{-1};
         }
 
-        m_endpoint.close(metadata_it->second->getHandle(), code, "", errorCode);
-        if (errorCode) {
-            std::println("Error initiating close: {}", errorCode.message());
+        m_endpoint.close(metadata_it->second->get_handle(), code, "", error_code);
+        if (error_code) {
+            m_logger->error("Error initiating close: {}", error_code.message());
             return std::unexpected{-1};
         }
 
         return {};
     }
 
-    // TODO: Who will do round robining?
-    // TODO: Who will deserialize?
-    virtual std::optional<std::string> dequeueMessage(int id) {
-        auto it{m_idToConnectionMap.find(id)};
+    std::expected<void, std::vector<int>> close_all() {
+        m_logger->info("Closing all connections...");
 
-        if (it == m_idToConnectionMap.end()) {
+        std::vector<int> failed_ids;
+        for (const auto& it : m_id_to_connection_map) {
+            const auto id{it.second->get_id()};
+            if (it.second->get_status() != ConnectionStatus::open) {
+                m_logger->info("Connection id {} has status {}, skipping.", id,
+                               static_cast<int>(it.second->get_status()));
+                continue;
+            }
+
+            m_logger->info("Closing connection: {} with status {}", id,
+                           static_cast<int>(it.second->get_status()));
+
+            websocketpp::lib::error_code error_code;
+            m_endpoint.close(it.second->get_handle(), websocketpp::close::status::going_away, "",
+                             error_code);
+            if (error_code) {
+                m_logger->error("Error closing connection {}: {}", id, error_code.message());
+                failed_ids.push_back(id);
+            }
+        }
+
+        if (!failed_ids.empty()) {
+            return std::unexpected{failed_ids};
+        }
+
+        return {};
+    }
+
+    std::optional<std::string> dequeue_message(int id) {
+        auto it{m_id_to_connection_map.find(id)};
+
+        if (it == m_id_to_connection_map.end()) {
             return std::nullopt;
         }
 
-        return it->second->dequeueMessage();
+        return it->second->dequeue_message();
     }
 
-    ConnectionMetadata::connMetaSharedPtr getMetadata(int id) const {
-        auto metadata_it = m_idToConnectionMap.find(id);
-        if (metadata_it == m_idToConnectionMap.end()) {
+    // THIS IS A BLOCKING DEQUEUE METHOD.
+    // It sleeps the thread if queue is non-emoty, do not use this if you want busy-waiting!
+    // Returns a null optional if no id is found.
+    std::optional<std::string> wait_and_dequeue_message(int id) {
+        auto it{m_id_to_connection_map.find(id)};
+
+        if (it == m_id_to_connection_map.end()) {
+            return std::nullopt;
+        }
+
+        return it->second->wait_and_dequeue_message();
+    }
+
+    ConnectionMetadata::conn_meta_shared_ptr get_metadata(int id) const {
+        auto metadata_it = m_id_to_connection_map.find(id);
+        if (metadata_it == m_id_to_connection_map.end()) {
             return {};
         }
 
@@ -216,11 +281,12 @@ class WebsocketManager {
 
   protected:
     using IdToConnectionMap =
-        std::unordered_map<int, typename ConnectionMetadata::connMetaSharedPtr>;
+        std::unordered_map<int, typename ConnectionMetadata::conn_meta_shared_ptr>;
     Endpoint m_endpoint;
     websocketpp::lib::shared_ptr<websocketpp::lib::thread> m_thread;
-    IdToConnectionMap m_idToConnectionMap;
-    int m_nextId{0};
+    IdToConnectionMap m_id_to_connection_map;
+    int m_next_id{0};
+    std::shared_ptr<spdlog::logger> m_logger;
 };
 
 } // namespace transport

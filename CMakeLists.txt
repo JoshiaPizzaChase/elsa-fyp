@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 4.0)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # This generates compile_commands.json!
 set(CMAKE_BUILD_RPATH "/usr/local/lib") # This sets runtime path for dynamic linking, needed for self-compiled 3rd party libraries!
+set(CMAKE_CXX_COMPILER "/usr/bin/g++-14")
+set(CMAKE_C_COMPILER "/usr/bin/gcc-14")
 project(elsa_fyp)
 
 if (NOT TARGET spdlog)
@@ -25,6 +27,7 @@ add_subdirectory(client_sdk)
 add_subdirectory(services/matching_engine)
 add_subdirectory(services/order_manager)
 add_subdirectory(services/gateway)
+add_subdirectory(services/market_data_processor)
 
 # Internal libraries
 # Protobuf

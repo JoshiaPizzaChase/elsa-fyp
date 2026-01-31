@@ -3,6 +3,7 @@ build*/
 store/
 *.pb.cc
 *.pb.h
+logs/*
 
 # Usual ignores
 .vscode

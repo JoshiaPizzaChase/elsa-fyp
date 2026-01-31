@@ -41,6 +41,7 @@ target_link_libraries(gateway PUBLIC
         Threads::Threads
         LibXml2::LibXml2
         ZLIB::ZLIB
+        fmt
 )
 target_include_directories(gateway PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(gateway PUBLIC ${QuickFIX_CFLAGS_OTHER})

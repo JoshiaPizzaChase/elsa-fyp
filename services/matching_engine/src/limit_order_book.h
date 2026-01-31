@@ -7,26 +7,39 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include "core/orderbook_snapshot.h"
 
-namespace engine { 
+namespace engine {
+
 class LimitOrderBook {
   public:
     std::expected<void, std::string> add_order(int order_id, int price, int quantity, Side side);
     std::expected<void, std::string> cancel_order(int order_id);
+
+    [[nodiscard]] const std::map<int, std::list<Order>>& get_side(Side side) const;
+
     [[nodiscard]] std::expected<std::reference_wrapper<const Order>, std::string>
     get_best_order(Side side) const;
+
+    [[nodiscard]] std::expected<LevelAggregate, std::string> get_level_aggregate(Side side,
+                                                                                 int level) const;
+    [[nodiscard]] TopOrderBookLevelAggregates get_top_order_book_level_aggregate() const;
+
     [[nodiscard]] std::expected<std::reference_wrapper<const Order>, std::string>
     get_order_by_id(int order_id) const;
 
   private:
-    std::map<int, std::list<Order>> bids;
-    std::map<int, std::list<Order>> asks;
+    std::string ticker;
+    std::map<int, std::list<Order>> bids{};
+    std::map<int, std::list<Order>> asks{};
 
-    std::unordered_map<int, std::list<Order>::const_iterator> order_id_map;
+    std::unordered_map<int, std::list<Order>::const_iterator> order_id_map{};
 
     void match_order(std::map<int, std::list<Order>>& near_side,
                      std::map<int, std::list<Order>>& far_side, int price, int quantity,
                      int order_id, Side side);
+
+    [[nodiscard]] std::map<int, std::list<Order>>& get_side_mut(Side side);
 };
 
 } // namespace engine

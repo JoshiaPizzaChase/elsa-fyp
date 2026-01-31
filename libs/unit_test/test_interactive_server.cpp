@@ -1,6 +1,7 @@
 #include "transport/websocket_server.h"
 #include <exception>
 #include <string>
+#include <print>
 
 int main(int argc, char* argv[]) {
 
@@ -9,18 +10,18 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     const int port{std::stoi(argv[1])};
-    transport::WebsocketManagerServer oms{port};
+    transport::WebsocketManagerServer oms{port, "localhost"};
 
     try {
         oms.start();
 
         while (true) {
-            std::cout << "p for poll from queue, others do nothing: ";
+            std::cout << "q for poll from queue, others do nothing: ";
             char command;
             std::cin >> command;
 
             if (command == 'q') {
-                auto msg = oms.dequeueMessage(0);
+                auto msg = oms.dequeue_message(0);
                 if (msg.has_value()) {
                     std::println("Message: {}", *msg);
                 }
