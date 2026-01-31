@@ -6,13 +6,13 @@
 
 namespace om {
 class BalanceChecker {
-public:
-  void update_balance(const std::string& broker_id, int delta);
-  int get_balance(const std::string& broker_id);
-  bool has_sufficient_balance(const std::string& broker_id, int delta);
+  public:
+    void update_balance(const std::string& broker_id, int delta);
+    int get_balance(const std::string& broker_id);
+    bool has_sufficient_balance(const std::string& broker_id, int delta);
 
-private:
-  std::unordered_map<std::string, int> balance_map;
+  private:
+    std::unordered_map<std::string, int> balance_map;
 };
 }
 
