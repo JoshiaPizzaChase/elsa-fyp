@@ -1,15 +1,13 @@
 #ifndef ELSA_FYP_CLIENT_SDK_ORDERBOOK_SNAPSHOT_H
 #define ELSA_FYP_CLIENT_SDK_ORDERBOOK_SNAPSHOT_H
 
+#include "constants.h"
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
 #include "nlohmann/json.hpp"
 #include "orders.h"
-
 #include <array>
 #include <cassert>
 
-constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
-constexpr int MAX_TICKER_LENGTH = 5;
 using json = nlohmann::json;
 
 struct LevelAggregate {
@@ -18,9 +16,9 @@ struct LevelAggregate {
 };
 
 struct TopOrderBookLevelAggregates {
-    char ticker[MAX_TICKER_LENGTH]{};
-    std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
-    std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
+    char ticker[core::constants::MAX_TICKER_LENGTH]{};
+    std::array<LevelAggregate, core::constants::ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
+    std::array<LevelAggregate, core::constants::ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
 
     TopOrderBookLevelAggregates(const char* ticker_str) {
         size_t len = strlen(ticker_str);
@@ -47,11 +45,13 @@ struct TopOrderBookLevelAggregates {
         j = json{{"ticker", ticker}, {"bids", json::array()}, {"asks", json::array()}};
 
         for (const auto& level : bid_level_aggregates) {
-            j["bids"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier}, {"quantity", level.quantity}});
+            j["bids"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier},
+                                     {"quantity", level.quantity}});
         }
 
         for (const auto& level : ask_level_aggregates) {
-            j["asks"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier}, {"quantity", level.quantity}});
+            j["asks"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier},
+                                     {"quantity", level.quantity}});
         }
     }
 
@@ -60,12 +60,14 @@ struct TopOrderBookLevelAggregates {
         TopOrderBookLevelAggregates snapshot{ticker_str.c_str()};
 
         for (size_t i = 0; i < snapshot.bid_level_aggregates.size(); ++i) {
-            snapshot.bid_level_aggregates[i].price = static_cast<int>(j.at("bids")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
+            snapshot.bid_level_aggregates[i].price = static_cast<int>(
+                j.at("bids")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
             snapshot.bid_level_aggregates[i].quantity = j.at("bids")[i].at("quantity").get<int>();
         }
 
         for (size_t i = 0; i < snapshot.ask_level_aggregates.size(); ++i) {
-            snapshot.ask_level_aggregates[i].price = static_cast<int>(j.at("asks")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
+            snapshot.ask_level_aggregates[i].price = static_cast<int>(
+                j.at("asks")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
             snapshot.ask_level_aggregates[i].quantity = j.at("asks")[i].at("quantity").get<int>();
         }
         return snapshot;
@@ -74,6 +76,8 @@ struct TopOrderBookLevelAggregates {
 
 // typed ring buffer for communication with MDP
 static std::string ORDERBOOK_SNAPSHOT_SHM_FILE = "orderbook_snapshot";
-using OrderbookSnapshotRingBuffer = MpscSharedMemoryRingBuffer<TopOrderBookLevelAggregates, 1024>;
+using OrderbookSnapshotRingBuffer =
+    MpscSharedMemoryRingBuffer<TopOrderBookLevelAggregates,
+                               core::constants::OrderbookSnapshotRingBufferCapacity>;
 
 #endif // ELSA_FYP_CLIENT_SDK_ORDERBOOK_SNAPSHOT_H

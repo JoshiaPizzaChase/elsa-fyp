@@ -61,15 +61,15 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
                 best_level_orders.pop_front();
 
                 Trade new_trade = create_trade(order_id, front_order.get_order_id(), matched_price,
-                                               order_quantity)
+                                               order_quantity, side)
                                       .value();
 
             } else {
                 front_order.fill(remaining_quantity);
 
-                Trade new_trade =
-                    create_trade(order_id, front_order.get_order_id(), price, remaining_quantity)
-                        .value();
+                Trade new_trade = create_trade(order_id, front_order.get_order_id(), price,
+                                               remaining_quantity, side)
+                                      .value();
 
                 remaining_quantity = 0;
             }
@@ -165,7 +165,7 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
 }
 
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
-    TopOrderBookLevelAggregates top_aggregate{ticker.c_str()};
+    TopOrderBookLevelAggregates top_aggregate{ticker.data()};
 
     for (int i = 0; i < bids.size(); i++) {
         if (const auto level_aggregate = get_level_aggregate(Side::Bid, i);
@@ -188,8 +188,9 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
     return top_aggregate;
 }
 
-std::expected<Trade, std::string>
-LimitOrderBook::create_trade(int taker_order_id, int maker_order_id, int price, int quantity) {
+std::expected<Trade, std::string> LimitOrderBook::create_trade(int taker_order_id,
+                                                               int maker_order_id, int price,
+                                                               int quantity, Side taker_side) {
     if (price <= 0) {
         return std::unexpected("Price must be positive integers");
     }
@@ -199,10 +200,8 @@ LimitOrderBook::create_trade(int taker_order_id, int maker_order_id, int price, 
     }
 
     // TODO: Add random trade_id generation
-
-    return Trade{.taker_order_id = taker_order_id,
-                 .maker_order_id = maker_order_id,
-                 .price = price,
-                 .quantity = quantity};
+    // TODO: add back taker and maker id
+    return Trade{ticker.data(),          price, quantity, 100, 1, 1, taker_order_id, maker_order_id,
+                 taker_side == Side::Bid};
 }
 } // namespace engine
