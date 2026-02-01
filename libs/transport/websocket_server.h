@@ -39,43 +39,6 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
         }
     }
 
-    void init_handlers(std::string_view uri, bool reuse_addr) {
-        m_endpoint.set_reuse_addr(reuse_addr);
-
-        m_endpoint.set_open_handler([this, uri](ConnectionHandle handle) {
-            int new_id = m_next_id++;
-            ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{
-                std::make_shared<ConnectionMetadata>(new_id, handle, uri)};
-
-            metadata_ptr->on_open(&m_endpoint, handle);
-            m_id_to_connection_map.emplace(new_id, metadata_ptr);
-            m_handle_to_connection_map.emplace(handle, std::move(metadata_ptr));
-        });
-        m_endpoint.set_message_handler([this](ConnectionHandle handle, Server::message_ptr msg) {
-            if (auto it{m_handle_to_connection_map.find(handle)};
-                it != m_handle_to_connection_map.end()) {
-                it->second->on_message(handle, msg);
-            }
-        });
-        m_endpoint.set_close_handler([this](ConnectionHandle handle) {
-            if (auto it{m_handle_to_connection_map.find(handle)};
-                it != m_handle_to_connection_map.end()) {
-                it->second->on_close(&m_endpoint, handle);
-            }
-        });
-        m_endpoint.set_fail_handler([this](ConnectionHandle handle) {
-            if (auto it{m_handle_to_connection_map.find(handle)};
-                it != m_handle_to_connection_map.end()) {
-                it->second->on_fail(&m_endpoint, handle);
-            }
-        });
-        m_endpoint.set_ping_handler([this](ConnectionHandle handle, std::string str) {
-            m_logger->info("Received ping from connection.");
-            m_endpoint.pong(handle, str);
-            return true;
-        });
-    }
-
     /*
      * Initialises asio config on server endpoint.
      * Starts listening to connections on port.
@@ -148,6 +111,43 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
                  std::owner_less<ConnectionHandle>>;
     int m_port;
     handle_to_connection_map m_handle_to_connection_map;
+
+    void init_handlers(std::string_view uri, bool reuse_addr) {
+        m_endpoint.set_reuse_addr(reuse_addr);
+
+        m_endpoint.set_open_handler([this, uri](ConnectionHandle handle) {
+            int new_id = m_next_id++;
+            ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{
+                std::make_shared<ConnectionMetadata>(new_id, handle, uri)};
+
+            metadata_ptr->on_open(&m_endpoint, handle);
+            m_id_to_connection_map.emplace(new_id, metadata_ptr);
+            m_handle_to_connection_map.emplace(handle, std::move(metadata_ptr));
+        });
+        m_endpoint.set_message_handler([this](ConnectionHandle handle, Server::message_ptr msg) {
+            if (auto it{m_handle_to_connection_map.find(handle)};
+                it != m_handle_to_connection_map.end()) {
+                it->second->on_message(handle, msg);
+            }
+        });
+        m_endpoint.set_close_handler([this](ConnectionHandle handle) {
+            if (auto it{m_handle_to_connection_map.find(handle)};
+                it != m_handle_to_connection_map.end()) {
+                it->second->on_close(&m_endpoint, handle);
+            }
+        });
+        m_endpoint.set_fail_handler([this](ConnectionHandle handle) {
+            if (auto it{m_handle_to_connection_map.find(handle)};
+                it != m_handle_to_connection_map.end()) {
+                it->second->on_fail(&m_endpoint, handle);
+            }
+        });
+        m_endpoint.set_ping_handler([this](ConnectionHandle handle, std::string str) {
+            m_logger->info("Received ping from connection.");
+            m_endpoint.pong(handle, str);
+            return true;
+        });
+    }
 };
 
 } // namespace transport
