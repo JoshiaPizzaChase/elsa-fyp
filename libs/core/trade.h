@@ -2,7 +2,11 @@
 #define ELSA_FYP_TRADE_H
 
 #include "constants.h"
+#include <assert.h>
+#include "nlohmann/json.hpp"
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
+
+using json =  nlohmann::json;
 
 struct Trade {
     char ticker[core::constants::MAX_TICKER_LENGTH]{};
