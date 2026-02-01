@@ -21,7 +21,6 @@ find_library(quickfix
 # Link QuickFIX
 target_link_libraries(gateway_unit_test PUBLIC
         gateway
-        matching_engine_lib
         quickfix
         ${QuickFIX_LIBRARIES}
         Threads::Threads

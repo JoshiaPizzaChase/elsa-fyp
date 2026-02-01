@@ -36,7 +36,6 @@ find_library(quickfix
 # Link QuickFIX & matching engine
 target_link_libraries(gateway PUBLIC
         quickfix
-        matching_engine_lib
         ${QuickFIX_LIBRARIES}
         Threads::Threads
         LibXml2::LibXml2
