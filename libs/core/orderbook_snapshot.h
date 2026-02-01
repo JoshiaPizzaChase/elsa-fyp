@@ -9,6 +9,7 @@
 #include <cassert>
 
 constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
+constexpr int MAX_TICKER_LENGTH = 5;
 using json = nlohmann::json;
 
 struct LevelAggregate {
@@ -17,7 +18,7 @@ struct LevelAggregate {
 };
 
 struct TopOrderBookLevelAggregates {
-    char ticker[10]{};
+    char ticker[MAX_TICKER_LENGTH]{};
     std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
     std::array<LevelAggregate, ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
 
