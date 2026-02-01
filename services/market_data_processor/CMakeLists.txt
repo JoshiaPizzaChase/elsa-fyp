@@ -13,6 +13,8 @@ find_package(nlohmann_json REQUIRED)
 target_link_libraries(market_data_processor PRIVATE market_data_processor_lib)
 target_link_libraries(market_data_processor PRIVATE nlohmann_json::nlohmann_json)
 target_compile_options(market_data_processor PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_definitions(market_data_processor PRIVATE SPDLOG_USE_STD_FORMAT)
+target_compile_definitions(market_data_processor_lib PRIVATE SPDLOG_USE_STD_FORMAT)
 
 set_target_properties(market_data_processor PROPERTIES
         CXX_STANDARD 23
