@@ -2,7 +2,8 @@
 
 MarketDataProcessor::MarketDataProcessor(int ws_port)
     : orderbook_snapshot_ring_buffer(
-          OrderbookSnapshotRingBuffer::create(ORDERBOOK_SNAPSHOT_SHM_FILE)),
+          OrderbookSnapshotRingBuffer::create(core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)),
+      trade_ring_buffer(TradeRingBuffer::create(core::constants::TRADE_SHM_FILE)),
       websocket_server(transport::WebsocketManagerServer{ws_port, "localhost"}) {
 }
 
@@ -12,6 +13,7 @@ MarketDataProcessor::MarketDataProcessor(int ws_port)
     }
     logger->info("MDP started");
     while (true) {
+        // publish orderbook snapshot
         auto orderbook_snapshot_res = orderbook_snapshot_ring_buffer.try_pop();
         if (orderbook_snapshot_res.has_value()) {
             orderbook_snapshot_res.value().to_json(orderbook_snapshot_json);
@@ -19,6 +21,23 @@ MarketDataProcessor::MarketDataProcessor(int ws_port)
             if (!res.has_value()) {
                 auto failed_ids = res.error();
                 std::string error_msg = "MDP failed to publish orderbook snapshot to client id=";
+                for (const auto id : failed_ids) {
+                    error_msg += std::to_string(id);
+                    if (id != failed_ids.back()) {
+                        error_msg += ",";
+                    }
+                }
+                logger->error(error_msg);
+            }
+        }
+        // publish public trades
+        auto trade_res = trade_ring_buffer.try_pop();
+        if (trade_res.has_value()) {
+            trade_res.value().to_json(trade_json);
+            auto res = websocket_server.send_to_all(trade_json.dump());
+            if (!res.has_value()) {
+                auto failed_ids = res.error();
+                std::string error_msg = "MDP failed to publish trade to client id=";
                 for (const auto id : failed_ids) {
                     error_msg += std::to_string(id);
                     if (id != failed_ids.back()) {

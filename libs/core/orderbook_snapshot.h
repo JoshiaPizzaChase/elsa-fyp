@@ -31,11 +31,13 @@ struct TopOrderBookLevelAggregates {
                                     const TopOrderBookLevelAggregates& aggregates) {
         os << "ticker:" << aggregates.ticker << ",bids:[";
         for (const auto& level : aggregates.bid_level_aggregates) {
-            os << level.quantity << "@" << level.price / core::decimal_to_int_multiplier << ",";
+            os << level.quantity << "@" << level.price / core::constants::decimal_to_int_multiplier
+               << ",";
         }
         os << "],asks:[";
         for (const auto& level : aggregates.ask_level_aggregates) {
-            os << level.quantity << "@" << level.price / core::decimal_to_int_multiplier << ",";
+            os << level.quantity << "@" << level.price / core::constants::decimal_to_int_multiplier
+               << ",";
         }
         os << "]";
         return os;
@@ -45,13 +47,15 @@ struct TopOrderBookLevelAggregates {
         j = json{{"ticker", ticker}, {"bids", json::array()}, {"asks", json::array()}};
 
         for (const auto& level : bid_level_aggregates) {
-            j["bids"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier},
-                                     {"quantity", level.quantity}});
+            j["bids"].push_back(
+                json{{"price", level.price / core::constants::decimal_to_int_multiplier},
+                     {"quantity", level.quantity}});
         }
 
         for (const auto& level : ask_level_aggregates) {
-            j["asks"].push_back(json{{"price", level.price / core::decimal_to_int_multiplier},
-                                     {"quantity", level.quantity}});
+            j["asks"].push_back(
+                json{{"price", level.price / core::constants::decimal_to_int_multiplier},
+                     {"quantity", level.quantity}});
         }
     }
 
@@ -60,14 +64,16 @@ struct TopOrderBookLevelAggregates {
         TopOrderBookLevelAggregates snapshot{ticker_str.c_str()};
 
         for (size_t i = 0; i < snapshot.bid_level_aggregates.size(); ++i) {
-            snapshot.bid_level_aggregates[i].price = static_cast<int>(
-                j.at("bids")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
+            snapshot.bid_level_aggregates[i].price =
+                static_cast<int>(j.at("bids")[i].at("price").get<double>() *
+                                 core::constants::decimal_to_int_multiplier);
             snapshot.bid_level_aggregates[i].quantity = j.at("bids")[i].at("quantity").get<int>();
         }
 
         for (size_t i = 0; i < snapshot.ask_level_aggregates.size(); ++i) {
-            snapshot.ask_level_aggregates[i].price = static_cast<int>(
-                j.at("asks")[i].at("price").get<double>() * core::decimal_to_int_multiplier);
+            snapshot.ask_level_aggregates[i].price =
+                static_cast<int>(j.at("asks")[i].at("price").get<double>() *
+                                 core::constants::decimal_to_int_multiplier);
             snapshot.ask_level_aggregates[i].quantity = j.at("asks")[i].at("quantity").get<int>();
         }
         return snapshot;
@@ -75,7 +81,6 @@ struct TopOrderBookLevelAggregates {
 };
 
 // typed ring buffer for communication with MDP
-static std::string ORDERBOOK_SNAPSHOT_SHM_FILE = "orderbook_snapshot";
 using OrderbookSnapshotRingBuffer =
     MpscSharedMemoryRingBuffer<TopOrderBookLevelAggregates,
                                core::constants::OrderbookSnapshotRingBufferCapacity>;

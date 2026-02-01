@@ -1,9 +1,13 @@
 #include "limit_order_book.h"
+#include "core/constants.h"
 #include <expected>
 #include <format>
 
 namespace engine {
-LimitOrderBook::LimitOrderBook(std::string_view ticker) : ticker{ticker} {
+LimitOrderBook::LimitOrderBook(std::string_view ticker)
+    : ticker{ticker}, shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
+                          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
+      shm_trade{TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE)} {
 }
 
 std::string_view LimitOrderBook::get_ticker() const {
@@ -63,14 +67,14 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
                 Trade new_trade = create_trade(order_id, front_order.get_order_id(), matched_price,
                                                order_quantity, side)
                                       .value();
-
+                shm_trade.try_push(new_trade);
             } else {
                 front_order.fill(remaining_quantity);
 
                 Trade new_trade = create_trade(order_id, front_order.get_order_id(), price,
                                                remaining_quantity, side)
                                       .value();
-
+                shm_trade.try_push(new_trade);
                 remaining_quantity = 0;
             }
         }

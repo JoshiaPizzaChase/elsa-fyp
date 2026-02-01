@@ -2,7 +2,8 @@
 #include <iostream>
 
 int main() {
-    auto ring_buffer = OrderbookSnapshotRingBuffer::open_exist_shm(ORDERBOOK_SNAPSHOT_SHM_FILE);
+    auto ring_buffer =
+        OrderbookSnapshotRingBuffer::open_exist_shm(core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE);
     auto snapshot = TopOrderBookLevelAggregates{"APPL"};
 
     for (int i = 0; i < 1024; i++) {

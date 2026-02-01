@@ -38,6 +38,9 @@ class LimitOrderBook {
     get_order_by_id(int order_id) const;
 
   private:
+    OrderbookSnapshotRingBuffer shm_orderbook_snapshot;
+    TradeRingBuffer shm_trade;
+
     std::string_view ticker{};
 
     std::map<int, std::list<Order>> bids{};
