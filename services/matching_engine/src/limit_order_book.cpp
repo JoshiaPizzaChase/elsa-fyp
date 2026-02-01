@@ -1,16 +1,22 @@
 #include "limit_order_book.h"
 #include <expected>
 #include <format>
-#include <limits>
 
 namespace engine {
+LimitOrderBook::LimitOrderBook(std::string_view ticker) : ticker{ticker} {
+}
+
+std::string_view LimitOrderBook::get_ticker() const {
+    return ticker;
+}
+
 std::expected<void, std::string> LimitOrderBook::add_order(int order_id, int price, int quantity,
                                                            Side side) {
     if (order_id_map.contains(order_id)) {
         return std::unexpected(std::format("Order ID {} already exists in order book", order_id));
     }
 
-    if (price != std::numeric_limits<int>::min() && price <= 0) {
+    if (price != MARKET_ASK_ORDER_PRICE && price <= 0) {
         return std::unexpected("Price must be positive integers or int min");
     }
 
@@ -28,9 +34,9 @@ std::expected<void, std::string> LimitOrderBook::add_order(int order_id, int pri
 }
 
 void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
-                                 std::map<int, std::list<Order>>& far_side, int price, int quantity,
-                                 int order_id, Side side) {
-    while (!far_side.empty() && quantity > 0) {
+                                 std::map<int, std::list<Order>>& far_side, int price,
+                                 int remaining_quantity, int order_id, Side side) {
+    while (!far_side.empty() && remaining_quantity > 0) {
         const auto best_level = (side == Side::Bid) ? std::prev(far_side.end()) : far_side.begin();
 
         const auto& best_level_price = best_level->first;
@@ -40,16 +46,32 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
         }
 
         auto& best_level_orders = best_level->second;
-        while (quantity > 0 && !best_level_orders.empty()) {
+        while (remaining_quantity > 0 && !best_level_orders.empty()) {
             auto& front_order = best_level_orders.front();
+
+            const int matched_price =
+                (price == MARKET_BID_ORDER_PRICE || price == MARKET_ASK_ORDER_PRICE)
+                    ? front_order.get_price()
+                    : price;
+
             if (const auto order_quantity = front_order.get_quantity();
-                quantity >= order_quantity) {
-                quantity -= order_quantity;
+                remaining_quantity >= order_quantity) {
+                remaining_quantity -= order_quantity;
                 order_id_map.erase(best_level_orders.front().get_order_id());
                 best_level_orders.pop_front();
+
+                Trade new_trade = create_trade(order_id, front_order.get_order_id(), matched_price,
+                                               order_quantity)
+                                      .value();
+
             } else {
-                front_order.fill(quantity);
-                quantity = 0;
+                front_order.fill(remaining_quantity);
+
+                Trade new_trade =
+                    create_trade(order_id, front_order.get_order_id(), price, remaining_quantity)
+                        .value();
+
+                remaining_quantity = 0;
             }
         }
 
@@ -58,9 +80,9 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
         }
     }
 
-    if (quantity > 0) {
-        order_id_map[order_id] =
-            near_side[price].emplace(near_side[price].end(), order_id, price, quantity, side);
+    if (remaining_quantity > 0) {
+        order_id_map[order_id] = near_side[price].emplace(near_side[price].end(), order_id, price,
+                                                          remaining_quantity, side);
     }
 }
 
@@ -143,7 +165,7 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
 }
 
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
-    TopOrderBookLevelAggregates top_aggregate{ticker.c_str()};
+    TopOrderBookLevelAggregates top_aggregate{ticker.data()};
 
     for (int i = 0; i < bids.size(); i++) {
         if (const auto level_aggregate = get_level_aggregate(Side::Bid, i);
@@ -164,5 +186,23 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
     }
 
     return top_aggregate;
+}
+
+std::expected<Trade, std::string>
+LimitOrderBook::create_trade(int taker_order_id, int maker_order_id, int price, int quantity) {
+    if (price <= 0) {
+        return std::unexpected("Price must be positive integers");
+    }
+
+    if (quantity <= 0) {
+        return std::unexpected("Quantity must be positive integers");
+    }
+
+    // TODO: Add random trade_id generation
+
+    return Trade{.taker_order_id = taker_order_id,
+                 .maker_order_id = maker_order_id,
+                 .price = price,
+                 .quantity = quantity};
 }
 } // namespace engine
