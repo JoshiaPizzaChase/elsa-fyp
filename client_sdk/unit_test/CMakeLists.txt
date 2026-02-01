@@ -29,6 +29,8 @@ target_link_libraries(sdk_unit_test PUBLIC
 )
 target_include_directories(sdk_unit_test PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(sdk_unit_test PUBLIC ${QuickFIX_CFLAGS_OTHER})
+target_compile_definitions(sdk_unit_test PRIVATE SPDLOG_USE_STD_FORMAT)
+
 # link to catch2 library
 target_link_libraries(sdk_unit_test PRIVATE Catch2::Catch2WithMain)
 
