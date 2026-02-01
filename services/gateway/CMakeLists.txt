@@ -41,10 +41,9 @@ target_link_libraries(gateway PUBLIC
         Threads::Threads
         LibXml2::LibXml2
         ZLIB::ZLIB
-        fmt
 )
 target_include_directories(gateway PUBLIC ${QuickFIX_INCLUDE_DIRS})
-target_compile_definitions(gateway PUBLIC ${QuickFIX_CFLAGS_OTHER})
+target_compile_definitions(gateway PUBLIC ${QuickFIX_CFLAGS_OTHER} SPDLOG_USE_STD_FORMAT)
 
 if (BUILD_TESTS)
     add_subdirectory(unit_test)

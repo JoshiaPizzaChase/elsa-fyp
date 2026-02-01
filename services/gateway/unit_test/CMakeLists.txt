@@ -27,10 +27,9 @@ target_link_libraries(gateway_unit_test PUBLIC
         Threads::Threads
         LibXml2::LibXml2
         ZLIB::ZLIB
-        fmt
 )
 target_include_directories(gateway_unit_test PUBLIC ${QuickFIX_INCLUDE_DIRS})
-target_compile_definitions(gateway_unit_test PUBLIC ${QuickFIX_CFLAGS_OTHER})
+target_compile_definitions(gateway_unit_test PUBLIC ${QuickFIX_CFLAGS_OTHER} SPDLOG_USE_STD_FORMAT)
 
 # link to catch2 library
 target_link_libraries(gateway_unit_test PRIVATE Catch2::Catch2WithMain)

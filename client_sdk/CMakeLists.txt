@@ -40,10 +40,10 @@ target_link_libraries(client_sdk PUBLIC
         Threads::Threads
         LibXml2::LibXml2
         ZLIB::ZLIB
-        fmt
 )
 target_include_directories(client_sdk PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(client_sdk PUBLIC ${QuickFIX_CFLAGS_OTHER})
+target_compile_definitions(client_sdk PRIVATE SPDLOG_USE_STD_FORMAT)
 
 if(BUILD_TESTS)
     add_subdirectory(unit_test)
