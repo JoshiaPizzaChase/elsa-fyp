@@ -165,18 +165,6 @@ class WebsocketManager {
     virtual std::expected<void, int> start() = 0;
     virtual std::expected<void, int> stop() = 0;
 
-    void init_logging(const std::string& logger_name) {
-        // Intensive logging
-        m_endpoint.set_access_channels(websocketpp::log::alevel::all);
-        m_endpoint.set_error_channels(websocketpp::log::elevel::all);
-
-        // Redirect endpoint logs to separate file from spdlogs
-        std::ostream* log_stream =
-            new std::ofstream(std::format("logs/{}_endpoint.log", logger_name));
-        m_endpoint.get_alog().set_ostream(log_stream);
-        m_endpoint.get_elog().set_ostream(log_stream);
-    }
-
     std::expected<void, int> send(int id, const std::string& message) {
         websocketpp::lib::error_code error_code;
 
@@ -287,6 +275,18 @@ class WebsocketManager {
     IdToConnectionMap m_id_to_connection_map;
     int m_next_id{0};
     std::shared_ptr<spdlog::logger> m_logger;
+
+    void init_logging(const std::string& logger_name) {
+        // Intensive logging
+        m_endpoint.set_access_channels(websocketpp::log::alevel::all);
+        m_endpoint.set_error_channels(websocketpp::log::elevel::all);
+
+        // Redirect endpoint logs to separate file from spdlogs
+        std::ostream* log_stream =
+            new std::ofstream(std::format("logs/{}_endpoint.log", logger_name));
+        m_endpoint.get_alog().set_ostream(log_stream);
+        m_endpoint.get_elog().set_ostream(log_stream);
+    }
 };
 
 } // namespace transport
