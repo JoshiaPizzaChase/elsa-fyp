@@ -284,8 +284,8 @@ class WebsocketManager {
         m_endpoint.set_error_channels(websocketpp::log::elevel::all);
 
         // Redirect endpoint logs to separate file from spdlogs
-        std::ostream* log_stream =
-            new std::ofstream(std::format("logs/{}_endpoint.log", logger_name));
+        std::ostream* log_stream = new std::ofstream(
+            PROJECT_SOURCE_DIR + std::format("/logs/{}_endpoint.log", logger_name));
         m_endpoint.get_alog().set_ostream(log_stream);
         m_endpoint.get_elog().set_ostream(log_stream);
     }
