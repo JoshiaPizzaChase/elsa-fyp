@@ -20,6 +20,7 @@
 #include <websocketpp/config/asio_no_tls_client.hpp>
 #include <websocketpp/frame.hpp>
 #include <websocketpp/server.hpp>
+#include "config.h"
 
 namespace transport {
 
@@ -148,7 +149,8 @@ class WebsocketManager {
     // Constructor for stand-alone WebsocketManager objects.
     WebsocketManager(const std::string& logger_name)
         : m_logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-              logger_name, std::format("logs/{}.log", logger_name))} {
+              logger_name,
+              std::string(PROJECT_ROOT_DIR) + std::format("logs/{}.log", logger_name))} {
         init_logging(logger_name);
     }
 
