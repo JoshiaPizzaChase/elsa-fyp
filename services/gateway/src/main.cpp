@@ -3,6 +3,7 @@
 #include "quickfix/SessionSettings.h"
 #include "quickfix/SocketAcceptor.h"
 #include <filesystem>
+#include <print>
 
 namespace fs = std::filesystem;
 

@@ -17,6 +17,7 @@ target_link_libraries(order_manager PRIVATE order_manager_lib)
 
 target_compile_options(order_manager PRIVATE -Wall -Wextra -Wpedantic)
 
+target_compile_definitions(order_manager PRIVATE SPDLOG_USE_STD_FORMAT)
 set_target_properties(order_manager PROPERTIES
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON

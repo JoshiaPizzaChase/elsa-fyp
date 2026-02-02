@@ -1,9 +1,10 @@
 #include "test_client.h"
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
+#include <wait.h>
 namespace fs = std::filesystem;
 
-const fs::path gateway_bin_path = PROJECT_ROOT_DIR / fs::path("cmake-build-test") /
+const fs::path gateway_bin_path = PROJECT_ROOT_DIR / fs::path("build-test") /
                                   fs::path("services") / fs::path("gateway") / fs::path("gateway");
 
 TestClient set_up_test_client() {
@@ -72,12 +73,12 @@ void stop_gateway(pid_t pid, std::chrono::seconds timeout = std::chrono::seconds
 }
 
 TEST_CASE("Submit order requests", "[integration]") {
-    // pid_t gateway_pid = -1;
-    // try {
-    //     gateway_pid = set_up_gateway();
-    // } catch (const std::exception& e) {
-    //     FAIL(std::string("Failed to start gateway: ") + e.what());
-    // }
+    pid_t gateway_pid = -1;
+    try {
+        gateway_pid = set_up_gateway();
+    } catch (const std::exception& e) {
+        FAIL(std::string("Failed to start gateway: ") + e.what());
+    }
 
     // auto test_client_1 = set_up_test_client();
     fs::path config_filename = "example_config_client.cfg";
@@ -85,11 +86,11 @@ TEST_CASE("Submit order requests", "[integration]") {
         PROJECT_ROOT_DIR / fs::path("configs") / fs::path("test_client") / config_filename;
     auto test_client_1{set_up_test_client()};
     test_client_1.connect(5);
-    //
-    // // cleanup
-    // if (gateway_pid > 0) {
-    //     stop_gateway(gateway_pid);
-    // }
+
+    // cleanup
+    if (gateway_pid > 0) {
+        stop_gateway(gateway_pid);
+    }
 
     test_client_1.disconnect();
 }

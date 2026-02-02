@@ -12,4 +12,5 @@ target_include_directories(order_manager_test
         /opt/homebrew/include
 )
 
+target_compile_definitions(order_manager_test PRIVATE SPDLOG_USE_STD_FORMAT)
 catch_discover_tests(order_manager_test)
