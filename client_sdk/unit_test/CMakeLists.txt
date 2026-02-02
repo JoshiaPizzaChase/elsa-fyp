@@ -13,9 +13,9 @@ find_package(ZLIB REQUIRED)
 # pkg_check_modules(QuickFIX REQUIRED quickfix)
 
 # Find QuickFIX in user-installed library paths
-find_library(quickfix 
-  NAMES libquickfix
-  PATHS /usr/local/lib
+find_library(quickfix
+        NAMES libquickfix
+        PATHS /usr/local/lib
 )
 
 # Link QuickFIX
@@ -30,6 +30,7 @@ target_link_libraries(sdk_unit_test PUBLIC
 target_include_directories(sdk_unit_test PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(sdk_unit_test PUBLIC ${QuickFIX_CFLAGS_OTHER})
 target_compile_definitions(sdk_unit_test PRIVATE SPDLOG_USE_STD_FORMAT)
+target_compile_definitions(sdk_unit_test PRIVATE PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
 
 # link to catch2 library
 target_link_libraries(sdk_unit_test PRIVATE Catch2::Catch2WithMain)

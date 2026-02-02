@@ -42,4 +42,3 @@ protobuf_generate(
         TARGET proto-objects
         IMPORT_DIRS "${PROTO_BINARY_DIR}"
         PROTOC_OUT_DIR "${PROTO_BINARY_DIR}")
-
