@@ -1,11 +1,11 @@
 #include "test_client.h"
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
-#include <wait.h>
+#include <sys/wait.h>
 namespace fs = std::filesystem;
 
-const fs::path gateway_bin_path = PROJECT_ROOT_DIR / fs::path("build-test") /
-                                  fs::path("services") / fs::path("gateway") / fs::path("gateway");
+const fs::path gateway_bin_path = PROJECT_ROOT_DIR / fs::path("build-test") / fs::path("services") /
+                                  fs::path("gateway") / fs::path("gateway");
 
 TestClient set_up_test_client() {
     fs::path config_filename = "example_config_client.cfg";
