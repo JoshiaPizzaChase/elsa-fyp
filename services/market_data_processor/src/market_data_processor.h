@@ -1,6 +1,7 @@
 #ifndef ELSA_FYP_CLIENT_SDK_MARKET_DATA_PROCESSOR_H
 #define ELSA_FYP_CLIENT_SDK_MARKET_DATA_PROCESSOR_H
 
+#include "configuration/mdp_config.h"
 #include "core/orderbook_snapshot.h"
 #include "core/trade.h"
 #include "nlohmann/json.hpp"
@@ -11,6 +12,7 @@
 
 using json = nlohmann::json;
 
+namespace mdp {
 class MarketDataProcessor {
   private:
     OrderbookSnapshotRingBuffer orderbook_snapshot_ring_buffer;
@@ -22,9 +24,10 @@ class MarketDataProcessor {
     json trade_json;
 
   public:
-    MarketDataProcessor(int ws_port);
+    MarketDataProcessor(MdpConfig config);
 
     [[noreturn]] void start();
 };
+} // namespace mdp
 
 #endif // ELSA_FYP_CLIENT_SDK_MARKET_DATA_PROCESSOR_H

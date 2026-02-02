@@ -1,10 +1,11 @@
 #include "market_data_processor.h"
 
-MarketDataProcessor::MarketDataProcessor(int ws_port)
+namespace mdp {
+MarketDataProcessor::MarketDataProcessor(MdpConfig config)
     : orderbook_snapshot_ring_buffer(
           OrderbookSnapshotRingBuffer::create(core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)),
       trade_ring_buffer(TradeRingBuffer::create(core::constants::TRADE_SHM_FILE)),
-      websocket_server(transport::WebsocketManagerServer{ws_port, "localhost"}) {
+      websocket_server(transport::WebsocketManagerServer{config.ws_port, config.host}) {
 }
 
 [[noreturn]] void MarketDataProcessor::start() {
@@ -49,3 +50,4 @@ MarketDataProcessor::MarketDataProcessor(int ws_port)
         }
     }
 }
+} // namespace mdp
