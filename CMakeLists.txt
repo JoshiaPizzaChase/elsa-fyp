@@ -17,9 +17,9 @@ if (BUILD_TESTS)
     add_subdirectory(libs/unit_test)
 endif ()
 
-if(BUILD_EXAMPLES)
+if (BUILD_EXAMPLES)
     add_subdirectory(logger_examples)
-endif()
+endif ()
 
 add_subdirectory(client_sdk)
 
@@ -41,4 +41,3 @@ protobuf_generate(
         TARGET proto-objects
         IMPORT_DIRS "${PROTO_BINARY_DIR}"
         PROTOC_OUT_DIR "${PROTO_BINARY_DIR}")
-

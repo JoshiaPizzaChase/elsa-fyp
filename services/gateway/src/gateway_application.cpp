@@ -9,8 +9,14 @@
 #include <quickfix/fix42/ExecutionReport.h>
 #include <quickfix/fix42/NewOrderSingle.h>
 #include <stdexcept>
+#include <transport/messaging.h>
 
 namespace gateway {
+
+GatewayApplication::GatewayApplication() {
+    m_websocketClient.start();
+    m_websocketClient.connect("ws://localhost:6767");
+}
 
 /* Temporarily implemented to log on invokation. */
 void GatewayApplication::onCreate(const FIX::SessionID& sessionId) {
@@ -168,16 +174,9 @@ void GatewayApplication::rejectMessage(const FIX::SenderCompID& sender,
     }
 }
 
-void GatewayApplication::sendContainer(const core::NewOrderSingleContainer& container) {
-    throw std::runtime_error("unimplemented");
-}
-
-void GatewayApplication::sendContainer(const core::CancelOrderRequestContainer& container) {
-    throw std::runtime_error("unimplemented");
-}
-
-void GatewayApplication::sendContainer(const core::ExecutionReportContainer& container) {
-    throw std::runtime_error("unimplemented");
+void GatewayApplication::sendContainer(const auto& container) {
+    // TODO: Handle send error
+    m_websocketClient.send(transport::serialize_container(container));
 }
 
 } // namespace gateway

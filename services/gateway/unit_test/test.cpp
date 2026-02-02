@@ -34,6 +34,8 @@ int test_gateway_start_stop() {
         FIX::SocketAcceptor acceptor(application, storeFactory, settings, logFactory);
 
         acceptor.start();
+        while (true) {
+        }
         acceptor.stop();
 
         return 0;
@@ -43,8 +45,6 @@ int test_gateway_start_stop() {
     }
 }
 
-
 TEST_CASE("Gateway Application starts and stops properly") {
     REQUIRE(test_gateway_start_stop() == 0);
 }
-
