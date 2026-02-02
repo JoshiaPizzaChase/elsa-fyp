@@ -13,6 +13,8 @@ target_include_directories(order_manager_lib
         /opt/homebrew/include
 )
 
+target_link_libraries(order_manager_lib PUBLIC websocket_lib)
+
 target_link_libraries(order_manager PRIVATE order_manager_lib)
 
 target_compile_options(order_manager PRIVATE -Wall -Wextra -Wpedantic)

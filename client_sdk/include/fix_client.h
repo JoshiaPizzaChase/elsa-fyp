@@ -25,8 +25,8 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
     FIX::FileStoreFactory _file_store_factory;
     std::unique_ptr<FIX::Initiator> _initiator;
     std::atomic_bool _is_connected = false;
-    std::shared_ptr<spdlog::logger> logger =
-        spdlog::basic_logger_mt<spdlog::async_factory>("fix_client_logger", "logs/fix_client.log");
+    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
+        "fix_client_logger", std::string{PROJECT_ROOT_DIR} + "/logs/fix_client.log");
 
   public:
     explicit FixClient(const std::string&);
