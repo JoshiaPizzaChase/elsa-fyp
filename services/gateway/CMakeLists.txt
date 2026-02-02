@@ -37,16 +37,18 @@ find_library(quickfix
         PATHS /usr/local/lib
 )
 
-# Link QuickFIX & matching engine
+# Link QuickFIX
 target_link_libraries(gateway_lib PUBLIC
         quickfix
         ${QuickFIX_LIBRARIES}
         Threads::Threads
         LibXml2::LibXml2
         ZLIB::ZLIB
+        websocket_lib
 )
 target_include_directories(gateway_lib PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(gateway_lib PUBLIC ${QuickFIX_CFLAGS_OTHER} SPDLOG_USE_STD_FORMAT)
+target_compile_definitions(gateway_lib PUBLIC PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
 
 target_link_libraries(gateway PRIVATE gateway_lib)
 

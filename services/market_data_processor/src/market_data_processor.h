@@ -6,7 +6,7 @@
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
-#include "transport/websocket_server.h"
+#include "websocket_server.h"
 
 using json = nlohmann::json;
 
@@ -14,8 +14,8 @@ class MarketDataProcessor {
   private:
     OrderbookSnapshotRingBuffer orderbook_snapshot_ring_buffer;
     transport::WebsocketManagerServer websocket_server;
-    std::shared_ptr<spdlog::logger> logger =
-        spdlog::basic_logger_mt<spdlog::async_factory>("mdp_logger", "logs/mdp.log");
+    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
+        "mdp_logger", std::string(PROJECT_ROOT_DIR) + "/logs/mdp.log");
     json orderbook_snapshot_json;
 
   public:

@@ -1,7 +1,7 @@
 #define ENSURE_NO_BLOCKING
 
-#include "transport/websocket_client.h"
-#include "transport/websocket_server.h"
+#include "websocket_client.h"
+#include "websocket_server.h"
 #include <chrono>
 #include <iostream>
 #include <string>

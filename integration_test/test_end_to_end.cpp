@@ -73,6 +73,7 @@ void stop_gateway(pid_t pid, std::chrono::seconds timeout = std::chrono::seconds
 }
 
 TEST_CASE("Submit order requests", "[integration]") {
+    // Setup Gateway
     pid_t gateway_pid = -1;
     try {
         gateway_pid = set_up_gateway();
@@ -80,11 +81,9 @@ TEST_CASE("Submit order requests", "[integration]") {
         FAIL(std::string("Failed to start gateway: ") + e.what());
     }
 
-    // auto test_client_1 = set_up_test_client();
-    fs::path config_filename = "example_config_client.cfg";
-    fs::path path_to_config =
-        PROJECT_ROOT_DIR / fs::path("configs") / fs::path("test_client") / config_filename;
-    auto test_client_1{set_up_test_client()};
+    // Setup client
+    auto test_client_1 = set_up_test_client();
+
     test_client_1.connect(5);
 
     // cleanup

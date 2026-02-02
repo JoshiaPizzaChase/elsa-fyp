@@ -6,6 +6,11 @@ set(CMAKE_BUILD_RPATH "/usr/local/lib") # This sets runtime path for dynamic lin
 #set(CMAKE_C_COMPILER "/usr/bin/gcc-14")
 project(elsa_fyp)
 
+configure_file(
+        "${PROJECT_SOURCE_DIR}/config.h.in"
+        "${PROJECT_BINARY_DIR}/config.h"
+)
+
 #if(NOT TARGET spdlog)
 #    find_package(spdlog REQUIRED)
 #endif()
@@ -22,6 +27,8 @@ if (BUILD_EXAMPLES)
 endif ()
 
 add_subdirectory(client_sdk)
+
+add_subdirectory(libs/transport/websocket)
 
 # Add new services here
 add_subdirectory(services/matching_engine)
