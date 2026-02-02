@@ -86,6 +86,10 @@ TEST_CASE("Submit order requests", "[integration]") {
 
     test_client_1.connect(5);
 
+    test_client_1.submit_limit_order("GME", 100, 10, OrderSide::BUY, TimeInForce::GTC, "1234");
+
+    sleep(30);
+
     // cleanup
     if (gateway_pid > 0) {
         stop_gateway(gateway_pid);

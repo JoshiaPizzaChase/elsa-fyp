@@ -12,19 +12,26 @@ int main(int argc, char* argv[]) {
     if (argc != 1) {
         std::println("argc: {}", argc);
         std::println("Please pass in FIX server config path as argument");
+        return 1000;
     }
     std::cout << "Reading config file at: " << argv[0] << std::endl;
 
     auto path_to_config = fs::path(argv[0]);
     FIX::SessionSettings settings(path_to_config);
 
-    gateway::GatewayApplication application;
+    gateway::GatewayApplication application{};
+
+    std::cout << "Gateway constructed" << std::endl;
+
     FIX::FileStoreFactory storeFactory(settings);
     FIX::ScreenLogFactory logFactory(settings);
     FIX::SocketAcceptor acceptor(application, storeFactory, settings, logFactory);
 
     acceptor.start();
+
+    std::println("Acceptor started");
     while (true) {
+        // std::println("FUCK");
     }
     acceptor.stop();
 }

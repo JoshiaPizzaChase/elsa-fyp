@@ -14,8 +14,11 @@
 namespace gateway {
 
 GatewayApplication::GatewayApplication() {
+    std::println("GATEWAY constrcutor");
+    logger->info("FLLM");
+    logger->flush();
     m_websocketClient.start();
-    m_websocketClient.connect("ws://localhost:6767");
+    gateway_connection_id = m_websocketClient.connect("ws://localhost:6767").value();
 }
 
 /* Temporarily implemented to log on invokation. */
@@ -91,8 +94,10 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
                          : std::nullopt,
             .time_in_force = core::convert_to_internal(timeInForce),
         };
-
-        // sendContainer(newOrderRequest);
+        std::cout << "ORder received" << std::endl;
+        logger->info("ORDER RECEIVED");
+        logger->flush();
+        sendContainer(newOrderRequest);
 
     } catch (const std::exception& e) {
         logger->error("[Gateway] Error: {}", e.what());
@@ -176,7 +181,7 @@ void GatewayApplication::rejectMessage(const FIX::SenderCompID& sender,
 
 void GatewayApplication::sendContainer(const auto& container) {
     // TODO: Handle send error
-    m_websocketClient.send(transport::serialize_container(container));
+    m_websocketClient.send(gateway_connection_id, transport::serialize_container(container));
 }
 
 } // namespace gateway
