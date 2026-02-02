@@ -45,6 +45,7 @@ target_link_libraries(gateway_lib PUBLIC
         LibXml2::LibXml2
         ZLIB::ZLIB
         websocket_lib
+        proto-objects
 )
 target_include_directories(gateway_lib PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(gateway_lib PUBLIC ${QuickFIX_CFLAGS_OTHER} SPDLOG_USE_STD_FORMAT)
