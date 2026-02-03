@@ -17,7 +17,7 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
     WebsocketManagerClient(std::shared_ptr<spdlog::logger> logger) : WebsocketManager{logger} {
     }
 
-    WebsocketManagerClient(const std::string& logger_name = "client_websocket_logger")
+    WebsocketManagerClient(std::string_view logger_name = "client_websocket_logger")
         : WebsocketManager{logger_name} {
     }
 

@@ -21,7 +21,7 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
     }
 
     WebsocketManagerServer(int port, std::string_view uri,
-                           const std::string& logger_name = "server_websocket_logger",
+                           std::string_view logger_name = "server_websocket_logger",
                            bool reuse_addr = true)
         : m_port{port}, WebsocketManager{logger_name} {
         init_handlers(uri, reuse_addr);

@@ -16,7 +16,8 @@ namespace gateway {
 GatewayApplication::GatewayApplication(std::string host, int port) {
     m_websocketClient.start();
     gateway_connection_id =
-        m_websocketClient.connect("ws://" + std::move(host) + std::to_string(port)).value();
+        m_websocketClient.connect(std::format("ws://{}:{}", std::move(host), std::to_string(port)))
+            .value();
     logger->info("Gateway started");
     logger->flush();
 }

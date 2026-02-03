@@ -147,9 +147,9 @@ class WebsocketManager {
     }
 
     // Constructor for stand-alone WebsocketManager objects.
-    WebsocketManager(const std::string& logger_name)
+    WebsocketManager(std::string_view logger_name)
         : m_logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-              logger_name,
+              static_cast<std::string>(logger_name),
               std::string(PROJECT_SOURCE_DIR) + std::format("logs/{}.log", logger_name))} {
         init_logging(logger_name);
     }
@@ -278,7 +278,7 @@ class WebsocketManager {
     int m_next_id{0};
     std::shared_ptr<spdlog::logger> m_logger;
 
-    void init_logging(const std::string& logger_name) {
+    void init_logging(std::string_view logger_name) {
         // Intensive logging
         m_endpoint.set_access_channels(websocketpp::log::alevel::all);
         m_endpoint.set_error_channels(websocketpp::log::elevel::all);
