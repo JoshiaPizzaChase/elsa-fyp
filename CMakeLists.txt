@@ -5,6 +5,8 @@ set(CMAKE_BUILD_RPATH "/usr/local/lib") # This sets runtime path for dynamic lin
 
 project(elsa_fyp)
 
+find_package(reflectcpp REQUIRED)
+
 #if(NOT TARGET spdlog)
 #    find_package(spdlog REQUIRED)
 #endif()
