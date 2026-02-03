@@ -20,7 +20,7 @@ namespace gateway {
 class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
   public:
     // TODO: Initialise websocket client properly
-    GatewayApplication();
+    GatewayApplication(std::string host, int port);
 
     void onCreate(const FIX::SessionID&) override;
     void onLogon(const FIX::SessionID&) override;
@@ -50,7 +50,7 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
 
   private:
     std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-        "gateway_logger", std::string{PROJECT_ROOT_DIR} + "/logs/skibidi.log");
+        "gateway_logger", std::string{PROJECT_ROOT_DIR} + "/logs/gateway.log");
     IDGenerator m_idGenerator;
     transport::WebsocketManagerClient m_websocketClient{logger};
     int gateway_connection_id{};

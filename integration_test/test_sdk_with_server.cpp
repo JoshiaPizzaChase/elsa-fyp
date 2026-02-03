@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 int main() {
     fs::path serverConfigFileName = "example_config_server.cfg";
     fs::path pathToServerConfig = std::string{PROJECT_ROOT_DIR} / fs::path("configs") /
-                                  fs::path("gateway") / fs::path("hk1") / serverConfigFileName;
+                                  fs::path("gateway") / fs::path("hk01") / serverConfigFileName;
     std::cout << "Path to config: " << pathToServerConfig << '\n';
     const FIX::SessionSettings settings(pathToServerConfig.string());
     TestFixServer server;

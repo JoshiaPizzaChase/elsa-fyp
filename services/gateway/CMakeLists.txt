@@ -46,7 +46,9 @@ target_link_libraries(gateway_lib PUBLIC
         ZLIB::ZLIB
         websocket_lib
         proto-objects
+        reflectcpp
 )
+
 target_include_directories(gateway_lib PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(gateway_lib PUBLIC ${QuickFIX_CFLAGS_OTHER} SPDLOG_USE_STD_FORMAT)
 target_compile_definitions(gateway_lib PUBLIC PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")

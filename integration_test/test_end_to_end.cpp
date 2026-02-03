@@ -17,12 +17,15 @@ TestClient set_up_test_client() {
 // Starts gateway as a separate process, returning the child pid.
 // Throws on failure.
 pid_t set_up_gateway() {
-    fs::path config_filename = "example_config_server.cfg";
-    fs::path path_to_config = PROJECT_ROOT_DIR / fs::path("configs") / fs::path("gateway") /
-                              fs::path("hk1") / config_filename;
-
+    fs::path fix_config_filename{"example_config_server.cfg"};
+    fs::path path_to_fix_config{PROJECT_ROOT_DIR / fs::path("configs") / fs::path("gateway") /
+                                fs::path("hk01") / fix_config_filename};
     assert(fs::exists(gateway_bin_path) && fs::is_regular_file(gateway_bin_path) &&
            "Error in accessing Gateway binaries");
+
+    fs::path gateway_config_filename{"gateway01.toml"};
+    fs::path path_to_gateway_config{PROJECT_ROOT_DIR / fs::path("configs") / fs::path("gateway") /
+                                    fs::path("hk01") / gateway_config_filename};
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -31,10 +34,11 @@ pid_t set_up_gateway() {
 
     if (pid == 0) {
         // Child: replace process image with gateway binary
-        // argv: gateway --config <path>
-        execl(gateway_bin_path.c_str(), path_to_config.c_str(), (char*)NULL);
+        // argv: gateway <config path>
+        execl(gateway_bin_path.c_str(), gateway_bin_path.c_str(), path_to_fix_config.c_str(),
+              path_to_gateway_config.c_str(), (char*)NULL);
         // If execl returns, it's an error
-        // _exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE);
     }
 
     // Parent: give gateway a moment to start
