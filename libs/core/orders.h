@@ -19,7 +19,8 @@ enum class Side {
 };
 
 enum class TimeInForce {
-    day
+    day,
+    gtc
     // Extend here as needed.
 };
 
@@ -79,11 +80,13 @@ inline OrderType convert_to_internal(const FIX::OrdType& ord_type) {
 
 inline TimeInForce convert_to_internal(const FIX::TimeInForce& tif) {
     constexpr auto error_msg{"Unsupported Time In Force, use day"};
-    assert(tif == FIX::TimeInForce_DAY && error_msg);
+    assert(tif == FIX::TimeInForce_DAY || tif == FIX::TimeInForce_GOOD_TILL_CANCEL && error_msg);
 
     switch (tif) {
     case FIX::TimeInForce_DAY:
         return TimeInForce::day;
+    case FIX::TimeInForce_GOOD_TILL_CANCEL:
+        return TimeInForce::gtc;
     default:
         throw std::logic_error(error_msg);
     }

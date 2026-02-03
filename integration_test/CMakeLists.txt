@@ -1,12 +1,11 @@
 find_package(Catch2 3 REQUIRED)
 include(Catch)
 
-#add_executable(test_sdk_with_server test_sdk_with_server.cpp
-#        test_sdk_with_server.cpp)
-#target_link_libraries(test_sdk_with_server PUBLIC client_sdk)
+add_executable(test_sdk_with_server test_sdk_with_server.cpp)
+target_link_libraries(test_sdk_with_server PUBLIC client_sdk)
 
-#target_compile_definitions(test_sdk_with_server PRIVATE SPDLOG_USE_STD_FORMAT)
-#target_compile_definitions(test_sdk_with_server PRIVATE PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(test_sdk_with_server PRIVATE SPDLOG_USE_STD_FORMAT)
+target_compile_definitions(test_sdk_with_server PRIVATE PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
 
 add_executable(test_end_to_end test_end_to_end.cpp)
 target_link_libraries(test_end_to_end PUBLIC client_sdk gateway_lib)

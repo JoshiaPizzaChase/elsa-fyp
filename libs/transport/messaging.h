@@ -33,6 +33,8 @@ inline transport::TimeInForce convert_to_proto(core::TimeInForce tif) {
     switch (tif) {
     case core::TimeInForce::day:
         return transport::TimeInForce::TIF_DAY;
+    case core::TimeInForce::gtc:
+        return transport::TimeInForce::TIF_GTC;
     default:
         throw std::invalid_argument("Unknown TimeInForce enum value");
     }
