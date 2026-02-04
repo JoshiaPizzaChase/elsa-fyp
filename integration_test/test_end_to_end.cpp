@@ -7,6 +7,9 @@ namespace fs = std::filesystem;
 const fs::path gateway_bin_path =
     PROJECT_BUILD_DIR / fs::path("services") / fs::path("gateway") / fs::path("gateway");
 
+const fs::path order_manager_bin_path = PROJECT_BUILD_DIR / fs::path("services") /
+                                        fs::path("order_manager") / fs::path("order_manager");
+
 TestClient set_up_test_client() {
     fs::path config_filename = "example_config_client.cfg";
     fs::path path_to_config =
@@ -46,9 +49,32 @@ pid_t set_up_gateway() {
     return pid;
 }
 
-// Stop gateway process
+pid_t set_up_order_manager() {
+    fs::path order_manager_config_filename{"order_manager01.toml"};
+    fs::path path_to_order_manger_config{PROJECT_ROOT_DIR / fs::path("configs") /
+                                         fs::path("order_manager") / fs::path("hk01") /
+                                         order_manager_config_filename};
+    pid_t pid = fork();
+    if (pid < 0) {
+        throw std::runtime_error("fork() failed");
+    }
+
+    if (pid == 0) {
+        // Child: replace process image with order manager binary
+        // argv: order manager
+        execl(order_manager_bin_path.c_str(), order_manager_bin_path.c_str(),
+              path_to_order_manger_config.c_str(), (char*)NULL);
+        // If execl returns, it's an error
+        _exit(EXIT_FAILURE);
+    }
+
+    // Parent: give order manager a moment to start
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    return pid;
+}
+
 // Tries SIGTERM, waits, then SIGKILL if needed.
-void stop_gateway(pid_t pid, std::chrono::seconds timeout = std::chrono::seconds(5)) {
+void stop_process(pid_t pid, std::chrono::seconds timeout = std::chrono::seconds(5)) {
     if (pid <= 0)
         return;
 
@@ -77,6 +103,14 @@ void stop_gateway(pid_t pid, std::chrono::seconds timeout = std::chrono::seconds
 }
 
 TEST_CASE("Submit order requests", "[integration]") {
+    // Setup Order Manager
+    pid_t order_manager_pid = -1;
+    try {
+        order_manager_pid = set_up_order_manager();
+    } catch (const std::exception& e) {
+        FAIL(std::string("Failed to start order manager: ") + e.what());
+    }
+
     // Setup Gateway
     pid_t gateway_pid = -1;
     try {
@@ -90,14 +124,19 @@ TEST_CASE("Submit order requests", "[integration]") {
 
     test_client_1.connect(5);
 
-    test_client_1.submit_limit_order("GME", 100, 10, OrderSide::BUY, TimeInForce::GTC, "1234");
+    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
+    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
+    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
+    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
 
-    sleep(30);
+    sleep(10);
 
     // cleanup
     if (gateway_pid > 0) {
-        stop_gateway(gateway_pid);
+        stop_process(gateway_pid);
     }
 
-    test_client_1.disconnect();
+    if (order_manager_pid > 0) {
+        stop_process(order_manager_pid);
+    }
 }

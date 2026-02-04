@@ -61,10 +61,11 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
      * An example of uri is ws://localhost:6767.
      * Returns the connection id if successful.
      */
-    std::expected<int, int> connect(std::string const& uri) {
+    std::expected<int, int> connect(std::string_view uri) {
         websocketpp::lib::error_code error_code;
 
-        Client::connection_ptr connection = m_endpoint.get_connection(uri, error_code);
+        Client::connection_ptr connection =
+            m_endpoint.get_connection(static_cast<std::string>(uri), error_code);
 
         if (error_code) {
             m_logger->error("Connect initialization error: {}", error_code.message());
@@ -73,8 +74,8 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
 
         int new_id = m_next_id++;
 
-        ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{
-            std::make_shared<ConnectionMetadata>(new_id, connection->get_handle(), uri)};
+        ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{std::make_shared<ConnectionMetadata>(
+            new_id, connection->get_handle(), static_cast<std::string>(uri))};
 
         m_id_to_connection_map[new_id] = metadata_ptr;
 

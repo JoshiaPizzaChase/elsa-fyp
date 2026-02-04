@@ -24,11 +24,12 @@ namespace fs = std::filesystem;
 int test_gateway_start_stop() {
     try {
         fs::path configFileName = "example_config_server.cfg";
-        fs::path pathToConfig = fs::current_path() / "configs" / configFileName;
+        fs::path pathToConfig{PROJECT_ROOT_DIR / fs::path("configs") / fs::path("gateway") /
+                              fs::path("hk01") / configFileName};
 
         FIX::SessionSettings settings(pathToConfig);
 
-        gateway::GatewayApplication application;
+        gateway::GatewayApplication application{"aaaa", 123};
         FIX::FileStoreFactory storeFactory(settings);
         FIX::ScreenLogFactory logFactory(settings);
         FIX::SocketAcceptor acceptor(application, storeFactory, settings, logFactory);

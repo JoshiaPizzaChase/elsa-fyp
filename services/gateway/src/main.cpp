@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
         std::println("Please pass in program name as arg0");
         std::println("Please pass in FIX server config path as arg1");
         std::println("Please pass in gateway config as arg2");
-        return 1000;
+        return -1;
     }
 
     // Read FIX config

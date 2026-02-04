@@ -150,7 +150,7 @@ class WebsocketManager {
     WebsocketManager(std::string_view logger_name)
         : m_logger{spdlog::basic_logger_mt<spdlog::async_factory>(
               static_cast<std::string>(logger_name),
-              std::string(PROJECT_SOURCE_DIR) + std::format("logs/{}.log", logger_name))} {
+              std::string(PROJECT_SOURCE_DIR) + std::format("/logs/{}.log", logger_name))} {
         init_logging(logger_name);
     }
 
@@ -177,7 +177,7 @@ class WebsocketManager {
         }
 
         m_endpoint.send(metadata_it->second->get_handle(), message,
-                        websocketpp::frame::opcode::text, error_code);
+                        websocketpp::frame::opcode::binary, error_code);
         if (error_code) {
             m_logger->error("Error sending message: {}", error_code.message());
             return std::unexpected{-1};

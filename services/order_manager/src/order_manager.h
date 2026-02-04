@@ -14,20 +14,21 @@ namespace om {
 using WebsocketManagerServer = transport::WebsocketManagerServer;
 using WebsocketManagerClient = transport::WebsocketManagerClient;
 
-constexpr int ORDER_MANAGER_SERVER_PORT = 6767;
-constexpr int GATEWAY_COUNT = 4;
-
 class OrderManager {
   public:
-    std::expected<void, std::string> run();
+    OrderManager(std::string_view host, int port, int gateway_count);
+    std::expected<void, std::string> connect_matching_engine(std::string host, int port);
+    std::expected<void, std::string> start();
 
   private:
-    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-        "order_manager_logger", "logs/order_manager.log");
+    std::shared_ptr<spdlog::logger> logger;
 
-    WebsocketManagerServer inbound_ws_server{ORDER_MANAGER_SERVER_PORT, "localhost", logger};
-    WebsocketManagerClient outbound_ws_client{logger};
-    BalanceChecker balance_checker{};
+    WebsocketManagerServer inbound_ws_server;
+    WebsocketManagerClient outbound_ws_client;
+    BalanceChecker balance_checker;
+
+    int gateway_count;
+    int matching_engine_connection_id;
 };
 } // namespace om
 
