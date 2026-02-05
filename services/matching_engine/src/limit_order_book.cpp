@@ -41,7 +41,7 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
                                  std::map<int, std::list<Order>>& far_side, int price,
                                  int remaining_quantity, int order_id, Side side) {
     while (!far_side.empty() && remaining_quantity > 0) {
-        const auto best_level = (side == Side::Bid) ? std::prev(far_side.end()) : far_side.begin();
+        const auto best_level = (side == Side::Bid) ? far_side.begin() : std::prev(far_side.end());
 
         const auto& best_level_price = best_level->first;
         if ((side == Side::Bid && price < best_level_price) ||
