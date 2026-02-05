@@ -9,6 +9,8 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     try {
+        // Read Market Data Processor config
+        std::cout << "Reading Market Data Processor config file at: " << argv[1] << std::endl;
         mdp::MdpConfig mdp_config = rfl::toml::load<mdp::MdpConfig>(argv[1]).value();
         auto mdp = mdp::MarketDataProcessor(mdp_config);
         mdp.start();

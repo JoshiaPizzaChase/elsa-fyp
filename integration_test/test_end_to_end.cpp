@@ -10,6 +10,13 @@ const fs::path gateway_bin_path =
 const fs::path order_manager_bin_path = PROJECT_BUILD_DIR / fs::path("services") /
                                         fs::path("order_manager") / fs::path("order_manager");
 
+const fs::path matching_engine_bin_path = PROJECT_BUILD_DIR / fs::path("services") /
+                                          fs::path("matching_engine") / fs::path("matching_engine");
+
+const fs::path market_data_processor_bin_path = PROJECT_BUILD_DIR / fs::path("services") /
+                                                fs::path("market_data_processor") /
+                                                fs::path("market_data_processor");
+
 TestClient set_up_test_client() {
     fs::path config_filename = "example_config_client.cfg";
     fs::path path_to_config =
@@ -37,7 +44,7 @@ pid_t set_up_gateway() {
 
     if (pid == 0) {
         // Child: replace process image with gateway binary
-        // argv: gateway <config path>
+        // argv: <gateway binary path> <FIX config path> <gateway config path>
         execl(gateway_bin_path.c_str(), gateway_bin_path.c_str(), path_to_fix_config.c_str(),
               path_to_gateway_config.c_str(), (char*)NULL);
         // If execl returns, it's an error
@@ -61,7 +68,7 @@ pid_t set_up_order_manager() {
 
     if (pid == 0) {
         // Child: replace process image with order manager binary
-        // argv: order manager
+        // argv: <order manager bin path> <order manager config path>
         execl(order_manager_bin_path.c_str(), order_manager_bin_path.c_str(),
               path_to_order_manger_config.c_str(), (char*)NULL);
         // If execl returns, it's an error
@@ -69,6 +76,54 @@ pid_t set_up_order_manager() {
     }
 
     // Parent: give order manager a moment to start
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    return pid;
+}
+
+pid_t set_up_matching_engine() {
+    fs::path matching_engine_config_filename{"matching_engine01.toml"};
+    fs::path path_to_matching_engine_config{PROJECT_ROOT_DIR / fs::path("configs") /
+                                            fs::path("matching_engine") / fs::path("hk01") /
+                                            matching_engine_config_filename};
+    pid_t pid = fork();
+    if (pid < 0) {
+        throw std::runtime_error("fork() failed");
+    }
+
+    if (pid == 0) {
+        // Child: replace process image with matching engine binary
+        // argv: <matching engine binary path> <matching engine config path>
+        execl(matching_engine_bin_path.c_str(), matching_engine_bin_path.c_str(),
+              path_to_matching_engine_config.c_str(), (char*)NULL);
+        // If execl returns, it's an error
+        _exit(EXIT_FAILURE);
+    }
+
+    // Parent: give matching engine a moment to start
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    return pid;
+}
+
+pid_t set_up_market_data_processor() {
+    fs::path market_data_processor_config_filename{"mdp01.toml"};
+    fs::path path_to_market_data_processor_config{PROJECT_ROOT_DIR / fs::path("configs") /
+                                                  fs::path("mdp") / fs::path("hk01") /
+                                                  market_data_processor_config_filename};
+    pid_t pid = fork();
+    if (pid < 0) {
+        throw std::runtime_error("fork() failed");
+    }
+
+    if (pid == 0) {
+        // Child: replace process image with market data processor binary
+        // argv: <market data processor binary path> <market data processor config path>
+        execl(market_data_processor_bin_path.c_str(), market_data_processor_bin_path.c_str(),
+              path_to_market_data_processor_config.c_str(), (char*)NULL);
+        // If execl returns, it's an error
+        _exit(EXIT_FAILURE);
+    }
+
+    // Parent: give market data processor a moment to start
     std::this_thread::sleep_for(std::chrono::seconds(1));
     return pid;
 }
@@ -103,6 +158,22 @@ void stop_process(pid_t pid, std::chrono::seconds timeout = std::chrono::seconds
 }
 
 TEST_CASE("Submit order requests", "[integration]") {
+    // Setup Market Data Processor
+    pid_t market_data_processor_pid = -1;
+    try {
+        market_data_processor_pid = set_up_market_data_processor();
+    } catch (const std::exception& e) {
+        FAIL(std::string("Failed to start market data processor: ") + e.what());
+    }
+
+    // Setup Matching Engine
+    pid_t matching_engine_pid = -1;
+    try {
+        matching_engine_pid = set_up_matching_engine();
+    } catch (const std::exception& e) {
+        FAIL(std::string("Failed to start matching engine: ") + e.what());
+    }
+
     // Setup Order Manager
     pid_t order_manager_pid = -1;
     try {
@@ -138,5 +209,13 @@ TEST_CASE("Submit order requests", "[integration]") {
 
     if (order_manager_pid > 0) {
         stop_process(order_manager_pid);
+    }
+
+    if (matching_engine_pid > 0) {
+        stop_process(matching_engine_pid);
+    }
+
+    if (market_data_processor_pid > 0) {
+        stop_process(market_data_processor_pid);
     }
 }
