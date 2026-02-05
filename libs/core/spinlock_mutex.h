@@ -18,7 +18,7 @@ class SpinlockMutex {
     }
 
     void unlock() {
-        flag.clear(std::memory_order_relaxed);
+        flag.clear(std::memory_order_release);
     }
 };
 
