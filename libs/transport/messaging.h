@@ -33,6 +33,8 @@ inline transport::TimeInForce convert_to_proto(core::TimeInForce tif) {
     switch (tif) {
     case core::TimeInForce::day:
         return transport::TimeInForce::TIF_DAY;
+    case core::TimeInForce::gtc:
+        return transport::TimeInForce::TIF_GTC;
     default:
         throw std::invalid_argument("Unknown TimeInForce enum value");
     }
@@ -100,6 +102,8 @@ inline core::TimeInForce convert_to_internal(transport::TimeInForce tif) {
     switch (tif) {
     case transport::TimeInForce::TIF_DAY:
         return core::TimeInForce::day;
+    case transport::TimeInForce::TIF_GTC:
+        return core::TimeInForce::gtc;
     default:
         throw std::invalid_argument("Unknown TimeInForce enum value");
     }
@@ -142,6 +146,7 @@ convert_to_internal(transport::ExecTypeOrOrderStatus exec_type_or_order_status) 
 
 // Serializer and deserializer functions
 inline std::string serialize_container(const core::NewOrderSingleContainer& container) {
+    transport::ContainerWrapper container_wrapper;
     transport::NewOrderSingleContainer container_proto;
 
     container_proto.set_cl_ord_id(container.cl_ord_id);
@@ -156,8 +161,9 @@ inline std::string serialize_container(const core::NewOrderSingleContainer& cont
         container_proto.set_price(container.price.value());
     }
     container_proto.set_time_in_force(convert_to_proto(container.time_in_force));
+    *container_wrapper.mutable_new_order_single() = container_proto;
 
-    return container_proto.SerializeAsString();
+    return container_wrapper.SerializeAsString();
 }
 
 inline std::string serialize_container(const core::CancelOrderRequestContainer& container) {

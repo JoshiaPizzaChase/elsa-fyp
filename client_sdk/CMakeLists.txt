@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.0)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-project(elsa_fyp_client_sdk)
+#project(elsa_fyp_client_sdk)
 
 add_library(client_sdk
         src/fix_client.cpp
@@ -29,13 +29,13 @@ find_package(ZLIB REQUIRED)
 
 # Find QuickFIX in user-installed library paths
 find_library(quickfix
-  NAMES libquickfix
-  PATHS /usr/local/lib
+        NAMES libquickfix
+        PATHS /usr/local/lib
 )
 
 # Link QuickFIX
 target_link_libraries(client_sdk PUBLIC
-        quickfix 
+        quickfix
         ${QuickFIX_LIBRARIES}
         Threads::Threads
         LibXml2::LibXml2
@@ -44,7 +44,8 @@ target_link_libraries(client_sdk PUBLIC
 target_include_directories(client_sdk PUBLIC ${QuickFIX_INCLUDE_DIRS})
 target_compile_definitions(client_sdk PUBLIC ${QuickFIX_CFLAGS_OTHER})
 target_compile_definitions(client_sdk PRIVATE SPDLOG_USE_STD_FORMAT)
+target_compile_definitions(client_sdk PRIVATE PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
 
-if(BUILD_TESTS)
+if (BUILD_TESTS)
     add_subdirectory(unit_test)
-endif()
+endif ()

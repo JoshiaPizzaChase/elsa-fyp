@@ -4,22 +4,24 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fcntl.h>
 #include <optional>
+#include <ostream>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
-#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <type_traits>
 #include <unistd.h>
 
-template<typename T, std::size_t POWER_OF_2_CAPACITY>
+template <typename T, std::size_t POWER_OF_2_CAPACITY>
 class MpscRingBuffer {
-    static_assert((POWER_OF_2_CAPACITY & (POWER_OF_2_CAPACITY - 1)) == 0, "Buffer capacity must be a power of 2");
+    static_assert((POWER_OF_2_CAPACITY & (POWER_OF_2_CAPACITY - 1)) == 0,
+                  "Buffer capacity must be a power of 2");
     static_assert(POWER_OF_2_CAPACITY > 0, "Negative buffer capacity");
     static_assert(std::is_trivially_copyable_v<T>, "T is not trivially copyable for shm");
 
-private:
+  private:
     static constexpr std::size_t mask = POWER_OF_2_CAPACITY - 1;
     static constexpr std::uint64_t magic_number = 0xDEADBEEF12345678ULL;
 
@@ -36,7 +38,7 @@ private:
     alignas(cache_line_padding_size) std::atomic<std::size_t> tail_;
     alignas(cache_line_padding_size) Slot slots_[POWER_OF_2_CAPACITY];
 
-public:
+  public:
     void init() {
         head_.store(0, std::memory_order_relaxed);
         tail_.store(0, std::memory_order_relaxed);
@@ -54,16 +56,18 @@ public:
         return initialized_.load(std::memory_order_acquire) == magic_number;
     }
 
-    bool try_push(const T &value) {
+    bool try_push(const T& value) {
         std::size_t position = head_.load(std::memory_order_relaxed);
         for (;;) {
-            Slot &slot = slots_[position & mask];
+            Slot& slot = slots_[position & mask];
             std::size_t seq = slot.sequence.load(std::memory_order_acquire);
-            std::intptr_t difference = static_cast<std::intptr_t>(seq) - static_cast<std::intptr_t>(position);
+            std::intptr_t difference =
+                static_cast<std::intptr_t>(seq) - static_cast<std::intptr_t>(position);
 
             if (difference == 0) {
                 // available slot for writing
-                if (head_.compare_exchange_weak(position, position + 1, std::memory_order_relaxed)) {
+                if (head_.compare_exchange_weak(position, position + 1,
+                                                std::memory_order_relaxed)) {
                     slot.data = value;
                     slot.sequence.store(position + 1, std::memory_order_release);
                     return true;
@@ -78,7 +82,7 @@ public:
         }
     }
 
-    void push_blocking(const T &value) {
+    void push_blocking(const T& value) {
         // spinning until successfully pushed
         while (!try_push(value)) {
         }
@@ -86,9 +90,10 @@ public:
 
     std::optional<T> try_pop() {
         std::size_t position = tail_.load(std::memory_order_relaxed);
-        Slot &slot = slots_[position & mask];
+        Slot& slot = slots_[position & mask];
         std::size_t seq = slot.sequence.load(std::memory_order_acquire);
-        std::intptr_t difference = static_cast<std::intptr_t>(seq) - static_cast<std::intptr_t>(position + 1);
+        std::intptr_t difference =
+            static_cast<std::intptr_t>(seq) - static_cast<std::intptr_t>(position + 1);
 
         if (difference < 0) {
             // buffer is empty
@@ -100,7 +105,6 @@ public:
         tail_.store(position + 1, std::memory_order_relaxed);
         return result;
     }
-
 
     bool empty() const {
         std::size_t head = head_.load(std::memory_order_acquire);
@@ -114,29 +118,35 @@ public:
         return head - tail;
     }
 
-    static constexpr std::size_t capacity() { return POWER_OF_2_CAPACITY; }
+    static constexpr std::size_t capacity() {
+        return POWER_OF_2_CAPACITY;
+    }
 
-    static constexpr std::size_t shm_size() { return sizeof(MpscRingBuffer); }
+    static constexpr std::size_t shm_size() {
+        return sizeof(MpscRingBuffer);
+    }
 };
 
-template<typename T, std::size_t POWER_OF_2_CAPACITY>
+template <typename T, std::size_t POWER_OF_2_CAPACITY>
 class MpscSharedMemoryRingBuffer {
     using Buffer = MpscRingBuffer<T, POWER_OF_2_CAPACITY>;
 
-private:
+  private:
     MpscSharedMemoryRingBuffer() = default;
 
-    Buffer *buffer_ = nullptr;
+    Buffer* buffer_ = nullptr;
     bool is_owner_ = false;
     std::string shm_file_path_;
     bool use_shm_open_ = true;
 
-public:
-    static std::string get_shm_file_full_name(const std::string &shm_file_name_prefix) {
-        return shm_file_name_prefix + "_" + std::to_string(Buffer::shm_size()) + "_" + std::to_string(POWER_OF_2_CAPACITY);
+  public:
+    static std::string get_shm_file_full_name(const std::string& shm_file_name_prefix) {
+        return shm_file_name_prefix + "_" + std::to_string(Buffer::shm_size()) + "_" +
+               std::to_string(POWER_OF_2_CAPACITY);
     }
 
-    static MpscSharedMemoryRingBuffer create(const std::string &shm_file_name_prefix, bool use_shm_open = true) {
+    static MpscSharedMemoryRingBuffer create(const std::string& shm_file_name_prefix,
+                                             bool use_shm_open = true) {
         MpscSharedMemoryRingBuffer buf;
         // creator is the owner, who will be responsible for destroying the physical shared memory
         // in our use case consumer is the owner of the shm
@@ -147,6 +157,7 @@ public:
         int fd;
         if (use_shm_open) {
             fd = shm_open(buf.shm_file_path_.c_str(), O_CREAT | O_RDWR, 0666);
+            // fd = shm_open(buf.shm_file_path_.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
         } else {
             fd = ::open(buf.shm_file_path_.c_str(), O_CREAT | O_RDWR, 0666);
         }
@@ -155,19 +166,19 @@ public:
             throw std::runtime_error("Failed to create shm: " + std::string(strerror(errno)));
         }
 
-        if (ftruncate(fd, Buffer::shm_size()) == -1) {
-            close(fd);
-            throw std::runtime_error("Failed to create shm: " + std::string(strerror(errno)));
-        }
+        // if (ftruncate(fd, Buffer::shm_size()) == -1) {
+        //     close(fd);
+        //     throw std::runtime_error("Failed to create shm: " + std::string(strerror(errno)));
+        // }
 
-        void *ptr = mmap(nullptr, Buffer::shm_size(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        void* ptr = mmap(nullptr, Buffer::shm_size(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         close(fd);
 
         if (ptr == MAP_FAILED) {
             throw std::runtime_error("Failed to mmap shm: " + std::string(strerror(errno)));
         }
 
-        buf.buffer_ = static_cast<Buffer *>(ptr);
+        buf.buffer_ = static_cast<Buffer*>(ptr);
         if (!buf.buffer_->is_initialized()) {
             buf.buffer_->init();
         }
@@ -175,8 +186,8 @@ public:
         return buf;
     }
 
-    static MpscSharedMemoryRingBuffer
-    open_exist_shm(const std::string &shm_file_name_prefix, bool use_shm_open = true) {
+    static MpscSharedMemoryRingBuffer open_exist_shm(const std::string& shm_file_name_prefix,
+                                                     bool use_shm_open = true) {
         MpscSharedMemoryRingBuffer buf;
         buf.is_owner_ = false;
         buf.shm_file_path_ = get_shm_file_full_name(shm_file_name_prefix);
@@ -193,14 +204,14 @@ public:
             throw std::runtime_error("Failed to open shm: " + std::string(strerror(errno)));
         }
 
-        void *ptr = mmap(nullptr, Buffer::shm_size(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        void* ptr = mmap(nullptr, Buffer::shm_size(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         close(fd);
 
         if (ptr == MAP_FAILED) {
             throw std::runtime_error("Failed to mmap shm: " + std::string(strerror(errno)));
         }
 
-        buf.buffer_ = static_cast<Buffer *>(ptr);
+        buf.buffer_ = static_cast<Buffer*>(ptr);
         if (!buf.buffer_->is_initialized()) {
             buf.buffer_->init();
         }
@@ -208,11 +219,11 @@ public:
         return buf;
     }
 
-    void push_blocking(T &value) {
+    void push_blocking(T& value) {
         buffer_->push_blocking(value);
     }
 
-    bool try_push(T &value) {
+    bool try_push(T& value) {
         return buffer_->try_push(value);
     }
 
@@ -237,14 +248,12 @@ public:
     }
 
     // move constructor
-    MpscSharedMemoryRingBuffer(MpscSharedMemoryRingBuffer &&other) noexcept
-        : buffer_(other.buffer_),
-          is_owner_(other.is_owner_),
-          shm_file_path_(other.shm_file_path_) {
+    MpscSharedMemoryRingBuffer(MpscSharedMemoryRingBuffer&& other) noexcept
+        : buffer_(other.buffer_), is_owner_(other.is_owner_), shm_file_path_(other.shm_file_path_) {
         other.buffer_ = nullptr;
     }
 
-    MpscSharedMemoryRingBuffer &operator=(MpscSharedMemoryRingBuffer &&other) noexcept {
+    MpscSharedMemoryRingBuffer& operator=(MpscSharedMemoryRingBuffer&& other) noexcept {
         if (this != &other) {
             if (buffer_) {
                 if (is_owner_) {
@@ -268,14 +277,26 @@ public:
         return *this;
     }
 
-    MpscSharedMemoryRingBuffer(const MpscSharedMemoryRingBuffer &) = delete;
+    MpscSharedMemoryRingBuffer(const MpscSharedMemoryRingBuffer&) = delete;
 
-    MpscSharedMemoryRingBuffer &operator=(const MpscSharedMemoryRingBuffer &) = delete;
+    MpscSharedMemoryRingBuffer& operator=(const MpscSharedMemoryRingBuffer&) = delete;
 
-    Buffer *operator->() { return buffer_; }
-    const Buffer *operator->() const { return buffer_; }
-    Buffer &operator*() { return *buffer_; }
-    const Buffer &operator*() const { return *buffer_; }
-    Buffer *get() { return buffer_; }
-    const Buffer *get() const { return buffer_; }
+    Buffer* operator->() {
+        return buffer_;
+    }
+    const Buffer* operator->() const {
+        return buffer_;
+    }
+    Buffer& operator*() {
+        return *buffer_;
+    }
+    const Buffer& operator*() const {
+        return *buffer_;
+    }
+    Buffer* get() {
+        return buffer_;
+    }
+    const Buffer* get() const {
+        return buffer_;
+    }
 };

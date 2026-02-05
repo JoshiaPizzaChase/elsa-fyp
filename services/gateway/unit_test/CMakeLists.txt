@@ -13,14 +13,14 @@ find_package(ZLIB REQUIRED)
 # pkg_check_modules(QuickFIX REQUIRED quickfix)
 
 # Find QuickFIX in user-installed library paths
-find_library(quickfix 
-  NAMES libquickfix
-  PATHS /usr/local/lib
+find_library(quickfix
+        NAMES libquickfix
+        PATHS /usr/local/lib
 )
 
 # Link QuickFIX
 target_link_libraries(gateway_unit_test PUBLIC
-        gateway
+        gateway_lib
         quickfix
         ${QuickFIX_LIBRARIES}
         Threads::Threads

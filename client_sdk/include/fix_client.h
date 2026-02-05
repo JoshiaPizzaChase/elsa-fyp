@@ -2,6 +2,7 @@
 #define ELSA_FYP_CLIENT_SDK_FIX_CLIENT_H
 
 #include <memory>
+#include <quickfix/FileStore.h>
 #include <string>
 
 #include "order.h"
@@ -20,10 +21,12 @@
 #include "spdlog/spdlog.h"
 
 class FixClient : FIX::Application, FIX42::MessageCracker {
+    FIX::SessionSettings _settings;
+    FIX::FileStoreFactory _file_store_factory;
     std::unique_ptr<FIX::Initiator> _initiator;
     std::atomic_bool _is_connected = false;
-    std::shared_ptr<spdlog::logger> logger =
-        spdlog::basic_logger_mt<spdlog::async_factory>("fix_client_logger", "logs/fix_client.log");
+    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
+        "fix_client_logger", std::string{PROJECT_ROOT_DIR} + "/logs/fix_client.log");
 
   public:
     explicit FixClient(const std::string&);

@@ -29,7 +29,7 @@ set_target_properties(test_mdp_client PROPERTIES
 )
 
 target_link_libraries(test_md_producer PRIVATE)
-target_link_libraries(test_mdp_client PRIVATE)
+target_link_libraries(test_mdp_client PRIVATE websocket_lib)
 
 target_compile_definitions(test_md_producer PRIVATE SPDLOG_USE_STD_FORMAT)
 target_compile_definitions(test_mdp_client PRIVATE SPDLOG_USE_STD_FORMAT)

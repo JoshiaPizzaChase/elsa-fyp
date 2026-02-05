@@ -2,11 +2,11 @@
 #define ELSA_FYP_TRADE_H
 
 #include "constants.h"
-#include <assert.h>
-#include "nlohmann/json.hpp"
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
+#include "nlohmann/json.hpp"
+#include <assert.h>
 
-using json =  nlohmann::json;
+using json = nlohmann::json;
 
 struct Trade {
     char ticker[core::constants::MAX_TICKER_LENGTH]{};
@@ -33,7 +33,8 @@ struct Trade {
 
     friend std::ostream& operator<<(std::ostream& os, const Trade& trade) {
         std::string side_str = trade.is_taker_buyer ? " BUY" : " SELL";
-        os << "ticker:" << trade.ticker << side_str << trade.quantity << "@"
+        os << "ticker:" << trade.ticker << side_str
+           << trade.quantity / core::constants::decimal_to_int_multiplier << "@"
            << trade.price / core::constants::decimal_to_int_multiplier
            << ",trade_id:" << trade.trade_id << ",taker_id:" << trade.taker_id
            << ",maker_id:" << trade.maker_id << ",taker_order_id:" << trade.taker_order_id
@@ -49,7 +50,7 @@ struct Trade {
                  {"trade_id", trade_id},
                  {"taker_side", side_str},
                  {"price", price / core::constants::decimal_to_int_multiplier},
-                 {"quantity", quantity},
+                 {"quantity", quantity / core::constants::decimal_to_int_multiplier},
                  {"taker_id", taker_id},
                  {"maker_id", maker_id},
                  {"taker_order_id", taker_order_id},

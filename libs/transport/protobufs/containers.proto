@@ -19,6 +19,7 @@ enum Side {
 enum TimeInForce {
   TIF_UNSPECIFIED = 0;
   TIF_DAY = 1;  // day
+  TIF_GTC = 2; // gtc
 }
 
 // Describes the "category" of the execution report.

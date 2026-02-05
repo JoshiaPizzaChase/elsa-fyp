@@ -7,6 +7,11 @@ project(elsa_fyp)
 
 find_package(reflectcpp REQUIRED)
 
+configure_file(
+        "${PROJECT_SOURCE_DIR}/config.h.in"
+        "${PROJECT_BINARY_DIR}/config.h"
+)
+
 #if(NOT TARGET spdlog)
 #    find_package(spdlog REQUIRED)
 #endif()
@@ -24,8 +29,11 @@ endif ()
 
 add_subdirectory(client_sdk)
 
+add_subdirectory(libs/transport/websocket)
+
 # Add new services here
 add_subdirectory(services/matching_engine)
+add_subdirectory(services/order_manager)
 add_subdirectory(services/gateway)
 add_subdirectory(services/market_data_processor)
 
@@ -41,4 +49,3 @@ protobuf_generate(
         TARGET proto-objects
         IMPORT_DIRS "${PROTO_BINARY_DIR}"
         PROTOC_OUT_DIR "${PROTO_BINARY_DIR}")
-

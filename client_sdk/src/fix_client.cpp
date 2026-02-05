@@ -5,11 +5,10 @@
 #include <chrono>
 #include <thread>
 
-FixClient::FixClient(const std::string& setting_file) : Application() {
-    const FIX::SessionSettings settings(setting_file);
-    FIX::FileStoreFactory file_store_factory(settings);
+FixClient::FixClient(const std::string& setting_file)
+    : Application(), _settings{setting_file}, _file_store_factory{_settings} {
     _initiator = std::unique_ptr<FIX::Initiator>(
-        new FIX::SocketInitiator(*this, file_store_factory, settings));
+        new FIX::SocketInitiator(*this, _file_store_factory, _settings));
 }
 
 void FixClient::connect(const int& timeout_sec) const {

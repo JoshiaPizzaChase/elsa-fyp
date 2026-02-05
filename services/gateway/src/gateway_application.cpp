@@ -9,40 +9,58 @@
 #include <quickfix/fix42/ExecutionReport.h>
 #include <quickfix/fix42/NewOrderSingle.h>
 #include <stdexcept>
+#include <transport/messaging.h>
 
 namespace gateway {
+
+GatewayApplication::GatewayApplication(std::string host, int port) {
+    m_websocketClient.start();
+    gateway_connection_id =
+        m_websocketClient.connect(std::format("ws://{}:{}", std::move(host), std::to_string(port)))
+            .value();
+    logger->info("Gateway started");
+    logger->flush();
+}
 
 /* Temporarily implemented to log on invokation. */
 void GatewayApplication::onCreate(const FIX::SessionID& sessionId) {
     logger->info("[Gateway] Created - {}", sessionId.toString());
+    logger->flush();
 };
 
 void GatewayApplication::onLogon(const FIX::SessionID& sessionId) {
     logger->info("[Gateway] Logged on - {}", sessionId.toString());
+    logger->flush();
 };
 
 void GatewayApplication::onLogout(const FIX::SessionID& sessionId) {
     logger->info("[Gateway] Logged out - {}", sessionId.toString());
+    logger->flush();
 };
 
 void GatewayApplication::toAdmin(FIX::Message& message, const FIX::SessionID& sessionId) {
     logger->info("[Gateway] To admin: {} - {}", message.toString(), sessionId.toString());
+    logger->flush();
 };
 
 void GatewayApplication::toApp(FIX::Message& message, const FIX::SessionID& sessionId)
     EXCEPT(FIX::DoNotSend) {
     logger->info("[Gateway] To app: {} - {}", message.toString(), sessionId.toString());
+    logger->flush();
 };
 
 void GatewayApplication::fromAdmin(const FIX::Message& message, const FIX::SessionID& sessionId)
     EXCEPT(FIX::FieldNotFound, FIX::IncorrectDataFormat, FIX::IncorrectTagValue, FIX::RejectLogon) {
     logger->info("[Gateway] From admin: {} - {}", message.toString(), sessionId.toString());
+    logger->flush();
 };
 
 void GatewayApplication::fromApp(const FIX::Message& message, const FIX::SessionID& sessionId)
     EXCEPT(FIX::FieldNotFound, FIX::IncorrectDataFormat, FIX::IncorrectTagValue,
            FIX::UnsupportedMessageType) {
+    crack(message, sessionId);
     logger->info("[Gateway] From app: {} - {}", message.toString(), sessionId.toString());
+    logger->flush();
 };
 
 void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
@@ -58,7 +76,6 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
     FIX::TimeInForce timeInForce;
 
     // TODO: Set up preconditions, e.g. asserting session existence, to catch bugs in debug build.
-
     try {
         message.getHeader().get(senderCompId);
         message.getHeader().get(targetCompId);
@@ -86,10 +103,13 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
             .time_in_force = core::convert_to_internal(timeInForce),
         };
 
-        // sendContainer(newOrderRequest);
+        logger->info("Order received");
+        logger->flush();
+        sendContainer(newOrderRequest);
 
     } catch (const std::exception& e) {
         logger->error("[Gateway] Error: {}", e.what());
+        logger->flush();
         rejectMessage(senderCompId, targetCompId, clOrdId, symbol, side, e.what());
     }
 };
@@ -131,6 +151,7 @@ void GatewayApplication::onMessage(const FIX42::OrderCancelRequest& message,
 
     } catch (const std::exception& e) {
         logger->error("[Gateway] Error: {}", e.what());
+        logger->flush();
         rejectMessage(senderCompId, targetCompId, clOrdId, symbol, side, e.what());
     }
 };
@@ -165,19 +186,13 @@ void GatewayApplication::rejectMessage(const FIX::SenderCompID& sender,
         FIX::Session::sendToTarget(execReport, senderCompID, targetCompID);
     } catch (const FIX::SessionNotFound& e) {
         logger->error("[Gateway] Error: {}", e.what());
+        logger->flush();
     }
 }
 
-void GatewayApplication::sendContainer(const core::NewOrderSingleContainer& container) {
-    throw std::runtime_error("unimplemented");
-}
-
-void GatewayApplication::sendContainer(const core::CancelOrderRequestContainer& container) {
-    throw std::runtime_error("unimplemented");
-}
-
-void GatewayApplication::sendContainer(const core::ExecutionReportContainer& container) {
-    throw std::runtime_error("unimplemented");
+void GatewayApplication::sendContainer(const auto& container) {
+    // TODO: Handle send error
+    m_websocketClient.send(gateway_connection_id, transport::serialize_container(container));
 }
 
 } // namespace gateway

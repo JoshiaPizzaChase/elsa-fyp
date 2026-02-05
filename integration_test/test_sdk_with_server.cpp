@@ -11,8 +11,8 @@ namespace fs = std::filesystem;
 
 int main() {
     fs::path serverConfigFileName = "example_config_server.cfg";
-    fs::path pathToServerConfig =
-        fs::current_path() / fs::path("client_sdk") / serverConfigFileName;
+    fs::path pathToServerConfig = std::string{PROJECT_ROOT_DIR} / fs::path("configs") /
+                                  fs::path("gateway") / fs::path("hk01") / serverConfigFileName;
     std::cout << "Path to config: " << pathToServerConfig << '\n';
     const FIX::SessionSettings settings(pathToServerConfig.string());
     TestFixServer server;
@@ -22,8 +22,8 @@ int main() {
     std::cout << "Server started" << '\n';
 
     fs::path clientConfigFileName = "example_config_client.cfg";
-    fs::path pathToClientConfig =
-        fs::current_path() / fs::path("client_sdk") / clientConfigFileName;
+    fs::path pathToClientConfig = std::string{PROJECT_ROOT_DIR} / fs::path("configs") /
+                                  fs::path("test_client") / clientConfigFileName;
     std::cout << "Path to config: " << pathToClientConfig << '\n';
     const auto client = new TestClient(pathToClientConfig.string());
     client->connect(5);

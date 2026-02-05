@@ -1,6 +1,7 @@
 #ifndef TRANSPORT_WEBSOCKET_H
 #define TRANSPORT_WEBSOCKET_H
 
+#include "config.h"
 #include "core/thread_safe_queue.h"
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -34,6 +35,11 @@ enum class ConnectionStatus {
     open,
     failed,
     closed,
+};
+
+enum class MessageFormat {
+    text,
+    binary
 };
 
 template <ClientOrServer Endpoint>
@@ -146,9 +152,10 @@ class WebsocketManager {
     }
 
     // Constructor for stand-alone WebsocketManager objects.
-    WebsocketManager(const std::string& logger_name)
+    WebsocketManager(std::string_view logger_name)
         : m_logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-              logger_name, std::format("logs/{}.log", logger_name))} {
+              static_cast<std::string>(logger_name),
+              std::string(PROJECT_SOURCE_DIR) + std::format("/logs/{}.log", logger_name))} {
         init_logging(logger_name);
     }
 
@@ -165,19 +172,8 @@ class WebsocketManager {
     virtual std::expected<void, int> start() = 0;
     virtual std::expected<void, int> stop() = 0;
 
-    void init_logging(const std::string& logger_name) {
-        // Intensive logging
-        m_endpoint.set_access_channels(websocketpp::log::alevel::all);
-        m_endpoint.set_error_channels(websocketpp::log::elevel::all);
-
-        // Redirect endpoint logs to separate file from spdlogs
-        std::ostream* log_stream =
-            new std::ofstream(std::format("logs/{}_endpoint.log", logger_name));
-        m_endpoint.get_alog().set_ostream(log_stream);
-        m_endpoint.get_elog().set_ostream(log_stream);
-    }
-
-    std::expected<void, int> send(int id, const std::string& message) {
+    std::expected<void, int> send(int id, const std::string& message,
+                                  MessageFormat message_format = MessageFormat::binary) {
         websocketpp::lib::error_code error_code;
 
         auto metadata_it = m_id_to_connection_map.find(id);
@@ -185,9 +181,10 @@ class WebsocketManager {
             m_logger->error("Sending failed, no connection found with id: {}", id);
             return std::unexpected{-1};
         }
-
-        m_endpoint.send(metadata_it->second->get_handle(), message,
-                        websocketpp::frame::opcode::text, error_code);
+        const auto opcode{message_format == MessageFormat::text
+                              ? websocketpp::frame::opcode::text
+                              : websocketpp::frame::opcode::binary};
+        m_endpoint.send(metadata_it->second->get_handle(), message, opcode, error_code);
         if (error_code) {
             m_logger->error("Error sending message: {}", error_code.message());
             return std::unexpected{-1};
@@ -287,6 +284,18 @@ class WebsocketManager {
     IdToConnectionMap m_id_to_connection_map;
     int m_next_id{0};
     std::shared_ptr<spdlog::logger> m_logger;
+
+    void init_logging(std::string_view logger_name) {
+        // Intensive logging
+        m_endpoint.set_access_channels(websocketpp::log::alevel::all);
+        m_endpoint.set_error_channels(websocketpp::log::elevel::all);
+
+        // Redirect endpoint logs to separate file from spdlogs
+        std::ostream* log_stream = new std::ofstream(
+            PROJECT_SOURCE_DIR + std::format("/logs/{}_endpoint.log", logger_name));
+        m_endpoint.get_alog().set_ostream(log_stream);
+        m_endpoint.get_elog().set_ostream(log_stream);
+    }
 };
 
 } // namespace transport
