@@ -202,10 +202,43 @@ TEST_CASE("Submit order requests", "[integration]") {
     // 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
 
     // sleep(10);
+
+    int max_orders = 5000; // adjust as needed
+    static int order_counter = 0;
+    static bool seeded = false;
+    if (!seeded) {
+        seeded = true;
+        std::srand(static_cast<unsigned>(std::time(nullptr)));
+    }
+
     while (true) {
-        test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC,
-                                         "1234");
-        sleep(1);
+        // Random submit orders by first calling a random generator
+        // then randomly choosing side, price and quantity. Ticker should be the same.
+
+        // stop after a fixed number so the test can finish and cleanup runs
+        if (++order_counter > max_orders)
+            break;
+
+        // Randomize price in [90.00, 110.00] with 2 decimal precision
+        int cents = std::rand() % 2001; // 0..2000 -> 0.00..20.00
+        double price = 90.0 + (cents / 100.0);
+
+        // Randomize quantity 1..100
+        int qty = 1 + (std::rand() % 100);
+
+        // Random side
+        OrderSide side = (std::rand() % 2 == 0) ? OrderSide::BUY : OrderSide::SELL;
+
+        // Unique order id using timestamp + counter
+        std::string order_id = std::to_string(static_cast<long long>(std::time(nullptr))) + "_" +
+                               std::to_string(order_counter);
+
+        // Submit limit order: ticker "GME", price, quantity, side, GTC, client order id
+        test_client_1.submit_limit_order("GME", price, static_cast<double>(qty), side,
+                                         TimeInForce::GTC, order_id);
+
+        // small delay between submissions
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
     // cleanup
