@@ -15,11 +15,11 @@ using json = nlohmann::json;
 namespace mdp {
 class MarketDataProcessor {
   private:
+    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
+        "mdp_logger", std::string(PROJECT_ROOT_DIR) + "/logs/mdp.log");
     OrderbookSnapshotRingBuffer orderbook_snapshot_ring_buffer;
     TradeRingBuffer trade_ring_buffer;
     transport::WebsocketManagerServer websocket_server;
-    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-        "mdp_logger", std::string(PROJECT_ROOT_DIR) + "/logs/mdp.log");
     json orderbook_snapshot_json;
     json trade_json;
 

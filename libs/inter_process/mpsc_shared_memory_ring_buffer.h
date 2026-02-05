@@ -157,6 +157,7 @@ class MpscSharedMemoryRingBuffer {
         int fd;
         if (use_shm_open) {
             fd = shm_open(buf.shm_file_path_.c_str(), O_CREAT | O_RDWR, 0666);
+            // fd = shm_open(buf.shm_file_path_.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
         } else {
             fd = ::open(buf.shm_file_path_.c_str(), O_CREAT | O_RDWR, 0666);
         }
@@ -165,10 +166,10 @@ class MpscSharedMemoryRingBuffer {
             throw std::runtime_error("Failed to create shm: " + std::string(strerror(errno)));
         }
 
-        if (ftruncate(fd, Buffer::shm_size()) == -1) {
-            close(fd);
-            throw std::runtime_error("Failed to create shm: " + std::string(strerror(errno)));
-        }
+        // if (ftruncate(fd, Buffer::shm_size()) == -1) {
+        //     close(fd);
+        //     throw std::runtime_error("Failed to create shm: " + std::string(strerror(errno)));
+        // }
 
         void* ptr = mmap(nullptr, Buffer::shm_size(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         close(fd);

@@ -195,12 +195,18 @@ TEST_CASE("Submit order requests", "[integration]") {
 
     test_client_1.connect(5);
 
-    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
-    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
-    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
-    test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
+    // test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC,
+    // "1234"); test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY,
+    // TimeInForce::GTC, "1234"); test_client_1.submit_limit_order("GME", 100.0, 10.0,
+    // OrderSide::BUY, TimeInForce::GTC, "1234"); test_client_1.submit_limit_order("GME",
+    // 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC, "1234");
 
-    sleep(10);
+    // sleep(10);
+    while (true) {
+        test_client_1.submit_limit_order("GME", 100.0, 10.0, OrderSide::BUY, TimeInForce::GTC,
+                                         "1234");
+        sleep(1);
+    }
 
     // cleanup
     if (gateway_pid > 0) {

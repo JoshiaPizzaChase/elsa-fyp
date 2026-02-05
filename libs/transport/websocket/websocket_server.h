@@ -12,6 +12,7 @@
 namespace transport {
 
 class WebsocketManagerServer : public WebsocketManager<Server> {
+
   public:
     WebsocketManagerServer(int port, std::string_view uri, std::shared_ptr<spdlog::logger> logger,
                            bool reuse_addr = true)
@@ -89,16 +90,20 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
      * connections fail to send, broadcasting does not halt. It returns a vector of those failed
      * ids.
      */
-    std::expected<void, std::vector<int>> send_to_all(const std::string& message) {
+    std::expected<void, std::vector<int>> send_to_all(const std::string& message,
+                                                      MessageFormat message_format) {
+        m_logger->info("Broadcasting...");
+        m_logger->flush();
         std::vector<int> failed_ids;
         for (const auto& it : m_id_to_connection_map) {
-            if (!send(it.first, message)) {
+            if (!send(it.first, message, message_format)) {
                 failed_ids.push_back(it.first);
             }
         }
 
         if (!failed_ids.empty()) {
             m_logger->error("Failed to send message to some ids.");
+            m_logger->flush();
             return std::unexpected(failed_ids);
         }
 

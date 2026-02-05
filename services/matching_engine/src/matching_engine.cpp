@@ -36,6 +36,7 @@ std::expected<void, std::string> MatchingEngine::start() {
                     (new_order.side == core::Side::bid) ? Side::Bid : Side::Ask);
 
                 logger->info("New order request received");
+                logger->info("New order quantity: {}", new_order.order_qty);
                 logger->flush();
             }};
             auto cancel_order_handler{

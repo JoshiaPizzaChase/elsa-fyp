@@ -37,6 +37,11 @@ enum class ConnectionStatus {
     closed,
 };
 
+enum class MessageFormat {
+    text,
+    binary
+};
+
 template <ClientOrServer Endpoint>
 struct ConnectionMetadata {
   public:
@@ -167,7 +172,8 @@ class WebsocketManager {
     virtual std::expected<void, int> start() = 0;
     virtual std::expected<void, int> stop() = 0;
 
-    std::expected<void, int> send(int id, const std::string& message) {
+    std::expected<void, int> send(int id, const std::string& message,
+                                  MessageFormat message_format = MessageFormat::binary) {
         websocketpp::lib::error_code error_code;
 
         auto metadata_it = m_id_to_connection_map.find(id);
@@ -175,9 +181,10 @@ class WebsocketManager {
             m_logger->error("Sending failed, no connection found with id: {}", id);
             return std::unexpected{-1};
         }
-
-        m_endpoint.send(metadata_it->second->get_handle(), message,
-                        websocketpp::frame::opcode::binary, error_code);
+        const auto opcode{message_format == MessageFormat::text
+                              ? websocketpp::frame::opcode::text
+                              : websocketpp::frame::opcode::binary};
+        m_endpoint.send(metadata_it->second->get_handle(), message, opcode, error_code);
         if (error_code) {
             m_logger->error("Error sending message: {}", error_code.message());
             return std::unexpected{-1};
