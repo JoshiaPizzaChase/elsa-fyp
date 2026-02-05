@@ -171,7 +171,7 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
     TopOrderBookLevelAggregates top_aggregate{ticker.data()};
 
-    for (int i = 0; i < bids.size(); i++) {
+    for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
         if (const auto level_aggregate = get_level_aggregate(Side::Bid, i);
             level_aggregate.has_value()) {
             top_aggregate.bid_level_aggregates.at(i) = level_aggregate.value();
@@ -180,7 +180,7 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
         }
     }
 
-    for (int i = 0; i < asks.size(); i++) {
+    for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
         if (const auto level_aggregate = get_level_aggregate(Side::Ask, i);
             level_aggregate.has_value()) {
             top_aggregate.ask_level_aggregates.at(i) = level_aggregate.value();
