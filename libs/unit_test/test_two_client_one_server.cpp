@@ -128,7 +128,7 @@ int main() {
 
     // Broadcast from server to all clients
     const std::string broadcast = "broadcast_from_server";
-    auto broad_res = server.send_to_all(broadcast);
+    auto broad_res = server.send_to_all(broadcast, transport::MessageFormat::text);
     if (!broad_res.has_value()) {
         std::cerr << "Broadcast failed to some ids" << std::endl;
         return -1;
