@@ -14,7 +14,7 @@ target_include_directories(matching_engine_lib
         /opt/homebrew/include
 )
 target_link_libraries(matching_engine_lib PUBLIC websocket_lib proto-objects reflectcpp)
-target_compile_definitions(matching_engine_lib PUBLIC PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(matching_engine_lib PUBLIC PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}" SPDLOG_USE_STD_FORMAT)
 
 target_link_libraries(matching_engine PRIVATE matching_engine_lib)
 

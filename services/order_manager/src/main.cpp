@@ -1,6 +1,7 @@
 #include "configuration/order_manager_config.h"
 #include "order_manager.h"
 #include "rfl/toml/load.hpp"
+#include <print>
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {

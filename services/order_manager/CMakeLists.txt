@@ -14,7 +14,7 @@ target_include_directories(order_manager_lib
 )
 
 target_link_libraries(order_manager_lib PUBLIC websocket_lib reflectcpp proto-objects)
-target_compile_definitions(order_manager_lib PUBLIC PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(order_manager_lib PUBLIC PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}" SPDLOG_USE_STD_FORMAT)
 
 target_link_libraries(order_manager PRIVATE order_manager_lib)
 
