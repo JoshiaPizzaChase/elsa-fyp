@@ -10,6 +10,10 @@
 #include "spdlog/spdlog.h"
 #include "websocket_server.h"
 
+#ifndef PROJECT_ROOT_DIR
+#define PROJECT_ROOT_DIR "."
+#endif
+
 using json = nlohmann::json;
 
 namespace mdp {

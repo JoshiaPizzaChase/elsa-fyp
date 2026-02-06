@@ -5,7 +5,7 @@
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        std::print("Usage: market_data_processor <toml config path>");
+        std::println("Usage: market_data_processor <toml config path>");
         return -1;
     }
     try {
