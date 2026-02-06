@@ -4,6 +4,7 @@ store/
 *.pb.cc
 *.pb.h
 logs/*
+Testing
 
 # Usual ignores
 .vscode
