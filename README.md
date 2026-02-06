@@ -26,3 +26,10 @@ cd build
 cmake ..
 sudo make install
 ```
+
+## SPDLOG
+
+For any new target that uses spdlog, please include a compiler flag:
+```
+target_compile_definitions(<target_name> <visibility> SPDLOG_USE_STD_FORMAT)
+```
