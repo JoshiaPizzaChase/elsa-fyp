@@ -20,7 +20,7 @@ const fs::path market_data_processor_bin_path = PROJECT_BUILD_DIR / fs::path("se
 TestClient set_up_test_client() {
     fs::path config_filename = "example_config_client.cfg";
     fs::path path_to_config =
-        PROJECT_ROOT_DIR / fs::path("configs") / fs::path("test_client") / config_filename;
+        PROJECT_SOURCE_DIR / fs::path("configs") / fs::path("test_client") / config_filename;
     return TestClient{path_to_config.string()};
 }
 
@@ -28,13 +28,13 @@ TestClient set_up_test_client() {
 // Throws on failure.
 pid_t set_up_gateway() {
     fs::path fix_config_filename{"example_config_server.cfg"};
-    fs::path path_to_fix_config{PROJECT_ROOT_DIR / fs::path("configs") / fs::path("gateway") /
+    fs::path path_to_fix_config{PROJECT_SOURCE_DIR / fs::path("configs") / fs::path("gateway") /
                                 fs::path("hk01") / fix_config_filename};
     assert(fs::exists(gateway_bin_path) && fs::is_regular_file(gateway_bin_path) &&
            "Error in accessing Gateway binaries");
 
     fs::path gateway_config_filename{"gateway01.toml"};
-    fs::path path_to_gateway_config{PROJECT_ROOT_DIR / fs::path("configs") / fs::path("gateway") /
+    fs::path path_to_gateway_config{PROJECT_SOURCE_DIR / fs::path("configs") / fs::path("gateway") /
                                     fs::path("hk01") / gateway_config_filename};
 
     pid_t pid = fork();
@@ -58,7 +58,7 @@ pid_t set_up_gateway() {
 
 pid_t set_up_order_manager() {
     fs::path order_manager_config_filename{"order_manager01.toml"};
-    fs::path path_to_order_manger_config{PROJECT_ROOT_DIR / fs::path("configs") /
+    fs::path path_to_order_manger_config{PROJECT_SOURCE_DIR / fs::path("configs") /
                                          fs::path("order_manager") / fs::path("hk01") /
                                          order_manager_config_filename};
     pid_t pid = fork();
@@ -82,7 +82,7 @@ pid_t set_up_order_manager() {
 
 pid_t set_up_matching_engine() {
     fs::path matching_engine_config_filename{"matching_engine01.toml"};
-    fs::path path_to_matching_engine_config{PROJECT_ROOT_DIR / fs::path("configs") /
+    fs::path path_to_matching_engine_config{PROJECT_SOURCE_DIR / fs::path("configs") /
                                             fs::path("matching_engine") / fs::path("hk01") /
                                             matching_engine_config_filename};
     pid_t pid = fork();
@@ -106,7 +106,7 @@ pid_t set_up_matching_engine() {
 
 pid_t set_up_market_data_processor() {
     fs::path market_data_processor_config_filename{"mdp01.toml"};
-    fs::path path_to_market_data_processor_config{PROJECT_ROOT_DIR / fs::path("configs") /
+    fs::path path_to_market_data_processor_config{PROJECT_SOURCE_DIR / fs::path("configs") /
                                                   fs::path("mdp") / fs::path("hk01") /
                                                   market_data_processor_config_filename};
     pid_t pid = fork();

@@ -10,7 +10,7 @@ struct overloaded : Ts... {
 
 MatchingEngine::MatchingEngine(std::string_view host, int port)
     : logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-          "matching_engine_logger", std::string{PROJECT_ROOT_DIR} + "/logs/matching_engine.log")},
+          "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log")},
       inbound_ws_server{port, host, logger},
       ring_buffer{OrderbookSnapshotRingBuffer::open_exist_shm(
           core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},

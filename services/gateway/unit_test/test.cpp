@@ -24,7 +24,7 @@ namespace fs = std::filesystem;
 int test_gateway_start_stop() {
     try {
         fs::path configFileName = "example_config_server.cfg";
-        fs::path pathToConfig{PROJECT_ROOT_DIR / fs::path("configs") / fs::path("gateway") /
+        fs::path pathToConfig{PROJECT_SOURCE_DIR / fs::path("configs") / fs::path("gateway") /
                               fs::path("hk01") / configFileName};
 
         FIX::SessionSettings settings(pathToConfig);
@@ -35,8 +35,8 @@ int test_gateway_start_stop() {
         FIX::SocketAcceptor acceptor(application, storeFactory, settings, logFactory);
 
         acceptor.start();
-        while (true) {
-        }
+        // while (true) {
+        // }
         acceptor.stop();
 
         return 0;

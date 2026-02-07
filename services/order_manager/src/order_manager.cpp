@@ -10,7 +10,7 @@ struct overloaded : Ts... {
 
 OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
     : logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-          "order_manager_logger", std::string{PROJECT_ROOT_DIR} + "/logs/order_manager.log")},
+          "order_manager_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/order_manager.log")},
       inbound_ws_server{port, host, logger}, outbound_ws_client{logger},
       gateway_count{gateway_count}, matching_engine_connection_id{} {
     // TODO: Handle start error
