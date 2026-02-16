@@ -9,7 +9,7 @@ int test_fix() {
     try {
         fs::path configFileName = "example_config_client.cfg";
         const fs::path pathToConfig =
-            PROJECT_ROOT_DIR / fs::path("configs") / fs::path("test_client") / configFileName;
+            PROJECT_SOURCE_DIR / fs::path("configs") / fs::path("test_client") / configFileName;
 
         auto* client = new TestClient(pathToConfig.string());
         client->connect(5);

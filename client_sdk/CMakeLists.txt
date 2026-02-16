@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 4.0)
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-#project(elsa_fyp_client_sdk)
-
 add_library(client_sdk
         src/fix_client.cpp
 )
@@ -11,27 +6,7 @@ target_include_directories(client_sdk
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
-
 target_compile_options(client_sdk PRIVATE -Wall -Wextra -Wpedantic -finline-functions)
-
-set_target_properties(client_sdk PROPERTIES
-        CXX_STANDARD 23
-        CXX_STANDARD_REQUIRED ON
-)
-# find packages required for QuickFIX
-find_package(PkgConfig REQUIRED)
-find_package(Threads REQUIRED)
-find_package(LibXml2 REQUIRED)
-find_package(ZLIB REQUIRED)
-
-# Find QuickFIX via pkg-config
-# pkg_check_modules(QuickFIX REQUIRED quickfix)
-
-# Find QuickFIX in user-installed library paths
-find_library(quickfix
-        NAMES libquickfix
-        PATHS /usr/local/lib
-)
 
 # Link QuickFIX
 target_link_libraries(client_sdk PUBLIC
@@ -41,10 +16,10 @@ target_link_libraries(client_sdk PUBLIC
         LibXml2::LibXml2
         ZLIB::ZLIB
 )
-target_include_directories(client_sdk PUBLIC ${QuickFIX_INCLUDE_DIRS})
-target_compile_definitions(client_sdk PUBLIC ${QuickFIX_CFLAGS_OTHER})
-target_compile_definitions(client_sdk PRIVATE SPDLOG_USE_STD_FORMAT)
-target_compile_definitions(client_sdk PRIVATE PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
+target_include_directories(client_sdk PUBLIC ${QuickFIX_INCLUDE_DIRS} ${QuickFIX_CFLAGS_OTHER})
+
+target_compile_definitions(client_sdk PUBLIC SPDLOG_USE_STD_FORMAT)
+target_compile_definitions(client_sdk PUBLIC PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 
 if (BUILD_TESTS)
     add_subdirectory(unit_test)
