@@ -1,7 +1,7 @@
 #include "order.h"
-
 #include <stdexcept>
 
+namespace engine {
 Order::Order(int order_id, int price, int quantity, Side side)
     : order_id{order_id}, price{price}, quantity{quantity}, side{side} {
 }
@@ -29,3 +29,4 @@ void Order::fill(int fill_quantity) {
 
     quantity -= fill_quantity;
 }
+} // namespace engine

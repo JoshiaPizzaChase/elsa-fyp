@@ -8,7 +8,9 @@ namespace fs = std::filesystem;
 int test_fix() {
     try {
         fs::path configFileName = "example_config_client.cfg";
-        fs::path pathToConfig = fs::current_path() / fs::path("client_sdk") / configFileName;
+        const fs::path pathToConfig =
+            PROJECT_SOURCE_DIR / fs::path("configs") / fs::path("test_client") / configFileName;
+
         auto* client = new TestClient(pathToConfig.string());
         client->connect(5);
         return 0;

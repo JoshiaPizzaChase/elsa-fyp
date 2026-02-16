@@ -1,6 +1,10 @@
 # Project
 build*/
 store/
+*.pb.cc
+*.pb.h
+logs/*
+Testing
 
 # Usual ignores
 .vscode
@@ -12,7 +16,8 @@ store/
 
 # Compiled Object files
 *.slo
-*.lo
+*.lo:w
+
 *.o
 *.obj
 

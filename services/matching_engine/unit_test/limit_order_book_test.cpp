@@ -1,11 +1,13 @@
-#include <catch2/catch_test_macros.hpp>
-#include <limits>
-
 #include "../src/limit_order_book.h"
 #include "../src/order.h"
+#include <catch2/catch_test_macros.hpp>
+
+using namespace engine;
+
+constexpr std::string_view TEST_TICKER{"GME"};
 
 TEST_CASE("Adding order to limit order book", "[lob]") {
-    LimitOrderBook limit_order_book;
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Adding invalid orders") {
         // Order ID collision
@@ -163,14 +165,14 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
         limit_order_book.add_order(67, 100, 10, Side::Ask);
         limit_order_book.add_order(68, 101, 10, Side::Ask);
         limit_order_book.add_order(69, 99, 10, Side::Bid);
-        limit_order_book.add_order(70, std::numeric_limits<int>::max(), 25,
+        limit_order_book.add_order(70, MARKET_BID_ORDER_PRICE, 25,
                                    Side::Bid); // Market order
 
         REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value());
         const Order& best_bid = limit_order_book.get_best_order(Side::Bid).value();
         REQUIRE(best_bid.get_order_id() == 70);
-        REQUIRE(best_bid.get_price() == std::numeric_limits<int>::max());
+        REQUIRE(best_bid.get_price() == MARKET_BID_ORDER_PRICE);
         REQUIRE(best_bid.get_quantity() == 5);
         REQUIRE(best_bid.get_side() == Side::Bid);
     }
@@ -179,28 +181,28 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
         limit_order_book.add_order(67, 100, 10, Side::Bid);
         limit_order_book.add_order(68, 99, 10, Side::Bid);
         limit_order_book.add_order(69, 101, 10, Side::Ask);
-        limit_order_book.add_order(70, std::numeric_limits<int>::min(), 25,
+        limit_order_book.add_order(70, MARKET_ASK_ORDER_PRICE, 25,
                                    Side::Ask); // Market order
 
         REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value());
         const Order& best_ask = limit_order_book.get_best_order(Side::Ask).value();
         REQUIRE(best_ask.get_order_id() == 70);
-        REQUIRE(best_ask.get_price() == std::numeric_limits<int>::min());
+        REQUIRE(best_ask.get_price() == MARKET_ASK_ORDER_PRICE);
         REQUIRE(best_ask.get_quantity() == 5);
         REQUIRE(best_ask.get_side() == Side::Ask);
     }
 }
 
 TEST_CASE("Getting best order from empty limit order book", "[lob]") {
-    LimitOrderBook limit_order_book;
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value() == false);
     REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value() == false);
 }
 
 TEST_CASE("Getting order by ID from limit order book", "[lob]") {
-    LimitOrderBook limit_order_book;
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Getting existing order") {
         limit_order_book.add_order(67, 100, 10, Side::Bid);
@@ -218,7 +220,7 @@ TEST_CASE("Getting order by ID from limit order book", "[lob]") {
 }
 
 TEST_CASE("Cancelling order in limit order book", "[lob]") {
-    LimitOrderBook limit_order_book;
+    LimitOrderBook limit_order_book{TEST_TICKER};
 
     SECTION("Cancelling non-existing order") {
         REQUIRE(limit_order_book.cancel_order(67).has_value() == false);
@@ -228,5 +230,87 @@ TEST_CASE("Cancelling order in limit order book", "[lob]") {
         limit_order_book.add_order(67, 100, 10, Side::Bid);
         REQUIRE(limit_order_book.cancel_order(67).has_value());
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
+    }
+}
+
+TEST_CASE("Getting level aggregate", "[lob]") {
+    LimitOrderBook limit_order_book{TEST_TICKER};
+
+    SECTION("Getting level aggregate of empty order book") {
+        auto level_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 0);
+        REQUIRE(level_aggregate.has_value() == false);
+    }
+
+    SECTION("Getting level aggregate with valid level number") {
+        limit_order_book.add_order(67, 100, 10, Side::Bid);
+        limit_order_book.add_order(68, 100, 10, Side::Bid);
+        limit_order_book.add_order(69, 101, 10, Side::Bid);
+
+        auto level_zero_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 0).value();
+        auto level_one_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 1).value();
+
+        REQUIRE(level_zero_aggregate.price == 101);
+        REQUIRE(level_zero_aggregate.quantity == 10);
+
+        REQUIRE(level_one_aggregate.price == 100);
+        REQUIRE(level_one_aggregate.quantity == 20);
+    }
+
+    SECTION("Getting level aggregate with invalid level number") {
+        limit_order_book.add_order(67, 100, 10, Side::Bid);
+
+        auto level_ten_aggregate = limit_order_book.get_level_aggregate(Side::Bid, 10);
+
+        REQUIRE(level_ten_aggregate.has_value() == false);
+    }
+}
+
+TEST_CASE("Getting top limit order book level aggregates", "[lob]") {
+    LimitOrderBook limit_order_book{TEST_TICKER};
+
+    SECTION("Getting aggregate of empty limit order book") {
+        const auto top_aggregate = limit_order_book.get_top_order_book_level_aggregate();
+
+        for (int i = 0; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).quantity == 0);
+
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).quantity == 0);
+        }
+    }
+
+    SECTION("Getting aggregate of filled limit order book") {
+        limit_order_book.add_order(67, 100, 10, Side::Bid);
+        limit_order_book.add_order(68, 100, 10, Side::Bid);
+        limit_order_book.add_order(69, 101, 10, Side::Bid);
+
+        limit_order_book.add_order(70, 200, 10, Side::Ask);
+        limit_order_book.add_order(71, 200, 10, Side::Ask);
+        limit_order_book.add_order(72, 201, 10, Side::Ask);
+
+        const auto top_aggregate = limit_order_book.get_top_order_book_level_aggregate();
+
+        REQUIRE(top_aggregate.bid_level_aggregates.at(0).price == 101);
+        REQUIRE(top_aggregate.bid_level_aggregates.at(0).quantity == 10);
+
+        REQUIRE(top_aggregate.bid_level_aggregates.at(1).price == 100);
+        REQUIRE(top_aggregate.bid_level_aggregates.at(1).quantity == 20);
+
+        for (int i = 2; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.bid_level_aggregates.at(i).quantity == 0);
+        }
+
+        REQUIRE(top_aggregate.ask_level_aggregates.at(0).price == 200);
+        REQUIRE(top_aggregate.ask_level_aggregates.at(0).quantity == 20);
+
+        REQUIRE(top_aggregate.ask_level_aggregates.at(1).price == 201);
+        REQUIRE(top_aggregate.ask_level_aggregates.at(1).quantity == 10);
+
+        for (int i = 2; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).price == 0);
+            REQUIRE(top_aggregate.ask_level_aggregates.at(i).quantity == 0);
+        }
     }
 }
