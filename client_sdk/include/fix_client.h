@@ -5,7 +5,6 @@
 #include <quickfix/FileStore.h>
 #include <string>
 
-#include "../../cmake-build-test/config.h"
 #include "order.h"
 #include "quickfix/Application.h"
 #include "quickfix/Field.h"
