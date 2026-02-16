@@ -18,8 +18,8 @@ target_link_libraries(client_sdk PUBLIC
 )
 target_include_directories(client_sdk PUBLIC ${QuickFIX_INCLUDE_DIRS} ${QuickFIX_CFLAGS_OTHER})
 
-target_compile_definitions(client_sdk PRIVATE SPDLOG_USE_STD_FORMAT)
-target_compile_definitions(client_sdk PRIVATE PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(client_sdk PUBLIC SPDLOG_USE_STD_FORMAT)
+target_compile_definitions(client_sdk PUBLIC PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 
 if (BUILD_TESTS)
     add_subdirectory(unit_test)
