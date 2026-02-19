@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_ORDER_MANAGER_H
-#define ELSA_FYP_ORDER_MANAGER_H
+#pragma once
 
 #include "balance_checker.h"
 #include "websocket_server.h"
@@ -31,5 +30,3 @@ class OrderManager {
     int matching_engine_connection_id;
 };
 } // namespace om
-
-#endif // ELSA_FYP_ORDER_MANAGER_H

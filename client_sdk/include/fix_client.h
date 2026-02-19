@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_FIX_CLIENT_H
-#define ELSA_FYP_CLIENT_SDK_FIX_CLIENT_H
+#pragma once
 
 #include <memory>
 #include <quickfix/FileStore.h>
@@ -98,5 +97,3 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
         return order_cancel_request;
     }
 };
-
-#endif // ELSA_FYP_CLIENT_SDK_FIX_CLIENT_H

@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_ORDER_H
-#define ELSA_FYP_ORDER_H
+#pragma once
 
 namespace engine {
 enum class Side {
@@ -25,5 +24,3 @@ class Order {
     Side side{};
 };
 } // namespace engine
-
-#endif // ELSA_FYP_ORDER_H

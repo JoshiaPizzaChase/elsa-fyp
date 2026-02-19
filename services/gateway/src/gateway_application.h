@@ -1,5 +1,4 @@
-#ifndef GATEWAY_APPLICATION_H
-#define GATEWAY_APPLICATION_H
+#pragma once
 
 #include "core/containers.h"
 #include "id_generator.h"
@@ -59,4 +58,3 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
 };
 
 } // namespace gateway
-#endif // GATEWAY_APPLICATION_H

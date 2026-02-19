@@ -1,5 +1,4 @@
-#ifndef TRANSPORT_MESSAGING_H
-#define TRANSPORT_MESSAGING_H
+#pragma once
 
 #include "core/containers.h"
 #include "protobufs/containers.pb.h"
@@ -283,5 +282,3 @@ inline core::Container deserialize_container(const std::string& data) {
 }
 
 } // namespace transport
-
-#endif // TRANSPORT_MESSAGING_H

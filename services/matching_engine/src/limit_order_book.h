@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_LIMIT_ORDER_BOOK_H
-#define ELSA_FYP_LIMIT_ORDER_BOOK_H
+#pragma once
 
 #include "core/orderbook_snapshot.h"
 #include "core/trade.h"
@@ -58,5 +57,3 @@ class LimitOrderBook {
 };
 
 } // namespace engine
-
-#endif // ELSA_FYP_LIMIT_ORDER_BOOK_H

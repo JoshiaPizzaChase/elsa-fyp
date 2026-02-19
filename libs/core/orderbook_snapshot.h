@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_ORDERBOOK_SNAPSHOT_H
-#define ELSA_FYP_CLIENT_SDK_ORDERBOOK_SNAPSHOT_H
+#pragma once
 
 #include "constants.h"
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
@@ -86,5 +85,3 @@ struct TopOrderBookLevelAggregates {
 using OrderbookSnapshotRingBuffer =
     MpscSharedMemoryRingBuffer<TopOrderBookLevelAggregates,
                                core::constants::OrderbookSnapshotRingBufferCapacity>;
-
-#endif // ELSA_FYP_CLIENT_SDK_ORDERBOOK_SNAPSHOT_H

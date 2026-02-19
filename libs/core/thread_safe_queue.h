@@ -1,10 +1,9 @@
-#ifndef CORE_THREAD_SAFE_QUEUE_H
-#define CORE_THREAD_SAFE_QUEUE_H
+#pragma once
 
 #include <condition_variable>
 #include <mutex>
-#include <queue>
 #include <optional>
+#include <queue>
 
 namespace core {
 
@@ -55,5 +54,3 @@ class ThreadSafeQueue {
 };
 
 } // namespace core
-
-#endif // CORE_THREAD_SAFE_QUEUE_H

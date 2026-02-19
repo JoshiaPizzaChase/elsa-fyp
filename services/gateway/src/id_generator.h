@@ -1,5 +1,4 @@
-#ifndef GATEWAY_ID_GENERATOR_H
-#define GATEWAY_ID_GENERATOR_H
+#pragma once
 
 #include <string>
 
@@ -17,4 +16,3 @@ class IDGenerator {
     long m_executionId{};
 };
 } // namespace gateway
-#endif // GATEWAY_ID_GENERATOR_H
