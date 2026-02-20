@@ -21,9 +21,7 @@ target_include_directories(client_sdk PUBLIC ${QuickFIX_INCLUDE_DIRS} ${QuickFIX
 target_compile_definitions(client_sdk PUBLIC SPDLOG_USE_STD_FORMAT)
 target_compile_definitions(client_sdk PUBLIC PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 
-# Handling precompile headers
-set(CLIENT_SDK_PCH ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.h)
-target_precompile_headers(client_sdk PRIVATE ${CLIENT_SDK_PCH})
+target_precompile_headers(client_sdk PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.h)
 
 if (BUILD_TESTS)
     add_subdirectory(unit_test)

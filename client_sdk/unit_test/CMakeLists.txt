@@ -9,5 +9,4 @@ target_link_libraries(sdk_unit_test PRIVATE client_sdk)
 target_link_libraries(sdk_unit_test PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(sdk_unit_test)
 
-target_precompile_headers(sdk_unit_test PRIVATE ${CLIENT_SDK_PCH})
-target_precompile_headers(sdk_unit_test PRIVATE <catch2/catch_test_macros.hpp> <filesystem>)
+target_precompile_headers(sdk_unit_test PRIVATE <catch2/catch_test_macros.hpp> <filesystem> <iostream>)
