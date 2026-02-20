@@ -6,8 +6,6 @@
 #include <filesystem>
 #include <iostream>
 #include <websocketpp/roles/client_endpoint.hpp>
-
-#include <websocketpp/client.hpp>
 #include <websocketpp/config/asio_no_tls_client.hpp>
 
 using client = websocketpp::client<websocketpp::config::asio_client>;

@@ -8,11 +8,9 @@
 #include <quickfix/FixCommonFields.h>
 #include <quickfix/FixFields.h>
 #include <quickfix/MessageCracker.h>
-#include <quickfix/fix42/OrderCancelRequest.h>
 
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/spdlog.h"
 
 namespace gateway {
 
