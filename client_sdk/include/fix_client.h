@@ -11,7 +11,6 @@
 #include "quickfix/fix42/ExecutionReport.h"
 #include "quickfix/fix42/MessageCracker.h"
 #include "quickfix/fix42/NewOrderSingle.h"
-#include "quickfix/fix42/OrderCancelReject.h"
 #include "quickfix/fix42/OrderCancelRequest.h"
 #include "server_response.h"
 
