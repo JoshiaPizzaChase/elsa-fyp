@@ -10,3 +10,5 @@ add_dependencies(test_end_to_end gateway order_manager matching_engine market_da
 
 target_link_libraries(test_end_to_end PRIVATE Catch2::Catch2WithMain)
 catch_discover_tests(test_end_to_end)
+
+target_precompile_headers(test_end_to_end PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.h)
