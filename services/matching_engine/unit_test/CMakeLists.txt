@@ -1,4 +1,3 @@
-find_package(Catch2 3 REQUIRED)
 include(Catch)
 
 add_executable(matching_engine_test limit_order_book_test.cpp)

@@ -1,4 +1,3 @@
-find_package(Catch2 3 REQUIRED)
 include(Catch)
 
 add_executable(order_manager_test order_manager_test.cpp balance_checker_test.cpp)

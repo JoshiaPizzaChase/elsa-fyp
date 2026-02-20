@@ -1,4 +1,3 @@
-find_package(Catch2 3 REQUIRED)
 include(Catch)
 
 add_executable(test_interactive_client test_interactive_client.cpp)

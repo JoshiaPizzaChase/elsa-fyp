@@ -1,4 +1,3 @@
-find_package(Catch2 3 REQUIRED)
 include(Catch)
 
 add_executable(sdk_unit_test test.cpp)
