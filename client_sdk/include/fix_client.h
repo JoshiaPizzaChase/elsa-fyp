@@ -16,7 +16,6 @@
 
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/spdlog.h"
 
 class FixClient : FIX::Application, FIX42::MessageCracker {
     FIX::SessionSettings _settings;
