@@ -3,8 +3,6 @@
 #include "balance_checker.h"
 #include "websocket_server.h"
 
-#include "spdlog/async.h"
-#include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
 
 #include "websocket_client.h"
