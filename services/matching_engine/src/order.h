@@ -1,11 +1,11 @@
 #ifndef ELSA_FYP_ORDER_H
 #define ELSA_FYP_ORDER_H
 
+#include "core/orders.h"
+
 namespace engine {
-enum class Side {
-    Bid,
-    Ask
-};
+
+using core::Side;
 
 class Order {
   public:

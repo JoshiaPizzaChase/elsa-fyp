@@ -33,7 +33,7 @@ std::expected<void, std::string> MatchingEngine::start() {
                                                  ? MARKET_BID_ORDER_PRICE
                                                  : MARKET_ASK_ORDER_PRICE),
                     new_order.order_qty,
-                    (new_order.side == core::Side::bid) ? Side::Bid : Side::Ask);
+                    (new_order.side == core::Side::bid) ? Side::bid : Side::ask);
 
                 logger->info("New order request received");
                 logger->info("New order quantity: {}", new_order.order_qty);

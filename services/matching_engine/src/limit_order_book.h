@@ -37,6 +37,8 @@ class LimitOrderBook {
     [[nodiscard]] std::expected<std::reference_wrapper<const Order>, std::string>
     get_order_by_id(int order_id) const;
 
+    [[nodiscard]] std::expected<int, std::string> get_fill_cost(int quantity, Side side) const;
+
   private:
     OrderbookSnapshotRingBuffer shm_orderbook_snapshot;
     TradeRingBuffer shm_trade;
