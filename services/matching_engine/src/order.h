@@ -1,10 +1,10 @@
 #pragma once
 
+#include "core/orders.h"
+
 namespace engine {
-enum class Side {
-    Bid,
-    Ask
-};
+
+using core::Side;
 
 class Order {
   public:

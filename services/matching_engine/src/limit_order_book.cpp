@@ -28,7 +28,7 @@ std::expected<void, std::string> LimitOrderBook::add_order(int order_id, int pri
         return std::unexpected("Quantity must be positive integers");
     }
 
-    if (side == Side::Bid) {
+    if (side == Side::bid) {
         match_order(bids, asks, price, quantity, order_id, side);
     } else {
         match_order(asks, bids, price, quantity, order_id, side);
@@ -41,11 +41,11 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
                                  std::map<int, std::list<Order>>& far_side, int price,
                                  int remaining_quantity, int order_id, Side side) {
     while (!far_side.empty() && remaining_quantity > 0) {
-        const auto best_level = (side == Side::Bid) ? far_side.begin() : std::prev(far_side.end());
+        const auto best_level = (side == Side::bid) ? far_side.begin() : std::prev(far_side.end());
 
         const auto& best_level_price = best_level->first;
-        if ((side == Side::Bid && price < best_level_price) ||
-            (side == Side::Ask && price > best_level_price)) {
+        if ((side == Side::bid && price < best_level_price) ||
+            (side == Side::ask && price > best_level_price)) {
             break;
         }
 
@@ -119,10 +119,10 @@ LimitOrderBook::get_best_order(Side side) const {
     const auto& side_map = get_side(side);
     if (side_map.empty()) {
         return std::unexpected(
-            std::format("No {} orders in order book", (side == Side::Bid) ? "bid" : "ask"));
+            std::format("No {} orders in order book", (side == Side::bid) ? "bid" : "ask"));
     }
 
-    return (side == Side::Bid) ? side_map.rbegin()->second.front()
+    return (side == Side::bid) ? side_map.rbegin()->second.front()
                                : side_map.begin()->second.front();
 }
 
@@ -136,11 +136,11 @@ LimitOrderBook::get_order_by_id(int order_id) const {
 }
 
 const std::map<int, std::list<Order>>& LimitOrderBook::get_side(Side side) const {
-    return (side == Side::Bid) ? bids : asks;
+    return (side == Side::bid) ? bids : asks;
 }
 
 std::map<int, std::list<Order>>& LimitOrderBook::get_side_mut(Side side) {
-    return (side == Side::Bid) ? bids : asks;
+    return (side == Side::bid) ? bids : asks;
 }
 
 std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(Side side,
@@ -148,15 +148,15 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
     const auto& side_map = get_side(side);
     if (side_map.empty()) {
         return std::unexpected(
-            std::format("No {} orders in order book", (side == Side::Bid) ? "bid" : "ask"));
+            std::format("No {} orders in order book", (side == Side::bid) ? "bid" : "ask"));
     }
 
     if (level >= side_map.size()) {
         return std::unexpected(std::format("Level {} does not exist in {} side", level,
-                                           (side == Side::Bid) ? "bid" : "ask"));
+                                           (side == Side::bid) ? "bid" : "ask"));
     }
 
-    const auto it = (side == Side::Bid) ? std::prev(side_map.cend(), level + 1)
+    const auto it = (side == Side::bid) ? std::prev(side_map.cend(), level + 1)
                                         : std::next(side_map.cbegin(), level);
 
     const int level_price = it->first;
@@ -173,7 +173,7 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
     TopOrderBookLevelAggregates top_aggregate{ticker.data()};
 
     for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
-        if (const auto level_aggregate = get_level_aggregate(Side::Bid, i);
+        if (const auto level_aggregate = get_level_aggregate(Side::bid, i);
             level_aggregate.has_value()) {
             top_aggregate.bid_level_aggregates.at(i) = level_aggregate.value();
         } else {
@@ -182,7 +182,7 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
     }
 
     for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
-        if (const auto level_aggregate = get_level_aggregate(Side::Ask, i);
+        if (const auto level_aggregate = get_level_aggregate(Side::ask, i);
             level_aggregate.has_value()) {
             top_aggregate.ask_level_aggregates.at(i) = level_aggregate.value();
         } else {
@@ -207,6 +207,38 @@ std::expected<Trade, std::string> LimitOrderBook::create_trade(int taker_order_i
     // TODO: Add random trade_id generation
     // TODO: add back taker and maker id
     return Trade{ticker.data(),          price, quantity, 100, 1, 1, taker_order_id, maker_order_id,
-                 taker_side == Side::Bid};
+                 taker_side == Side::bid};
+}
+
+std::expected<int, std::string> LimitOrderBook::get_fill_cost(int quantity, Side side) const {
+    if (quantity <= 0) {
+        return std::unexpected("Quantity must be positive integer");
+    }
+
+    const auto& side_map = get_side(side);
+    if (side_map.empty()) {
+        return std::unexpected(
+            std::format("No {} orders in order book", (side == Side::bid) ? "bid" : "ask"));
+    }
+
+    int total_cost{0};
+
+    for (int i{0}; i < side_map.size(); i++) {
+        if (quantity == 0) {
+            break;
+        }
+
+        auto level_aggregate = get_level_aggregate(side, i).value();
+
+        if (level_aggregate.quantity <= quantity) {
+            total_cost += level_aggregate.price * level_aggregate.quantity;
+            quantity -= level_aggregate.quantity;
+        } else {
+            total_cost += level_aggregate.price * quantity;
+            quantity = 0;
+        }
+    }
+
+    return total_cost;
 }
 } // namespace engine
