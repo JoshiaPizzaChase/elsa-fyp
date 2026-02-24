@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap');
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -10,14 +12,48 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     height: 100vh;
-    padding: 16px;
+    padding: 0;
+}
+
+.app-root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.navbar {
+    display: flex;
+    align-items: center;
+    background-color: #2a2a3a;
+    border-bottom: 1px solid #3a3a4a;
+    padding: 8px 16px;
+    flex-shrink: 0;
+}
+
+.navbar-logo {
+    height: 32px;
+    width: 32px;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.navbar-brand {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: #ffffff;
+    margin-left: 10px;
+    letter-spacing: 1px;
+    user-select: none;
 }
 
 .app {
     display: grid;
     grid-template-columns: 1fr 300px;
     gap: 16px;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
+    padding: 16px;
 }
 
 .left-column {
@@ -183,6 +219,7 @@ body {
     margin-bottom: 8px;
     flex-shrink: 0;
 }
+
 
 .ticker-selector {
     flex-shrink: 0;

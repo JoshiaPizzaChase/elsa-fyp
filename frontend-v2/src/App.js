@@ -241,53 +241,59 @@ function App() {
     }, [selectedTimeframe, rebuildCandles]);
 
     return (
-        <div className="app">
-            <div className="left-column">
-                <div className="chart-container">
-                    <div className="chart-toolbar">
-                        <TickerSelector
-                            selectedTicker={selectedTicker}
-                            onTickerChange={handleTickerChange}
-                        />
-                        <div className="timeframe-selector">
-                            {TIMEFRAMES.map(tf => (
-                                <button
-                                    key={tf.label}
-                                    className={`timeframe-btn${selectedTimeframe.label === tf.label ? ' active' : ''}`}
-                                    onClick={() => setSelectedTimeframe(tf)}
-                                >
-                                    {tf.label}
-                                </button>
-                            ))}
+        <div className="app-root">
+            <nav className="navbar">
+                <img src="/logo_transparent.png" alt="Logo" className="navbar-logo"/>
+                <span className="navbar-brand">EduX</span>
+            </nav>
+            <div className="app">
+                <div className="left-column">
+                    <div className="chart-container">
+                        <div className="chart-toolbar">
+                            <TickerSelector
+                                selectedTicker={selectedTicker}
+                                onTickerChange={handleTickerChange}
+                            />
+                            <div className="timeframe-selector">
+                                {TIMEFRAMES.map(tf => (
+                                    <button
+                                        key={tf.label}
+                                        className={`timeframe-btn${selectedTimeframe.label === tf.label ? ' active' : ''}`}
+                                        onClick={() => setSelectedTimeframe(tf)}
+                                    >
+                                        {tf.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
+                        <div ref={chartContainerRef} className="chart-wrapper"/>
                     </div>
-                    <div ref={chartContainerRef} className="chart-wrapper"/>
+                    <TradePanel/>
                 </div>
-                <TradePanel/>
-            </div>
 
-            <div className="right-column">
-                <OrderBook
-                    bids={bids}
-                    asks={asks}
-                    lastPrice={lastTradePrice}
-                />
-                <RecentTrades trades={recentTrades}/>
-            </div>
-
-            {!isConnected && (
-                <div style={{
-                    position: 'fixed',
-                    bottom: 16,
-                    right: 16,
-                    background: '#ef5350',
-                    color: 'white',
-                    padding: '8px 16px',
-                    borderRadius: 4,
-                }}>
-                    Disconnected from WebSocket
+                <div className="right-column">
+                    <OrderBook
+                        bids={bids}
+                        asks={asks}
+                        lastPrice={lastTradePrice}
+                    />
+                    <RecentTrades trades={recentTrades}/>
                 </div>
-            )}
+
+                {!isConnected && (
+                    <div style={{
+                        position: 'fixed',
+                        bottom: 16,
+                        right: 16,
+                        background: '#ef5350',
+                        color: 'white',
+                        padding: '8px 16px',
+                        borderRadius: 4,
+                    }}>
+                        Disconnected from WebSocket
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
