@@ -47,7 +47,45 @@ std::expected<void, std::string> OrderManager::start() {
             const auto container = transport::deserialize_container(new_message.value());
 
             auto new_order_handler{[this](const core::NewOrderSingleContainer& new_order) {
-                // TODO: Balance checking
+                switch (new_order.side) {
+                case core::Side::bid:
+                    switch (new_order.ord_type) {
+                    case core::OrderType::limit:
+                        if (!balance_checker.has_sufficient_balance(
+                                new_order.sender_comp_id, new_order.symbol,
+                                -new_order.price.value() * new_order.order_qty)) {
+                            return;
+                        }
+
+                        balance_checker.update_balance(new_order.sender_comp_id, new_order.symbol,
+                                                       -new_order.price.value() *
+                                                           new_order.order_qty);
+                        break;
+                    case core::OrderType::market:
+                        // Fetch fill cost from Matching Engine
+                        // 1. Thru REST API???
+                        // 2. ME has not fully processed its order queue -> Returned cost is
+                        // inaccurate?
+
+                        // Compare
+                        break;
+                    default:
+                        assert(false && "Unsupported Order Type");
+                    }
+                    break;
+                case core::Side::ask:
+                    if (!balance_checker.has_sufficient_balance(
+                            new_order.sender_comp_id, new_order.symbol, -new_order.order_qty)) {
+                        return;
+                    }
+
+                    balance_checker.update_balance(new_order.sender_comp_id, new_order.symbol,
+                                                   -new_order.order_qty);
+                    break;
+                default:
+                    assert(false && "UNREACHABLE");
+                }
+
                 // TODO: Handle send error
                 outbound_ws_client.send(matching_engine_connection_id,
                                         transport::serialize_container(new_order));
