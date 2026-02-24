@@ -19,12 +19,13 @@ struct Trade {
     int taker_order_id{0};
     int maker_order_id{0};
     bool is_taker_buyer{false};
+    uint64_t create_timestamp;
 
     Trade(const char* ticker_str, int price, int quantity, int trade_id, int taker_id, int maker_id,
-          int taker_order_id, int maker_order_id, bool is_taker_buyer)
+          int taker_order_id, int maker_order_id, bool is_taker_buyer, uint64_t create_timestamp)
         : price{price}, quantity{quantity}, trade_id{trade_id}, taker_id{taker_id},
           maker_id{maker_id}, taker_order_id{taker_order_id}, maker_order_id{maker_order_id},
-          is_taker_buyer{is_taker_buyer} {
+          is_taker_buyer{is_taker_buyer}, create_timestamp(create_timestamp) {
         size_t len = strlen(ticker_str);
         assert(len > 0 && len < sizeof(ticker));
         memcpy(ticker, ticker_str, len);
@@ -38,7 +39,8 @@ struct Trade {
            << trade.price / core::constants::decimal_to_int_multiplier
            << ",trade_id:" << trade.trade_id << ",taker_id:" << trade.taker_id
            << ",maker_id:" << trade.maker_id << ",taker_order_id:" << trade.taker_order_id
-           << ",maker_order_id:" << trade.maker_order_id;
+           << ",maker_order_id:" << trade.maker_order_id
+           << ",create_timestamp:" << trade.create_timestamp;
 
         return os;
     }
@@ -54,7 +56,8 @@ struct Trade {
                  {"taker_id", taker_id},
                  {"maker_id", maker_id},
                  {"taker_order_id", taker_order_id},
-                 {"maker_order_id", maker_order_id}};
+                 {"maker_order_id", maker_order_id},
+                 {"create_timestamp", create_timestamp}};
     }
 
     static Trade from_json(const json& j) {
@@ -67,8 +70,10 @@ struct Trade {
         int maker_id = j.at("maker_id").get<int>();
         int taker_order_id = j.at("taker_order_id").get<int>();
         int maker_order_id = j.at("maker_order_id").get<int>();
-        return Trade{ticker_str.c_str(), price,          quantity,       trade_id,    taker_id,
-                     maker_id,           taker_order_id, maker_order_id, is_taker_buy};
+        int create_timestamp = j.at("create_timestamp").get<int>();
+        return Trade{ticker_str.c_str(), price,           quantity,       trade_id,
+                     taker_id,           maker_id,        taker_order_id, maker_order_id,
+                     is_taker_buy,       create_timestamp};
     }
 };
 

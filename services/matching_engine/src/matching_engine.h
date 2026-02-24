@@ -17,7 +17,7 @@ class MatchingEngine {
 
     WebsocketManagerServer inbound_ws_server;
 
-    OrderbookSnapshotRingBuffer ring_buffer;
+    OrderbookSnapshotRingBuffer shm_orderbook_snapshot;
 
     // TODO: Support multiple tickers
     LimitOrderBook limit_order_book;

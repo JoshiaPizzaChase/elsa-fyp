@@ -7,6 +7,7 @@
 #include <iostream>
 #include <random>
 #include <thread>
+#include <chrono>
 
 constexpr int NUM_LEVELS = 50;
 constexpr int PRICE_STEP = 1;
@@ -67,6 +68,10 @@ void updateOrderBook(TopOrderBookLevelAggregates& snapshot) {
             std::max(1, snapshot.bid_level_aggregates[i].price);
         snapshot.bid_level_aggregates[i].quantity = qty_dist(gen);
     }
+    auto now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+    snapshot.create_timestamp = now_ts_ms;
 }
 
 void printOrderBook(const TopOrderBookLevelAggregates& snapshot, const std::string& timestamp) {
@@ -124,17 +129,22 @@ Trade generateRandomTrade(const TopOrderBookLevelAggregates& snapshot, std::mt19
     int maker_id = participant_dist(gen);
     int taker_order_id = order_id_dist(gen);
     int maker_order_id = order_id_dist(gen);
-
+    auto now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
     return Trade(snapshot.ticker, price, quantity, trade_id, taker_id, maker_id, taker_order_id,
-                 maker_order_id, is_taker_buyer);
+                 maker_order_id, is_taker_buyer, now_ts_ms);
 }
 
 int main(int argc, char* argv[]) {
     try {
+        auto now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()
+        ).count();
         OrderbookSnapshotRingBuffer orderbook_snapshot_buffer =
             OrderbookSnapshotRingBuffer::open_exist_shm(
                 core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE);
-        TopOrderBookLevelAggregates snapshot{"APPL"};
+        TopOrderBookLevelAggregates snapshot{"APPL", now_ts_ms};
         TradeRingBuffer trade_buffer =
             TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE);
 

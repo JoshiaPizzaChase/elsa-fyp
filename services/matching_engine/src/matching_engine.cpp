@@ -12,7 +12,7 @@ MatchingEngine::MatchingEngine(std::string_view host, int port)
     : logger{spdlog::basic_logger_mt<spdlog::async_factory>(
           "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log")},
       inbound_ws_server{port, host, logger},
-      ring_buffer{OrderbookSnapshotRingBuffer::open_exist_shm(
+      shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
           core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
       limit_order_book{"GME"}, latest_order_id{0} {
     inbound_ws_server.start();
@@ -57,7 +57,7 @@ std::expected<void, std::string> MatchingEngine::start() {
                        container);
 
             auto snapshot = limit_order_book.get_top_order_book_level_aggregate();
-            if (!ring_buffer.try_push(snapshot)) {
+            if (!shm_orderbook_snapshot.try_push(snapshot)) {
                 std::cerr << "Failed to push snapshot " << "\n";
             }
         }
