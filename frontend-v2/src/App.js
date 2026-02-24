@@ -3,7 +3,6 @@ import {useParams, useNavigate} from 'react-router-dom';
 import {createChart} from 'lightweight-charts';
 import useWebSocket from './hooks/useWebSocket';
 import OrderBook from './components/OrderBook';
-import TradePanel from './components/TradePanel';
 import RecentTrades from './components/RecentTrades';
 import TickerSelector, {TICKERS} from './components/TickerSelector';
 import './App.css';
@@ -18,14 +17,14 @@ const TIMEFRAMES = [
 ];
 
 function App() {
-    const {ticker} = useParams();
+    const {serverName, ticker} = useParams();
     const navigate = useNavigate();
     const selectedTicker = TICKERS.includes(ticker?.toUpperCase()) ? ticker.toUpperCase() : 'AAPL';
     const selectedTickerRef = useRef(selectedTicker);
 
     const handleTickerChange = useCallback((newTicker) => {
-        navigate(`/${newTicker}`);
-    }, [navigate]);
+        navigate(`/${serverName}/trading/${newTicker}`);
+    }, [navigate, serverName]);
 
     const [bids, setBids] = useState([]);
     const [asks, setAsks] = useState([]);
@@ -176,7 +175,7 @@ function App() {
 
         const chart = createChart(chartContainerRef.current, {
             width: chartContainerRef.current.clientWidth,
-            height: 400,
+            height: chartContainerRef.current.clientHeight,
             layout: {
                 background: {type: 'solid', color: '#1e1e2f'},
                 textColor: '#e0e0e0',
@@ -224,13 +223,20 @@ function App() {
 
         const handleResize = () => {
             if (chartContainerRef.current) {
-                chart.applyOptions({width: chartContainerRef.current.clientWidth});
+                chart.applyOptions({
+                    width: chartContainerRef.current.clientWidth,
+                    height: chartContainerRef.current.clientHeight,
+                });
             }
         };
         window.addEventListener('resize', handleResize);
 
+        const ro = new ResizeObserver(handleResize);
+        ro.observe(chartContainerRef.current);
+
         return () => {
             window.removeEventListener('resize', handleResize);
+            ro.disconnect();
             chart.remove();
         };
     }, []);
@@ -241,59 +247,52 @@ function App() {
     }, [selectedTimeframe, rebuildCandles]);
 
     return (
-        <div className="app-root">
-            <nav className="navbar">
-                <img src="/logo_transparent.png" alt="Logo" className="navbar-logo"/>
-                <span className="navbar-brand">EduX</span>
-            </nav>
-            <div className="app">
-                <div className="left-column">
-                    <div className="chart-container">
-                        <div className="chart-toolbar">
-                            <TickerSelector
-                                selectedTicker={selectedTicker}
-                                onTickerChange={handleTickerChange}
-                            />
-                            <div className="timeframe-selector">
-                                {TIMEFRAMES.map(tf => (
-                                    <button
-                                        key={tf.label}
-                                        className={`timeframe-btn${selectedTimeframe.label === tf.label ? ' active' : ''}`}
-                                        onClick={() => setSelectedTimeframe(tf)}
-                                    >
-                                        {tf.label}
-                                    </button>
-                                ))}
-                            </div>
+        <div className="app">
+            <div className="left-column">
+                <div className="chart-container">
+                    <div className="chart-toolbar">
+                        <TickerSelector
+                            selectedTicker={selectedTicker}
+                            onTickerChange={handleTickerChange}
+                        />
+                        <div className="timeframe-selector">
+                            {TIMEFRAMES.map(tf => (
+                                <button
+                                    key={tf.label}
+                                    className={`timeframe-btn${selectedTimeframe.label === tf.label ? ' active' : ''}`}
+                                    onClick={() => setSelectedTimeframe(tf)}
+                                >
+                                    {tf.label}
+                                </button>
+                            ))}
                         </div>
-                        <div ref={chartContainerRef} className="chart-wrapper"/>
                     </div>
-                    <TradePanel/>
+                    <div ref={chartContainerRef} className="chart-wrapper"/>
                 </div>
-
-                <div className="right-column">
-                    <OrderBook
-                        bids={bids}
-                        asks={asks}
-                        lastPrice={lastTradePrice}
-                    />
-                    <RecentTrades trades={recentTrades}/>
-                </div>
-
-                {!isConnected && (
-                    <div style={{
-                        position: 'fixed',
-                        bottom: 16,
-                        right: 16,
-                        background: '#ef5350',
-                        color: 'white',
-                        padding: '8px 16px',
-                        borderRadius: 4,
-                    }}>
-                        Disconnected from WebSocket
-                    </div>
-                )}
             </div>
+
+            <div className="right-column">
+                <OrderBook
+                    bids={bids}
+                    asks={asks}
+                    lastPrice={lastTradePrice}
+                />
+                <RecentTrades trades={recentTrades}/>
+            </div>
+
+            {!isConnected && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: 16,
+                    right: 16,
+                    background: '#ef5350',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: 4,
+                }}>
+                    Disconnected from WebSocket
+                </div>
+            )}
         </div>
     );
 }

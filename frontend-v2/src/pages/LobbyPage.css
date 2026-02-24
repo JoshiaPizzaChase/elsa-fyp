@@ -1,0 +1,83 @@
+.lobby-page {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px;
+    background-color: #1e1e2f;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.lobby-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    color: #ffffff;
+    margin-bottom: 8px;
+}
+
+.lobby-subtitle {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #a0a0b0;
+    margin-bottom: 40px;
+}
+
+.server-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 900px;
+}
+
+.server-card {
+    background-color: #2a2a3a;
+    border: 1px solid #3a3a4a;
+    border-radius: 12px;
+    padding: 24px;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.server-card:hover {
+    transform: translateY(-4px);
+    border-color: #6c5ce7;
+    box-shadow: 0 8px 24px rgba(108, 92, 231, 0.15);
+}
+
+.server-card-name {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: #ffffff;
+    margin-bottom: 8px;
+}
+
+.server-card-description {
+    font-size: 13px;
+    color: #a0a0b0;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.server-card-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px solid #3a3a4a;
+}
+
+.server-card-label {
+    font-size: 13px;
+    color: #a0a0b0;
+}
+
+.server-card-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e0e0e0;
+}

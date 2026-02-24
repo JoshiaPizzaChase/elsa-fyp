@@ -47,6 +47,25 @@ body {
     user-select: none;
 }
 
+.navbar-login-btn {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    border: none;
+    border-radius: 20px;
+    padding: 6px 20px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.navbar-login-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+}
+
 .app {
     display: grid;
     grid-template-columns: 1fr 300px;
@@ -140,6 +159,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    flex: 1;
 }
 
 .chart-wrapper {
@@ -288,14 +308,4 @@ body {
     flex-shrink: 0;
     background-color: #2a2a3a;
     z-index: 1;
-}
-
-
-.trade-panel {
-    background-color: #2a2a3a;
-    border-radius: 8px;
-    border: 1px solid #3a3a4a;
-    padding: 16px;
-    text-align: center;
-    color: #a0a0b0;
 }
