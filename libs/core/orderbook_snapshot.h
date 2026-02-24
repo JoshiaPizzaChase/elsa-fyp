@@ -66,7 +66,7 @@ struct TopOrderBookLevelAggregates {
 
     static TopOrderBookLevelAggregates from_json(const json& j) {
         std::string ticker_str = j.at("ticker").get<std::string>();
-        int create_timestamp = j.at("create_timestamp").get<int>();
+        uint64_t create_timestamp = static_cast<uint64_t>(j.at("create_timestamp").get<int>());
         TopOrderBookLevelAggregates snapshot{ticker_str.c_str(), create_timestamp};
 
         for (size_t i = 0; i < snapshot.bid_level_aggregates.size(); ++i) {

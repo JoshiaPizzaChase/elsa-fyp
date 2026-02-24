@@ -70,7 +70,7 @@ struct Trade {
         int maker_id = j.at("maker_id").get<int>();
         int taker_order_id = j.at("taker_order_id").get<int>();
         int maker_order_id = j.at("maker_order_id").get<int>();
-        int create_timestamp = j.at("create_timestamp").get<int>();
+        uint64_t create_timestamp = static_cast<uint64_t>(j.at("create_timestamp").get<int>());
         return Trade{ticker_str.c_str(), price,           quantity,       trade_id,
                      taker_id,           maker_id,        taker_order_id, maker_order_id,
                      is_taker_buy,       create_timestamp};
