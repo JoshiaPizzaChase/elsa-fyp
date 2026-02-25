@@ -1,14 +1,29 @@
 import React, {useState} from 'react';
 import {useAuth} from '../context/AuthContext';
+import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend} from 'recharts';
 import './AccountPage.css';
 
 // ---------------------------------------------------------------------------
 // TODO: Replace with real DB queries.
 //       fetchUserServers(username) → [{
 //         id, name, description, users, mdpEndpoint, role ('admin'|'member'),
-//         totalTrades, balances: [{ ticker, balance }]
+//         totalTrades, balances: [{ ticker, quantity }]
 //       }]
+//       fetchLatestPrices(tickers) → { [ticker]: price }
 // ---------------------------------------------------------------------------
+
+// TODO: fetch latest price per ticker from DB / market data feed
+const DUMMY_PRICES = {
+    AAPL:  0.7823,
+    GOOGL: 0.6541,
+    MSFT:  0.8910,
+    AMZN:  0.7105,
+    TSLA:  0.5630,
+    META:  0.9244,
+    NVDA:  0.8872,
+    JPM:   0.7390,
+};
+
 const DUMMY_SERVERS = [
     {
         id: 101,
@@ -19,10 +34,10 @@ const DUMMY_SERVERS = [
         role: 'admin',
         totalTrades: 312,
         balances: [
-            {ticker: 'AAPL',  balance: 12500.00},
-            {ticker: 'GOOGL', balance:  8340.50},
-            {ticker: 'MSFT',  balance: 15200.75},
-            {ticker: 'NVDA',  balance: 21000.00},
+            {ticker: 'AAPL',  quantity: 15980},
+            {ticker: 'GOOGL', quantity: 12750},
+            {ticker: 'MSFT',  quantity: 17060},
+            {ticker: 'NVDA',  quantity: 23670},
         ],
     },
     {
@@ -34,10 +49,10 @@ const DUMMY_SERVERS = [
         role: 'admin',
         totalTrades: 87,
         balances: [
-            {ticker: 'AMZN',  balance:  4100.00},
-            {ticker: 'TSLA',  balance:  6780.25},
-            {ticker: 'META',  balance:  3200.00},
-            {ticker: 'JPM',   balance:  9450.80},
+            {ticker: 'AMZN',  quantity:  5770},
+            {ticker: 'TSLA',  quantity: 12040},
+            {ticker: 'META',  quantity:  3460},
+            {ticker: 'JPM',   quantity: 12790},
         ],
     },
     {
@@ -49,8 +64,8 @@ const DUMMY_SERVERS = [
         role: 'member',
         totalTrades: 45,
         balances: [
-            {ticker: 'AAPL', balance: 3200.00},
-            {ticker: 'JPM',  balance: 1800.50},
+            {ticker: 'AAPL', quantity:  4090},
+            {ticker: 'JPM',  quantity:  2440},
         ],
     },
     {
@@ -62,11 +77,19 @@ const DUMMY_SERVERS = [
         role: 'member',
         totalTrades: 128,
         balances: [
-            {ticker: 'TSLA', balance: 5600.00},
-            {ticker: 'NVDA', balance: 4200.75},
-            {ticker: 'META', balance: 2900.00},
+            {ticker: 'TSLA', quantity:  9950},
+            {ticker: 'NVDA', quantity:  4730},
+            {ticker: 'META', quantity:  3140},
         ],
     },
+];
+
+// TODO: fetch per-server initial USD balance from DB
+const INITIAL_BALANCE = 100000;
+
+const PIE_COLORS = [
+    '#a29bfe', '#6c5ce7', '#74b9ff', '#0984e3',
+    '#55efc4', '#00b894', '#ffeaa7', '#fdcb6e',
 ];
 
 function ServerModal({server, onClose}) {
@@ -90,12 +113,15 @@ function AccountPage() {
     const [modalServer, setModalServer] = useState(undefined);
 
     const servers = DUMMY_SERVERS;
+    const prices  = DUMMY_PRICES;
     const adminServers  = servers.filter((s) => s.role === 'admin');
     const memberServers = servers.filter((s) => s.role === 'member');
     const selected = servers.find((s) => s.id === selectedId) ?? null;
     const totalValue = selected
-        ? selected.balances.reduce((sum, b) => sum + b.balance, 0)
+        ? selected.balances.reduce((sum, b) => sum + b.quantity * (prices[b.ticker] ?? 0), 0)
         : 0;
+    const pnl    = totalValue - INITIAL_BALANCE;
+    const pnlPct = (pnl / INITIAL_BALANCE) * 100;
 
     return (
         <div className="account-page">
@@ -189,6 +215,15 @@ function AccountPage() {
                                 <span className="account-stat-label">Portfolio Value</span>
                             </div>
                             <div className="account-stat">
+                                <span className={`account-stat-value ${pnl >= 0 ? 'pnl-profit' : 'pnl-loss'}`}>
+                                    {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                </span>
+                                <span className={`account-stat-pct ${pnl >= 0 ? 'pnl-profit' : 'pnl-loss'}`}>
+                                    {pnl >= 0 ? '▲' : '▼'} {Math.abs(pnlPct).toFixed(2)}%
+                                </span>
+                                <span className="account-stat-label">Total P&amp;L</span>
+                            </div>
+                            <div className="account-stat">
                                 <span className="account-stat-value">{selected.users}</span>
                                 <span className="account-stat-label">Users Online</span>
                             </div>
@@ -206,24 +241,97 @@ function AccountPage() {
                         <section className="account-panel">
                             <div className="account-panel-header">
                                 <h3 className="account-panel-title">Balances</h3>
-                                <span className="account-panel-meta">
-                                    Total&nbsp;
-                                    <strong>${totalValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
-                                </span>
-                            </div>
-                            <div className="account-table">
-                                <div className="account-table-head">
-                                    <span>Ticker</span>
-                                    <span>Balance (USD)</span>
+                                <div className="account-panel-meta">
+                                    <span>
+                                        Portfolio Value&nbsp;
+                                        <strong>${totalValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                                    </span>
+                                    <span className={`account-panel-pnl ${pnl >= 0 ? 'pnl-profit' : 'pnl-loss'}`}>
+                                        P&amp;L&nbsp;
+                                        <strong>
+                                            {pnl >= 0 ? '+' : ''}${pnl.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                            &nbsp;({pnl >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+                                        </strong>
+                                    </span>
                                 </div>
-                                {selected.balances.map(({ticker, balance}) => (
-                                    <div className="account-row" key={ticker}>
-                                        <span className="account-ticker">{ticker}</span>
-                                        <span className="account-value">
-                                            ${balance.toLocaleString('en-US', {minimumFractionDigits: 2})}
-                                        </span>
+                            </div>
+
+                            {/* Table + pie side by side */}
+                            <div className="account-balances-body">
+                                <div className="account-table">
+                                    <div className="account-table-head">
+                                        <span>Ticker</span>
+                                        <span>Quantity</span>
+                                        <span>Latest Price</span>
+                                        <span>USD Value</span>
                                     </div>
-                                ))}
+                                    {selected.balances.map(({ticker, quantity}, i) => {
+                                        const price    = prices[ticker] ?? 0;
+                                        const usdValue = quantity * price;
+                                        return (
+                                            <div className="account-row" key={ticker}>
+                                                <span className="account-ticker" style={{color: PIE_COLORS[i % PIE_COLORS.length]}}>
+                                                    {ticker}
+                                                </span>
+                                                <span className="account-value">{quantity.toLocaleString('en-US')}</span>
+                                                <span className="account-value">${price.toFixed(4)}</span>
+                                                <span className="account-value">
+                                                    ${usdValue.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Pie chart */}
+                                <div className="account-pie-wrapper">
+                                    <ResponsiveContainer width="100%" height={260}>
+                                        <PieChart>
+                                            <Pie
+                                                data={selected.balances.map(({ticker, quantity}) => ({
+                                                    name: ticker,
+                                                    value: parseFloat((quantity * (prices[ticker] ?? 0)).toFixed(2)),
+                                                }))}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius="52%"
+                                                outerRadius="78%"
+                                                paddingAngle={3}
+                                                dataKey="value"
+                                            >
+                                                {selected.balances.map((_, i) => (
+                                                    <Cell
+                                                        key={i}
+                                                        fill={PIE_COLORS[i % PIE_COLORS.length]}
+                                                        stroke="transparent"
+                                                    />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(value) => [`$${value.toLocaleString('en-US', {minimumFractionDigits: 2})}`, 'USD Value']}
+                                                contentStyle={{
+                                                    backgroundColor: '#2a2a3a',
+                                                    border: '1px solid #3a3a4a',
+                                                    borderRadius: 8,
+                                                    fontFamily: 'Poppins, sans-serif',
+                                                    fontSize: 12,
+                                                    color: '#e0e0f0',
+                                                }}
+                                                itemStyle={{color: '#e0e0f0'}}
+                                                labelStyle={{color: '#a0a0b0'}}
+                                            />
+                                            <Legend
+                                                iconType="circle"
+                                                iconSize={8}
+                                                formatter={(value) => (
+                                                    <span style={{fontFamily: 'Poppins, sans-serif', fontSize: 12, color: '#a0a0b0'}}>
+                                                        {value}
+                                                    </span>
+                                                )}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
                         </section>
                     </>

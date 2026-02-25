@@ -234,7 +234,7 @@
 /* Stat row */
 .account-stat-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 14px;
 }
 
@@ -246,15 +246,30 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 3px;
 }
 
 .account-stat-value {
     font-family: 'Poppins', sans-serif;
     font-weight: 700;
-    font-size: 18px;
+    font-size: 16px;
     color: #ffffff;
     text-align: center;
+}
+
+.account-stat-pct {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    text-align: center;
+}
+
+.pnl-profit {
+    color: #26a69a;
+}
+
+.pnl-loss {
+    color: #ef5350;
 }
 
 .account-stat-label {
@@ -295,13 +310,38 @@
     font-family: 'Poppins', sans-serif;
     font-size: 13px;
     color: #a0a0b0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
 }
 
 .account-panel-meta strong {
     color: #e0e0f0;
 }
 
+.account-panel-pnl {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+}
+
 /* Balances table */
+.account-balances-body {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.account-balances-body .account-table {
+    flex: 1;
+    min-width: 0;
+}
+
+.account-pie-wrapper {
+    width: 280px;
+    flex-shrink: 0;
+}
+
 .account-table {
     width: 100%;
     border: 1px solid #3a3a4a;
@@ -310,8 +350,8 @@
 }
 
 .account-table-head {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
     padding: 9px 16px;
     background-color: #1e1e2f;
     font-family: 'Poppins', sans-serif;
@@ -322,9 +362,14 @@
     letter-spacing: 0.6px;
 }
 
+.account-table-head span:not(:first-child),
+.account-row .account-value {
+    text-align: right;
+}
+
 .account-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
     align-items: center;
     padding: 10px 16px;
     border-top: 1px solid #3a3a4a;
