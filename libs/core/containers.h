@@ -68,8 +68,16 @@ struct ExecutionReportContainer {
     std::int32_t avg_px;
 };
 
+enum class OrderbookRpcRequestType {
+    get_fill_cost
+};
+
+struct OrderbookRpcContainer {
+    OrderbookRpcRequestType request_type;
+};
+
 using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderRequestContainer,
-                               core::ExecutionReportContainer>;
+                               core::ExecutionReportContainer, core::OrderbookRpcContainer>;
 
 } // namespace core
 
