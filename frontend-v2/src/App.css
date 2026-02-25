@@ -66,6 +66,52 @@ body {
     box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
 }
 
+.navbar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.navbar-username {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: #e0e0f0;
+    background-color: #3a3a4e;
+    border: 1px solid #4a4a5e;
+    border-radius: 20px;
+    padding: 5px 14px;
+    letter-spacing: 0.3px;
+    user-select: none;
+    text-decoration: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.navbar-username:hover {
+    background-color: #44445e;
+    border-color: #6c5ce7;
+}
+
+.navbar-logout-btn {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: #a0a0b0;
+    background: transparent;
+    border: 1px solid #4a4a5a;
+    border-radius: 20px;
+    padding: 5px 16px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.navbar-logout-btn:hover {
+    color: #ef5350;
+    border-color: #ef5350;
+    background: rgba(239, 83, 80, 0.08);
+}
+
 .app {
     display: grid;
     grid-template-columns: 1fr 300px;

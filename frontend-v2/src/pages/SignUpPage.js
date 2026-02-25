@@ -1,13 +1,12 @@
 import React, {useState} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
-import {useAuth} from '../context/AuthContext';
 import './AuthPage.css';
 
-function LoginPage() {
+function SignUpPage() {
     const navigate = useNavigate();
-    const {login} = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [confirm, setConfirm] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -15,24 +14,31 @@ function LoginPage() {
         e.preventDefault();
         setError('');
 
-        if (!username.trim() || !password.trim()) {
-            setError('Please enter both username and password.');
+        if (!username.trim() || !password.trim() || !confirm.trim()) {
+            setError('Please fill in all fields.');
+            return;
+        }
+        if (password !== confirm) {
+            setError('Passwords do not match.');
+            return;
+        }
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters.');
             return;
         }
 
         setLoading(true);
         try {
-            // TODO: Replace with a real DB authentication call.
-            //       Expected: POST /api/auth/login { username, password }
-            //       Returns: { success: boolean, token?: string, error?: string }
+            // TODO: Replace with a real DB registration call.
+            //       Expected: POST /api/auth/signup { username, password }
+            //       Returns: { success: boolean, error?: string }
             await new Promise((res) => setTimeout(res, 600)); // simulate latency
             const success = true; // placeholder — swap with real response check
 
             if (success) {
-                login(username);
-                navigate('/lobby');
+                navigate('/login');
             } else {
-                setError('Invalid username or password.');
+                setError('Username already taken. Please choose another.');
             }
         } catch {
             setError('Something went wrong. Please try again.');
@@ -45,7 +51,7 @@ function LoginPage() {
         <div className="auth-page">
             <div className="auth-card">
                 <h1 className="auth-title">EduX</h1>
-                <p className="auth-subtitle">Sign in to your account</p>
+                <p className="auth-subtitle">Create a new account</p>
 
                 <form className="auth-form" onSubmit={handleSubmit} noValidate>
                     <div className="auth-field">
@@ -54,7 +60,7 @@ function LoginPage() {
                             id="username"
                             className="auth-input"
                             type="text"
-                            placeholder="Enter your username"
+                            placeholder="Choose a username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             autoComplete="username"
@@ -68,27 +74,41 @@ function LoginPage() {
                             id="password"
                             className="auth-input"
                             type="password"
-                            placeholder="Enter your password"
+                            placeholder="At least 8 characters"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            autoComplete="current-password"
+                            autoComplete="new-password"
+                        />
+                    </div>
+
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="confirm">Confirm Password</label>
+                        <input
+                            id="confirm"
+                            className="auth-input"
+                            type="password"
+                            placeholder="Re-enter your password"
+                            value={confirm}
+                            onChange={(e) => setConfirm(e.target.value)}
+                            autoComplete="new-password"
                         />
                     </div>
 
                     {error && <p className="auth-error">{error}</p>}
 
                     <button className="auth-button" type="submit" disabled={loading}>
-                        {loading ? 'Signing in…' : 'Sign In'}
+                        {loading ? 'Creating account…' : 'Sign Up'}
                     </button>
                 </form>
 
                 <p className="auth-footer">
-                    Don't have an account?{' '}
-                    <Link className="auth-link" to="/signup">Sign up</Link>
+                    Already have an account?{' '}
+                    <Link className="auth-link" to="/login">Sign in</Link>
                 </p>
             </div>
         </div>
     );
 }
 
-export default LoginPage;
+export default SignUpPage;
+
