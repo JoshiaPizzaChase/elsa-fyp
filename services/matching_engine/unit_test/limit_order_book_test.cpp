@@ -171,9 +171,9 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
         REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value());
         const Order& best_bid = limit_order_book.get_best_order(Side::Bid).value();
-        REQUIRE(best_bid.get_order_id() == 70);
-        REQUIRE(best_bid.get_price() == MARKET_BID_ORDER_PRICE);
-        REQUIRE(best_bid.get_quantity() == 5);
+        REQUIRE(best_bid.get_order_id() == 69);
+        REQUIRE(best_bid.get_price() == 99);
+        REQUIRE(best_bid.get_quantity() == 10);
         REQUIRE(best_bid.get_side() == Side::Bid);
     }
 
@@ -187,9 +187,9 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
         REQUIRE(limit_order_book.get_best_order(Side::Bid).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::Ask).has_value());
         const Order& best_ask = limit_order_book.get_best_order(Side::Ask).value();
-        REQUIRE(best_ask.get_order_id() == 70);
-        REQUIRE(best_ask.get_price() == MARKET_ASK_ORDER_PRICE);
-        REQUIRE(best_ask.get_quantity() == 5);
+        REQUIRE(best_ask.get_order_id() == 69);
+        REQUIRE(best_ask.get_price() == 101);
+        REQUIRE(best_ask.get_quantity() == 10);
         REQUIRE(best_ask.get_side() == Side::Ask);
     }
 }

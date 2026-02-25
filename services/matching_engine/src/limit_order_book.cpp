@@ -84,7 +84,8 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
         }
     }
 
-    if (remaining_quantity > 0) {
+    if (remaining_quantity > 0 && price != MARKET_BID_ORDER_PRICE &&
+        price != MARKET_ASK_ORDER_PRICE) {
         order_id_map[order_id] = near_side[price].emplace(near_side[price].end(), order_id, price,
                                                           remaining_quantity, side);
     }
