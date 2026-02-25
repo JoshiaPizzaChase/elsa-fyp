@@ -31,16 +31,16 @@ void BalanceChecker::update_balance(const std::string& broker_id, const std::str
     }
 }
 
-int BalanceChecker::get_balance(const std::string& broker_id, const std::string& ticker) {
+int BalanceChecker::get_balance(const std::string& broker_id, const std::string& ticker) const {
     assert(balance_map.contains(broker_id) && "Balance record of Broker ID does not exist");
-    assert(balance_map[broker_id].contains(ticker) && "Broker does not have record of ticker");
-    return balance_map[broker_id][ticker];
+    assert(balance_map.at(broker_id).contains(ticker) && "Broker does not have record of ticker");
+    return balance_map.at(broker_id).at(ticker);
 }
 
 bool BalanceChecker::has_sufficient_balance(const std::string& broker_id, const std::string& ticker,
-                                            int delta) {
+                                            int delta) const {
     assert(balance_map.contains(broker_id) && "Balance record of Broker ID does not exist");
-    assert(balance_map[broker_id].contains(ticker) && "Broker does not have record of ticker");
+    assert(balance_map.at(broker_id).contains(ticker) && "Broker does not have record of ticker");
     return get_balance(broker_id, ticker) + delta >= 0;
 }
 } // namespace om

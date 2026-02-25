@@ -8,9 +8,12 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
 
+#include "core/containers.h"
 #include "websocket_client.h"
 
 namespace om {
+inline constexpr std::string USD_SYMBOL = "USD";
+
 using WebsocketManagerServer = transport::WebsocketManagerServer;
 using WebsocketManagerClient = transport::WebsocketManagerClient;
 
@@ -21,8 +24,6 @@ class OrderManager {
     std::expected<void, std::string> start();
 
   private:
-    std::shared_ptr<spdlog::logger> logger;
-
     WebsocketManagerServer inbound_ws_server;
     WebsocketManagerClient outbound_ws_client;
     BalanceChecker balance_checker;
@@ -30,6 +31,8 @@ class OrderManager {
     int gateway_count;
     int matching_engine_connection_id;
 };
+
+bool validate_container(const core::Container& container, BalanceChecker& balance_checker);
 } // namespace om
 
 #endif // ELSA_FYP_ORDER_MANAGER_H
