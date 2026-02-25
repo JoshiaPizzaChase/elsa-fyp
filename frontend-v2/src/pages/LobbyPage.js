@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import './LobbyPage.css';
 
@@ -56,8 +56,21 @@ const SERVERS = [
 
 function LobbyPage() {
     const navigate = useNavigate();
+    const [search, setSearch] = useState('');
+    const [expandedId, setExpandedId] = useState(null);
 
-    const handleServerClick = (server) => {
+    const filtered = SERVERS.filter(s =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.admin.toLowerCase().includes(search.toLowerCase()) ||
+        s.description.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const handleRowClick = (id) => {
+        setExpandedId(prev => (prev === id ? null : id));
+    };
+
+    const handleJoin = (e, server) => {
+        e.stopPropagation();
         navigate(`/${server.name}/trading/AAPL`, {
             state: {mdpEndpoint: server.mdpEndpoint},
         });
@@ -67,25 +80,55 @@ function LobbyPage() {
         <div className="lobby-page">
             <h1 className="lobby-title">Select a Server</h1>
             <p className="lobby-subtitle">Join a trading room to start practicing</p>
-            <div className="server-grid">
-                {SERVERS.map(server => (
-                    <div
-                        key={server.id}
-                        className="server-card"
-                        onClick={() => handleServerClick(server)}
-                    >
-                        <div className="server-card-name">{server.name}</div>
-                        <div className="server-card-description">{server.description}</div>
-                        <div className="server-card-info">
-                            <span className="server-card-label">Admin</span>
-                            <span className="server-card-value">{server.admin}</span>
+
+            <div className="lobby-search-wrapper">
+                <span className="lobby-search-icon">🔍</span>
+                <input
+                    className="lobby-search-input"
+                    type="text"
+                    placeholder="Search by name, admin, or description…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+                {search && (
+                    <button className="lobby-search-clear" onClick={() => setSearch('')}>✕</button>
+                )}
+            </div>
+
+            <div className="server-list">
+                {filtered.length === 0 && (
+                    <p className="server-list-empty">No servers match your search.</p>
+                )}
+                {filtered.map(server => {
+                    const isOpen = expandedId === server.id;
+                    return (
+                        <div
+                            key={server.id}
+                            className={`server-row${isOpen ? ' expanded' : ''}`}
+                            onClick={() => handleRowClick(server.id)}
+                        >
+                            <div className="server-row-main">
+                                <div className="server-row-left">
+                                    <span className="server-row-chevron">{isOpen ? '▾' : '▸'}</span>
+                                    <span className="server-row-name">{server.name}</span>
+                                    <span className="server-row-admin">{server.admin}</span>
+                                    <span className="server-row-users">👥 {server.users} online</span>
+                                </div>
+                                <button
+                                    className="server-row-join"
+                                    onClick={e => handleJoin(e, server)}
+                                >
+                                    View
+                                </button>
+                            </div>
+                            {isOpen && (
+                                <div className="server-row-desc">
+                                    {server.description}
+                                </div>
+                            )}
                         </div>
-                        <div className="server-card-info">
-                            <span className="server-card-label">Users</span>
-                            <span className="server-card-value">{server.users} online</span>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
