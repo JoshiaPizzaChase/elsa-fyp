@@ -242,6 +242,8 @@ TEST_CASE("Submit order requests", "[integration]") {
     // }
 
     // cleanup
+    test_client_1.disconnect();
+
     if (gateway_pid > 0) {
         stop_process(gateway_pid);
     }
