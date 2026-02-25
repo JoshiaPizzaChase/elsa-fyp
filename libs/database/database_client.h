@@ -1,0 +1,5 @@
+namespace Database {
+   class DatabaseClient {
+
+   };
+}
