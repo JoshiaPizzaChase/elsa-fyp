@@ -48,6 +48,10 @@ endif ()
 # JSON
 find_package(nlohmann_json REQUIRED)
 
+# Catch 2
+if (BUILD_TESTS)
+    find_package(Catch2 3 REQUIRED)
+endif ()
 
 # Building our code
 if (BUILD_TESTS)

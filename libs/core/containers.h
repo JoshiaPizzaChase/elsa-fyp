@@ -1,5 +1,4 @@
-#ifndef CORE_CONTAINERS_H
-#define CORE_CONTAINERS_H
+#pragma once
 
 #include "orders.h"
 #include <optional>
@@ -84,5 +83,3 @@ using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderR
                                core::FillCostResponseContainer>;
 
 } // namespace core
-
-#endif // CORE_CONTAINERS_H

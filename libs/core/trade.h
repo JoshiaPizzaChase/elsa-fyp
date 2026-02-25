@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_TRADE_H
-#define ELSA_FYP_TRADE_H
+#pragma once
 
 #include "constants.h"
 #include "inter_process/mpsc_shared_memory_ring_buffer.h"
@@ -74,5 +73,3 @@ struct Trade {
 
 // typed ring buffer for communication with MDP
 using TradeRingBuffer = MpscSharedMemoryRingBuffer<Trade, core::constants::TradeRingBufferCapacity>;
-
-#endif // ELSA_FYP_TRADE_H

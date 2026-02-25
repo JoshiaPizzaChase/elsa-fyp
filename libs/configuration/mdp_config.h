@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_CONFIG_H
-#define ELSA_FYP_CLIENT_SDK_CONFIG_H
+#pragma once
 
 #include <string>
 
@@ -9,5 +8,3 @@ struct MdpConfig {
     int ws_port;
 };
 } // namespace mdp
-
-#endif // ELSA_FYP_CLIENT_SDK_CONFIG_H

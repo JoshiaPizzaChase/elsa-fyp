@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_MARKET_DATA_PROCESSOR_H
-#define ELSA_FYP_CLIENT_SDK_MARKET_DATA_PROCESSOR_H
+#pragma once
 
 #include "configuration/mdp_config.h"
 #include "core/orderbook_snapshot.h"
@@ -29,5 +28,3 @@ class MarketDataProcessor {
     [[noreturn]] void start();
 };
 } // namespace mdp
-
-#endif // ELSA_FYP_CLIENT_SDK_MARKET_DATA_PROCESSOR_H

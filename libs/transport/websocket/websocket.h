@@ -1,5 +1,4 @@
-#ifndef TRANSPORT_WEBSOCKET_H
-#define TRANSPORT_WEBSOCKET_H
+#pragma once
 
 #include "config.h"
 #include "core/thread_safe_queue.h"
@@ -299,5 +298,3 @@ class WebsocketManager {
 };
 
 } // namespace transport
-
-#endif // TRANSPORT_WEBSOCKET_H

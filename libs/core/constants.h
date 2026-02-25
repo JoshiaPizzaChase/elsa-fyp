@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_CONSTANTS_H
-#define ELSA_FYP_CLIENT_SDK_CONSTANTS_H
+#pragma once
 
 #include <string>
 
@@ -14,5 +13,3 @@ inline static std::string ORDERBOOK_SNAPSHOT_SHM_FILE = "orderbook_snapshot";
 inline static std::string TRADE_SHM_FILE = "trade";
 inline constexpr double decimal_to_int_multiplier{100.0};
 } // namespace core::constants
-
-#endif // ELSA_FYP_CLIENT_SDK_CONSTANTS_H

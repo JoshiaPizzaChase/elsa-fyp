@@ -1,4 +1,5 @@
 #pragma once
+
 #include "quickfix/Application.h"
 #include "quickfix/Session.h"
 #include "quickfix/fix42/ExecutionReport.h"

@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_MATCHING_ENGINE_CONFIG_H
-#define ELSA_FYP_MATCHING_ENGINE_CONFIG_H
+#pragma once
 
 #include <string>
 
@@ -9,5 +8,3 @@ struct MatchingEngineConfig {
     int matching_engine_port;
 };
 } // namespace engine
-
-#endif // ELSA_FYP_MATCHING_ENGINE_CONFIG_H
