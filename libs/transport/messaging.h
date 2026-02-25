@@ -3,6 +3,7 @@
 
 #include "core/containers.h"
 #include "protobufs/containers.pb.h"
+#include <optional>
 #include <stdexcept>
 
 namespace transport {
@@ -75,15 +76,6 @@ convert_to_proto(core::ExecTypeOrOrderStatus exec_type_or_order_status) {
     }
 }
 
-inline transport::OrderbookRpcRequestType
-convert_to_proto(core::OrderbookRpcRequestType request_type) {
-    switch (request_type) {
-    case core::OrderbookRpcRequestType::get_fill_cost:
-        return transport::OrderbookRpcRequestType::GET_FILL_COST;
-    }
-    throw std::invalid_argument("Unknown OrderbookRpcRequestType enum value");
-}
-
 // From proto enum to core enum
 inline core::Side convert_to_internal(transport::Side side) {
     switch (side) {
@@ -153,24 +145,28 @@ convert_to_internal(transport::ExecTypeOrOrderStatus exec_type_or_order_status) 
     }
 }
 
-inline core::OrderbookRpcRequestType
-convert_to_internal(transport::OrderbookRpcRequestType request_type) {
-    switch (request_type) {
-    case transport::OrderbookRpcRequestType::GET_FILL_COST:
-        return core::OrderbookRpcRequestType::get_fill_cost;
-    default:
-        throw std::invalid_argument("Unknown OrderbookRpcRequestType enum value");
-    }
+// Serializer and deserializer functions
+inline std::string serialize_container(const core::FillCostQueryContainer& container) {
+    transport::ContainerWrapper container_wrapper;
+    transport::FillCostQueryContainer container_proto;
+
+    container_proto.set_quantity(container.quantity);
+    container_proto.set_side(convert_to_proto(container.side));
+    container_proto.set_symbol(container.symbol);
+
+    *container_wrapper.mutable_fill_cost_query() = container_proto;
+    return container_wrapper.SerializeAsString();
 }
 
-// Serializer and deserializer functions
-inline std::string serialize_container(const core::OrderbookRpcContainer& container) {
+inline std::string serialize_container(const core::FillCostResponseContainer& container) {
     transport::ContainerWrapper container_wrapper;
-    transport::OrderbookRpcContainer container_proto;
+    transport::FillCostResponseContainer container_proto;
 
-    container_proto.set_request_type(convert_to_proto(container.request_type));
+    if (container.total_cost.has_value()) {
+        container_proto.set_total_cost(container.total_cost.value());
+    }
 
-    *container_wrapper.mutable_orderbook_rpc() = container_proto;
+    *container_wrapper.mutable_fill_cost_response() = container_proto;
     return container_wrapper.SerializeAsString();
 }
 
@@ -306,13 +302,20 @@ inline core::Container deserialize_container(const std::string& data) {
 
         return container;
     }
-    case transport::ContainerWrapper::kOrderbookRpc: {
-        const auto& proto = container_wrapper.orderbook_rpc();
-        core::OrderbookRpcContainer container;
-        container.request_type =
-            convert_to_internal(transport::OrderbookRpcRequestType::GET_FILL_COST);
-
+    case transport::ContainerWrapper::kFillCostQuery: {
+        const auto& proto = container_wrapper.fill_cost_query();
+        core::FillCostQueryContainer container;
+        container.symbol = proto.symbol();
+        container.side = convert_to_internal(proto.side());
+        container.quantity = proto.quantity();
         return container;
+    }
+    case transport::ContainerWrapper::kFillCostResponse: {
+        const auto& proto = container_wrapper.fill_cost_response();
+        core::FillCostResponseContainer container;
+        if (proto.has_total_cost()) {
+            container.total_cost = proto.total_cost();
+        }
     }
 
     default:

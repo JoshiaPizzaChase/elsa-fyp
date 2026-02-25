@@ -68,16 +68,20 @@ struct ExecutionReportContainer {
     std::int32_t avg_px;
 };
 
-enum class OrderbookRpcRequestType {
-    get_fill_cost
+struct FillCostQueryContainer {
+    std::string symbol;
+    std::int32_t quantity;
+    Side side;
 };
 
-struct OrderbookRpcContainer {
-    OrderbookRpcRequestType request_type;
+struct FillCostResponseContainer {
+    // Optional because Matching Engine may fail to retreive data.
+    std::optional<std::int32_t> total_cost;
 };
 
 using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderRequestContainer,
-                               core::ExecutionReportContainer, core::OrderbookRpcContainer>;
+                               core::ExecutionReportContainer, core::FillCostQueryContainer,
+                               core::FillCostResponseContainer>;
 
 } // namespace core
 
