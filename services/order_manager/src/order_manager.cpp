@@ -11,10 +11,11 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 
+static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::async_factory>(
+    "order_manager_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/order_manager.log")};
+
 OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
-    : logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-          "order_manager_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/order_manager.log")},
-      inbound_ws_server{port, host, logger}, outbound_ws_client{logger},
+    : inbound_ws_server{port, host, logger}, outbound_ws_client{logger},
       gateway_count{gateway_count}, matching_engine_connection_id{} {
     // TODO: Handle start error
     inbound_ws_server.start();
@@ -49,80 +50,71 @@ std::expected<void, std::string> OrderManager::start() {
             new_message.has_value()) {
             const auto container = transport::deserialize_container(new_message.value());
 
-            auto new_order_handler{[this](const core::NewOrderSingleContainer& new_order) {
-                switch (new_order.side) {
-                case core::Side::bid:
-                    switch (new_order.ord_type) {
-                    case core::OrderType::limit:
-                        if (!balance_checker.has_sufficient_balance(
-                                new_order.sender_comp_id, new_order.symbol,
-                                -new_order.price.value() * new_order.order_qty)) {
-                            return;
-                        }
-
-                        balance_checker.update_balance(new_order.sender_comp_id, new_order.symbol,
-                                                       -new_order.price.value() *
-                                                           new_order.order_qty);
-                        break;
-                    case core::OrderType::market:
-                        // Fetch fill cost from Matching Engine
-                        // 1. Thru REST API???
-                        // 2. ME has not fully processed its order queue -> Returned cost is
-                        // inaccurate?
-
-                        // Compare
-                        break;
-                    default:
-                        assert(false && "Unsupported Order Type");
-                    }
-                    break;
-                case core::Side::ask:
-                    if (!balance_checker.has_sufficient_balance(
-                            new_order.sender_comp_id, new_order.symbol, -new_order.order_qty)) {
-                        return;
-                    }
-
-                    balance_checker.update_balance(new_order.sender_comp_id, new_order.symbol,
-                                                   -new_order.order_qty);
-                    break;
-                default:
-                    assert(false && "UNREACHABLE");
-                }
-
+            if (validate_container(container, balance_checker)) {
                 // TODO: Handle send error
-                outbound_ws_client.send(matching_engine_connection_id,
-                                        transport::serialize_container(new_order));
-                logger->info("New order request received");
-                logger->info(transport::serialize_container(new_order));
+                outbound_ws_client.send(matching_engine_connection_id, new_message.value());
+                logger->info(new_message.value());
                 logger->flush();
-            }};
-            auto cancel_order_handler{
-                [this](const core::CancelOrderRequestContainer& cancel_request) {
-                    // TODO: Handle send error
-                    outbound_ws_client.send(matching_engine_connection_id,
-                                            transport::serialize_container(cancel_request));
-                    logger->info("Cancel order request received");
-                    logger->info(transport::serialize_container(cancel_request));
-                    logger->flush();
-                }};
-            auto execution_report_handler{
-                [this](const core::ExecutionReportContainer& execution_report) {
-                    logger->info("Execution report should not be received by Order Manager");
-                    logger->flush();
-                }};
-
-            auto catch_all_handler{[this](auto&&) {
-                logger->error("Received unexpected request from Gateway");
-                logger->flush();
-            }};
-
-            std::visit(overloaded{new_order_handler, cancel_order_handler, catch_all_handler},
-                       container);
+            }
         }
 
         curr_gateway_id = (curr_gateway_id + 1) % gateway_count;
     }
 
     return {};
+}
+
+bool validate_container(const core::Container& container, BalanceChecker& balance_checker) {
+    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
+        switch (new_order.side) {
+        case core::Side::bid:
+            switch (new_order.ord_type) {
+            case core::OrderType::limit:
+                if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, USD_SYMBOL,
+                                                            -new_order.price.value() *
+                                                                new_order.order_qty)) {
+                    return false;
+                }
+
+                balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
+                                               -new_order.price.value() * new_order.order_qty);
+                break;
+            case core::OrderType::market:
+                // Fetch fill cost from Matching Engine
+                // 1. Thru REST API???
+                // 2. ME has not fully processed its order queue -> Returned cost is
+                // inaccurate?
+
+                // Compare
+                return false;
+                break;
+            default:
+                assert(false && "Unsupported Order Type");
+            }
+            break;
+        case core::Side::ask:
+            if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, new_order.symbol,
+                                                        -new_order.order_qty)) {
+                return false;
+            }
+
+            balance_checker.update_balance(new_order.sender_comp_id, new_order.symbol,
+                                           -new_order.order_qty);
+            break;
+        default:
+            assert(false && "UNREACHABLE");
+        }
+
+        return true;
+    }};
+    auto cancel_order_handler{[](const core::CancelOrderRequestContainer& _) { return true; }};
+    auto catch_all_handler{[](auto&& _) {
+        logger->error("Received unexpected request from Gateway");
+        logger->flush();
+        return false;
+    }};
+
+    return std::visit(overloaded{new_order_handler, cancel_order_handler, catch_all_handler},
+                      container);
 }
 } // namespace om
