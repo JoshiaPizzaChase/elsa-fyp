@@ -2,8 +2,6 @@
 
 #include "core/orders.h"
 
-#include "core/orders.h"
-
 namespace engine {
 
 using core::Side;
