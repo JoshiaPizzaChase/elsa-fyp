@@ -5,8 +5,8 @@ function OrderBookVisualizer() {
     const [orderBook, setOrderBook] = useState({asks: [], bids: [], ticker: ''});
     const [trades, setTrades] = useState([]);
     const [connectionStatus, setConnectionStatus] = useState('disconnected');
-    const [wsUrl, setWsUrl] = useState('ws://localhost:9000');
-    const [inputUrl, setInputUrl] = useState('ws://localhost:9000');
+    const [wsUrl, setWsUrl] = useState('ws://localhost:9001');
+    const [inputUrl, setInputUrl] = useState('ws://localhost:9001');
     const wsRef = useRef(null);
 
     const connectWebSocket = () => {
