@@ -315,6 +315,7 @@ inline core::Container deserialize_container(const std::string& data) {
         if (proto.has_total_cost()) {
             container.total_cost = proto.total_cost();
         }
+        return container;
     }
 
     default:

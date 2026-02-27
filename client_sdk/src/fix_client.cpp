@@ -49,6 +49,15 @@ bool FixClient::submit_market_order(const std::string& ticker, const double& qua
         FIX42::NewOrderSingle new_order_fix_message =
             create_new_order_fix_request(ticker, quantity, side, custom_order_id);
         new_order_fix_message.set(FIX::OrdType(FIX::OrdType_MARKET));
+
+        // TODO: This is placeholder only
+        char tif;
+        if (true) {
+            tif = FIX::TimeInForce_GOOD_TILL_CANCEL;
+        } else {
+            throw std::invalid_argument("Only GTC is supported for limit order currently!");
+        }
+        new_order_fix_message.set(FIX::TimeInForce(tif));
         FIX::Session::sendToTarget(new_order_fix_message, get_session_id());
         logger->info("[FixClient] Market Order submitted: {}", new_order_fix_message.toString());
         return true;
