@@ -48,12 +48,31 @@ std::expected<void, std::string> MatchingEngine::start() {
                     logger->info(transport::serialize_container(cancel_request));
                     logger->flush();
                 }};
+            auto fill_cost_query_handler{[this](
+                                             const core::FillCostQueryContainer& fill_cost_query) {
+                logger->info("Fill cost query received");
+                logger->info("Quantity: {}", fill_cost_query.quantity);
+                logger->flush();
+
+                auto total_cost =
+                    limit_order_book.get_fill_cost(fill_cost_query.quantity, fill_cost_query.side);
+
+                logger->info("Calculated fill cost: {}", total_cost.value_or(-1));
+
+                auto response_container = core::FillCostResponseContainer{
+                    total_cost.transform([](int v) { return std::optional<int>{v}; })
+                        .value_or(std::nullopt)};
+
+                inbound_ws_server.send_to_all(transport::serialize_container(response_container),
+                                              transport::MessageFormat::binary);
+            }};
             auto catch_all_handler{[this](auto&&) {
                 logger->error("Received unexpected request from Order Manager");
                 logger->flush();
             }};
 
-            std::visit(overloaded{new_order_handler, cancel_order_handler, catch_all_handler},
+            std::visit(overloaded{new_order_handler, cancel_order_handler, fill_cost_query_handler,
+                                  catch_all_handler},
                        container);
 
             auto snapshot = limit_order_book.get_top_order_book_level_aggregate();

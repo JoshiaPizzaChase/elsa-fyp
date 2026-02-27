@@ -215,20 +215,21 @@ std::expected<int, std::string> LimitOrderBook::get_fill_cost(int quantity, Side
         return std::unexpected("Quantity must be positive integer");
     }
 
-    const auto& side_map = get_side(side);
-    if (side_map.empty()) {
+    const auto far_side = (side == Side::bid) ? Side::ask : Side::bid;
+    const auto& far_side_map = get_side(far_side);
+    if (far_side_map.empty()) {
         return std::unexpected(
             std::format("No {} orders in order book", (side == Side::bid) ? "bid" : "ask"));
     }
 
     int total_cost{0};
 
-    for (int i{0}; i < side_map.size(); i++) {
+    for (int i{0}; i < far_side_map.size(); i++) {
         if (quantity == 0) {
             break;
         }
 
-        auto level_aggregate = get_level_aggregate(side, i).value();
+        auto level_aggregate = get_level_aggregate(far_side, i).value();
 
         if (level_aggregate.quantity <= quantity) {
             total_cost += level_aggregate.price * level_aggregate.quantity;

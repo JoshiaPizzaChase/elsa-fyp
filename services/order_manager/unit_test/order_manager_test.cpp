@@ -40,18 +40,27 @@ TEST_CASE("Processing incoming messages", "[om]") {
             new_order.ord_type = core::OrderType::market;
             new_order.price = std::nullopt;
 
-            // A mock ME with GME 100@$10
-
             SECTION("Sufficient capital") {
                 new_order.order_qty = 10;
 
-                REQUIRE(validate_container(new_order, balance_checker));
+                constexpr std::optional market_bid_fill_cost = 100 * 10;
+
+                REQUIRE(validate_container(new_order, balance_checker, market_bid_fill_cost));
             }
 
             SECTION("Insufficient capital") {
                 new_order.order_qty = 999;
 
-                REQUIRE(validate_container(new_order, balance_checker) == false);
+                constexpr std::optional market_bid_fill_cost = 100 * 999;
+
+                REQUIRE(validate_container(new_order, balance_checker, market_bid_fill_cost) ==
+                        false);
+            }
+
+            SECTION("Unable to supply market bid fill cost") {
+                new_order.order_qty = 10;
+
+                REQUIRE(validate_container(new_order, balance_checker, std::nullopt) == false);
             }
         }
     }

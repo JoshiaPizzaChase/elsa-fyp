@@ -29,5 +29,6 @@ class OrderManager {
     int matching_engine_connection_id;
 };
 
-bool validate_container(const core::Container& container, BalanceChecker& balance_checker);
+bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
+                        std::optional<int> fill_cost = std::nullopt);
 } // namespace om
