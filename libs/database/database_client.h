@@ -2,28 +2,15 @@
 #include <string>
 
 namespace database {
-class PostgresqlClient {
+class DatabaseClient {
   public:
-    PostgresqlClient() {
+    DatabaseClient() {
     }
 
-    ~PostgresqlClient() {
+    ~DatabaseClient() {
     }
 
   private:
     pqxx::connection connection_string;
 };
-
-class QuestdbClient {
-  public:
-    QuestdbClient() {
-    }
-
-    ~QuestdbClient() {
-    }
-
-  private:
-
-};
-
 } // namespace database
