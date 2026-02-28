@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS servers
     admin_id INT REFERENCES users(user_id),
     created_ts TIMESTAMPTZ,
     last_modified_ts TIMESTAMPTZ
+    active_tickers VARCHAR(10)[]
 );
 -- 3. whitelist
 CREATE TABLE IF NOT EXISTS allowlist
@@ -29,7 +30,7 @@ CREATE TABLE IF NOT EXISTS allowlist
 CREATE TABLE IF NOT EXISTS balances
 (
     user_id INT REFERENCES users(user_id),
-    symbol VARCHAR(4) NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
     balance INT NOT NULL,
     created_ts TIMESTAMPTZ NOT NULL,
     modified_ts TIMESTAMPTZ NOT NULL,
