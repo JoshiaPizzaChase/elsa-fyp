@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS orders
     filled_qty INT,
     ord_type INT,
     price INT,
-    time_in_force SYMBOL
+    time_in_force SYMBOL,
+    order_status SYMBOL
 ) TIMESTAMP(ts) PARTITION BY DAY 
 DEDUP UPSERT KEYS(ts, order_id);
     
