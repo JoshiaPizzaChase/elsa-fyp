@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS servers
     server_name VARCHAR UNIQUE NOT NULL,
     admin_id INT REFERENCES users(user_id),
     created_ts TIMESTAMPTZ,
-    last_modified_ts TIMESTAMPTZ
+    last_modified_ts TIMESTAMPTZ,
     active_tickers VARCHAR(10)[]
 );
 -- 3. whitelist
