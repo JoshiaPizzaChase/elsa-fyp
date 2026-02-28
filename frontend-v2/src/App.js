@@ -48,7 +48,7 @@ function App() {
     const {serverName, ticker} = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const mdpEndpoint = location.state?.mdpEndpoint ?? 'ws://localhost:9000';
+    const mdpEndpoint = location.state?.mdpEndpoint ?? 'ws://localhost:9001';
     const selectedTicker = TICKERS.includes(ticker?.toUpperCase()) ? ticker.toUpperCase() : 'AAPL';
     const selectedTickerRef = useRef(selectedTicker);
 
@@ -187,7 +187,9 @@ function App() {
             // Render the currently-selected timeframe
             rebuildCandles(selectedTimeframeRef.current.ms);
         });
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [selectedTicker, ingestTrade, rebuildCandles]);
 
     // Handle incoming live messages

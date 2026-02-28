@@ -14,14 +14,14 @@ import './AccountPage.css';
 
 // TODO: fetch latest price per ticker from DB / market data feed
 const DUMMY_PRICES = {
-    AAPL:  0.7823,
+    AAPL: 0.7823,
     GOOGL: 0.6541,
-    MSFT:  0.8910,
-    AMZN:  0.7105,
-    TSLA:  0.5630,
-    META:  0.9244,
-    NVDA:  0.8872,
-    JPM:   0.7390,
+    MSFT: 0.8910,
+    AMZN: 0.7105,
+    TSLA: 0.5630,
+    META: 0.9244,
+    NVDA: 0.8872,
+    JPM: 0.7390,
 };
 
 const DUMMY_SERVERS = [
@@ -30,14 +30,14 @@ const DUMMY_SERVERS = [
         name: 'FINA4999',
         description: 'My personal quant lab for algo strategy testing.',
         users: 5,
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
         role: 'admin',
         totalTrades: 312,
         balances: [
-            {ticker: 'AAPL',  quantity: 15980},
+            {ticker: 'AAPL', quantity: 15980},
             {ticker: 'GOOGL', quantity: 12750},
-            {ticker: 'MSFT',  quantity: 17060},
-            {ticker: 'NVDA',  quantity: 23670},
+            {ticker: 'MSFT', quantity: 17060},
+            {ticker: 'NVDA', quantity: 23670},
         ],
     },
     {
@@ -49,10 +49,10 @@ const DUMMY_SERVERS = [
         role: 'admin',
         totalTrades: 87,
         balances: [
-            {ticker: 'AMZN',  quantity:  5770},
-            {ticker: 'TSLA',  quantity: 12040},
-            {ticker: 'META',  quantity:  3460},
-            {ticker: 'JPM',   quantity: 12790},
+            {ticker: 'AMZN', quantity: 5770},
+            {ticker: 'TSLA', quantity: 12040},
+            {ticker: 'META', quantity: 3460},
+            {ticker: 'JPM', quantity: 12790},
         ],
     },
     {
@@ -60,12 +60,12 @@ const DUMMY_SERVERS = [
         name: 'FINA2303',
         description: 'Financial Markets & Institutions — Prof. Wong.',
         users: 24,
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
         role: 'member',
         totalTrades: 45,
         balances: [
-            {ticker: 'AAPL', quantity:  4090},
-            {ticker: 'JPM',  quantity:  2440},
+            {ticker: 'AAPL', quantity: 4090},
+            {ticker: 'JPM', quantity: 2440},
         ],
     },
     {
@@ -73,13 +73,13 @@ const DUMMY_SERVERS = [
         name: 'FINA3203',
         description: 'Derivative Securities — Prof. Li.',
         users: 37,
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
         role: 'member',
         totalTrades: 128,
         balances: [
-            {ticker: 'TSLA', quantity:  9950},
-            {ticker: 'NVDA', quantity:  4730},
-            {ticker: 'META', quantity:  3140},
+            {ticker: 'TSLA', quantity: 9950},
+            {ticker: 'NVDA', quantity: 4730},
+            {ticker: 'META', quantity: 3140},
         ],
     },
 ];
@@ -113,14 +113,14 @@ function AccountPage() {
     const [modalServer, setModalServer] = useState(undefined);
 
     const servers = DUMMY_SERVERS;
-    const prices  = DUMMY_PRICES;
-    const adminServers  = servers.filter((s) => s.role === 'admin');
+    const prices = DUMMY_PRICES;
+    const adminServers = servers.filter((s) => s.role === 'admin');
     const memberServers = servers.filter((s) => s.role === 'member');
     const selected = servers.find((s) => s.id === selectedId) ?? null;
     const totalValue = selected
         ? selected.balances.reduce((sum, b) => sum + b.quantity * (prices[b.ticker] ?? 0), 0)
         : 0;
-    const pnl    = totalValue - INITIAL_BALANCE;
+    const pnl = totalValue - INITIAL_BALANCE;
     const pnlPct = (pnl / INITIAL_BALANCE) * 100;
 
     return (
@@ -266,14 +266,16 @@ function AccountPage() {
                                         <span>USD Value</span>
                                     </div>
                                     {selected.balances.map(({ticker, quantity}, i) => {
-                                        const price    = prices[ticker] ?? 0;
+                                        const price = prices[ticker] ?? 0;
                                         const usdValue = quantity * price;
                                         return (
                                             <div className="account-row" key={ticker}>
-                                                <span className="account-ticker" style={{color: PIE_COLORS[i % PIE_COLORS.length]}}>
+                                                <span className="account-ticker"
+                                                      style={{color: PIE_COLORS[i % PIE_COLORS.length]}}>
                                                     {ticker}
                                                 </span>
-                                                <span className="account-value">{quantity.toLocaleString('en-US')}</span>
+                                                <span
+                                                    className="account-value">{quantity.toLocaleString('en-US')}</span>
                                                 <span className="account-value">${price.toFixed(4)}</span>
                                                 <span className="account-value">
                                                     ${usdValue.toLocaleString('en-US', {minimumFractionDigits: 2})}
@@ -324,7 +326,11 @@ function AccountPage() {
                                                 iconType="circle"
                                                 iconSize={8}
                                                 formatter={(value) => (
-                                                    <span style={{fontFamily: 'Poppins, sans-serif', fontSize: 12, color: '#a0a0b0'}}>
+                                                    <span style={{
+                                                        fontFamily: 'Poppins, sans-serif',
+                                                        fontSize: 12,
+                                                        color: '#a0a0b0'
+                                                    }}>
                                                         {value}
                                                     </span>
                                                 )}

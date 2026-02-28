@@ -10,7 +10,7 @@ const SERVERS = [
         admin: 'Prof. Wong',
         users: 24,
         description: 'Financial Markets & Institutions — Learn how exchanges, banks, and central banks shape global capital flows.',
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
     },
     {
         id: 2,
@@ -18,7 +18,7 @@ const SERVERS = [
         admin: 'Prof. Chen',
         users: 12,
         description: 'Intermediate Investments — Dive into portfolio theory, CAPM, and multi-factor models with live simulations.',
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
     },
     {
         id: 3,
@@ -26,7 +26,7 @@ const SERVERS = [
         admin: 'Prof. Li',
         users: 37,
         description: 'Derivative Securities — Price options, futures, and swaps using Black-Scholes and binomial trees.',
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
     },
     {
         id: 4,
@@ -34,7 +34,7 @@ const SERVERS = [
         admin: 'Prof. Zhang',
         users: 8,
         description: 'Fixed Income Analysis — Master bond pricing, duration, convexity, and yield-curve strategies.',
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
     },
     {
         id: 5,
@@ -42,7 +42,7 @@ const SERVERS = [
         admin: 'Prof. Lau',
         users: 19,
         description: 'Quantitative Trading Strategies — Develop and back-test algorithmic trading systems on real market data.',
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
     },
     {
         id: 6,
@@ -50,7 +50,7 @@ const SERVERS = [
         admin: 'Prof. Ho',
         users: 42,
         description: 'Risk Management — Measure and mitigate market, credit, and operational risk using VaR and stress tests.',
-        mdpEndpoint: 'ws://localhost:9000',
+        mdpEndpoint: 'ws://localhost:9001',
     },
 ];
 
