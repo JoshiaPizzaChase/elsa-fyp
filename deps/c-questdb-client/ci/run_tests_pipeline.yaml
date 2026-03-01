@@ -1,0 +1,139 @@
+trigger: none
+
+variables:
+  OS_MAPPING: none
+  Windows_NT-X86: windows
+  Darwin-X64: osx
+  Darwin-ARM: armosx
+  Linux-ARM: armlinux
+  Linux-X64: linux
+
+stages:
+  - stage: BuildAndTest
+    displayName: "Building and testing"
+    jobs:
+      - job: RunOn
+        displayName: "on"
+        strategy:
+          matrix:
+            linux:
+              imageName: "ubuntu-latest"
+              poolName: "Azure Pipelines"
+            linux-stable:
+              imageName: "ubuntu-latest"
+              poolName: "Azure Pipelines"
+              toolchain: "stable"
+            linux-beta:
+              imageName: "ubuntu-latest"
+              poolName: "Azure Pipelines"
+              toolchain: "beta"
+            linux-nightly:
+              imageName: "ubuntu-latest"
+              poolName: "Azure Pipelines"
+              toolchain: "nightly"
+            mac:
+              imageName: "macos-latest"
+              poolName: "Azure Pipelines"
+            windows-msvc-2022:
+              imageName: "windows-2022"
+              poolName: "Azure Pipelines"
+            windows-msvc-2019:
+              imageName: "windows-2019"
+              poolName: "Azure Pipelines"
+        pool:
+          name: $(poolName)
+          vmImage: $(imageName)
+        timeoutInMinutes: 60
+        steps:
+          - checkout: self
+            fetchDepth: 1
+            lfs: false
+            submodules: false
+          - template: compile.yaml
+          - script: |
+              cd questdb-rs
+              cargo build --examples --features almost-all-features
+            displayName: "Build Rust examples"
+          ############################# temp for test begin #####################
+          - script: |
+              git clone --depth 1 https://github.com/questdb/questdb.git ./questdb
+            displayName: git clone questdb
+          - task: Maven@3
+            displayName: "Compile QuestDB"
+            inputs:
+              mavenPOMFile: "questdb/pom.xml"
+              jdkVersionOption: "1.17"
+              options: "-DskipTests -Pbuild-web-console"
+          ############################# temp for test end ##################### 
+          - script: python3 ci/run_all_tests.py
+            env:
+              JAVA_HOME: $(JAVA_HOME_11_X64)
+            displayName: "Tests"
+          # - task: PublishBuildArtifacts@1
+          #   inputs:
+          #     pathToPublish: ./build
+          #   displayName: "Publish build directory"
+      - job: FormatAndLinting
+        displayName: "cargo fmt and clippy"
+        pool:
+          vmImage: 'ubuntu-latest'
+        timeoutInMinutes: 10
+        steps:
+          - checkout: self
+          - script: |
+              apt install clang-format
+              rustup component add clippy
+              rustup component add rustfmt
+            displayName: "Install clang-format, clippy and rustfmt"
+          - script: |
+              cd questdb-rs
+              cargo fmt --all -- --check
+            displayName: "questdb-rs: fmt"
+          - script: |
+              cd questdb-rs
+              cargo clippy --all-targets --features almost-all-features -- -D warnings
+            displayName: "questdb-rs: clippy"
+          - script: |
+              cd questdb-rs-ffi
+              cargo fmt --all -- --check
+            displayName: "questdb-rs-ffi: fmt"
+          - script: |
+              cd questdb-rs-ffi
+              cargo clippy --all-targets --all-features -- -D warnings
+            displayName: "questdb-rs-ffi: clippy"
+          - script: |
+              python3 ci/format_cpp.py --check
+            displayName: "C/C++ clang-format"
+          - script: |
+              cd system_test
+              cd tls_proxy
+              cargo fmt --all -- --check
+            displayName: "tls_proxy: fmt"
+          - script: |
+              cd system_test
+              cd tls_proxy
+              cargo clippy --all-targets --all-features -- -D warnings
+            displayName: "tls_proxy: clippy"
+      - job: TestVsQuestDBMaster
+        displayName: "Vs QuestDB 'master'"
+        pool:
+          vmImage: 'ubuntu-latest'
+        timeoutInMinutes: 60
+        steps:
+          - checkout: self
+            fetchDepth: 1
+            lfs: false
+            submodules: false
+          - template: compile.yaml
+          - script: |
+              git clone --depth 1 https://github.com/questdb/questdb.git
+            displayName: git clone questdb
+          - task: Maven@3
+            displayName: "Compile QuestDB"
+            inputs:
+              mavenPOMFile: 'questdb/pom.xml'
+              jdkVersionOption: '1.17'
+              options: "-DskipTests -Pbuild-web-console"
+          - script: |
+              python3 system_test/test.py run --repo ./questdb -v
+            displayName: "integration test"
