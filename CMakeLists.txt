@@ -63,6 +63,7 @@ endif ()
 
 add_subdirectory(client_sdk)
 
+add_subdirectory(libs/database)
 add_subdirectory(libs/transport/websocket)
 
 # Add new services here

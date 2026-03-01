@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS orders
     side SYMBOL,
     order_qty INT,
     filled_qty INT,
-    ord_type INT,
+    ord_type SYMBOL,
     price INT,
     time_in_force SYMBOL,
     order_status SYMBOL

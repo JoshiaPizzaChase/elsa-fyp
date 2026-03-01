@@ -10,6 +10,7 @@ Testing
 .vscode
 .env
 .idea
+.cache
 
 # Prerequisites
 *.d
