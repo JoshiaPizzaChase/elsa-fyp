@@ -1,13 +1,17 @@
+#pragma once
+
+#include "core/trade.h"
+#include <core/containers.h>
 #include <expected>
 #include <pqxx/pqxx>
 #include <string>
-#include <core/containers.h>
+#include <questdb/ingress/line_sender.hpp>
 
 namespace database {
 
-class OrderManagerDatabaseClient {
+class DatabaseClient {
   public:
-    OrderManagerDatabaseClient() = default;
+    DatabaseClient() = default;
 
     auto query_balance(std::string user_id, std::string symbol) -> std::expected<int, std::string> {
         try {
@@ -39,26 +43,25 @@ class OrderManagerDatabaseClient {
         }
     }
 
-    auto insert_order(const core::NewOrderSingleContainer& order) -> std::expected<void, std::string> {
-        try {
-            pqxx::work transaction{m_timeseries_db_connection_string};
-
-        } catch (const std::exception& e) {
-
-        }
-    }
-
-    auto update_order() -> std::expected<void, std::string> {
+    auto insert_order(const core::NewOrderSingleContainer& new_order_request) -> std::expected<void, std::string> {
 
     }
 
-    auto insert_trade() -> std::expected<void, std::string> {
+    auto update_order(const core::CancelOrderRequestContainer& cancel_order_request) -> std::expected<void, std::string> {
+
+    }
+
+    auto update_order(const core::ExecutionReportContainer& execution_report) -> std::expected<void, std::string> {
+
+    }
+
+    auto insert_trade(const Trade& trade) -> std::expected<void, std::string> {
 
     }
 
   private:
     pqxx::connection m_core_db_connection_string{"host=localhost port=5432 dbname=edux_core_db"};
     // TODO: I think we need to have the env. var set.
-    pqxx::connection m_timeseries_db_connection_string{"host=localhost port=8812 username=admin"};
+
 };
 } // namespace database

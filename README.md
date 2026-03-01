@@ -33,3 +33,11 @@ For any new target that uses spdlog, please include a compiler flag:
 ```
 target_compile_definitions(<target_name> <visibility> SPDLOG_USE_STD_FORMAT)
 ```
+
+## QuestDB C++ Client Installation
+```bash
+git clone https://github.com/questdb/c-questdb-client.git
+cd c-questdb-client
+cmake -S . -B build -DCMAKE_BUILD_TYPE=RELEASE
+cmake --build build
+```
