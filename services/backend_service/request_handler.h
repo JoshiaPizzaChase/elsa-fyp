@@ -20,9 +20,12 @@ public:
 private:
     // Individual endpoint handlers
     json::object handle_login(const boost::urls::params_view& params);
+    json::object handle_signup(const boost::urls::params_view& params);
     json::object handle_active_servers();
     json::object handle_user_info(const boost::urls::params_view& params);
     json::object handle_active_symbols(const boost::urls::params_view& params);
+    json::object handle_user_servers(const boost::urls::params_view& params);
+    json::object handle_historical_trades(const boost::urls::params_view& params);
 };
 
 } // namespace backend

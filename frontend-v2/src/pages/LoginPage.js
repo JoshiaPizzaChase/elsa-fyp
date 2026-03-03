@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
 import {useAuth} from '../context/AuthContext';
+import {login as apiLogin} from '../api';
 import './AuthPage.css';
 
 function LoginPage() {
@@ -22,17 +23,12 @@ function LoginPage() {
 
         setLoading(true);
         try {
-            // TODO: Replace with a real DB authentication call.
-            //       Expected: POST /api/auth/login { username, password }
-            //       Returns: { success: boolean, token?: string, error?: string }
-            await new Promise((res) => setTimeout(res, 600)); // simulate latency
-            const success = true; // placeholder — swap with real response check
-
-            if (success) {
+            const data = await apiLogin(username, password);
+            if (data.success) {
                 login(username);
                 navigate('/lobby');
             } else {
-                setError('Invalid username or password.');
+                setError(data.err_msg || 'Invalid username or password.');
             }
         } catch {
             setError('Something went wrong. Please try again.');

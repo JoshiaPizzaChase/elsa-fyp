@@ -33,7 +33,7 @@ pid_t set_up_gateway() {
     assert(fs::exists(gateway_bin_path) && fs::is_regular_file(gateway_bin_path) &&
            "Error in accessing Gateway binaries");
 
-    fs::path gateway_config_filename{"gateway01.toml"};
+    fs::path gateway_config_filename{"backend.toml"};
     fs::path path_to_gateway_config{PROJECT_SOURCE_DIR / fs::path("configs") / fs::path("gateway") /
                                     fs::path("hk01") / gateway_config_filename};
 

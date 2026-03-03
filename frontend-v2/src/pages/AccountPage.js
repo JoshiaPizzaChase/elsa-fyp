@@ -1,90 +1,9 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {useAuth} from '../context/AuthContext';
+import {getUserServers} from '../api';
 import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend} from 'recharts';
 import './AccountPage.css';
 
-// ---------------------------------------------------------------------------
-// TODO: Replace with real DB queries.
-//       fetchUserServers(username) → [{
-//         id, name, description, users, mdpEndpoint, role ('admin'|'member'),
-//         totalTrades, balances: [{ ticker, quantity }]
-//       }]
-//       fetchLatestPrices(tickers) → { [ticker]: price }
-// ---------------------------------------------------------------------------
-
-// TODO: fetch latest price per ticker from DB / market data feed
-const DUMMY_PRICES = {
-    AAPL: 0.7823,
-    GOOGL: 0.6541,
-    MSFT: 0.8910,
-    AMZN: 0.7105,
-    TSLA: 0.5630,
-    META: 0.9244,
-    NVDA: 0.8872,
-    JPM: 0.7390,
-};
-
-const DUMMY_SERVERS = [
-    {
-        id: 101,
-        name: 'FINA4999',
-        description: 'My personal quant lab for algo strategy testing.',
-        users: 5,
-        mdpEndpoint: 'ws://localhost:9001',
-        role: 'admin',
-        totalTrades: 312,
-        balances: [
-            {ticker: 'AAPL', quantity: 15980},
-            {ticker: 'GOOGL', quantity: 12750},
-            {ticker: 'MSFT', quantity: 17060},
-            {ticker: 'NVDA', quantity: 23670},
-        ],
-    },
-    {
-        id: 102,
-        name: 'FINA3999',
-        description: 'Options pricing simulation room.',
-        users: 3,
-        mdpEndpoint: 'ws://localhost:9001',
-        role: 'admin',
-        totalTrades: 87,
-        balances: [
-            {ticker: 'AMZN', quantity: 5770},
-            {ticker: 'TSLA', quantity: 12040},
-            {ticker: 'META', quantity: 3460},
-            {ticker: 'JPM', quantity: 12790},
-        ],
-    },
-    {
-        id: 1,
-        name: 'FINA2303',
-        description: 'Financial Markets & Institutions — Prof. Wong.',
-        users: 24,
-        mdpEndpoint: 'ws://localhost:9001',
-        role: 'member',
-        totalTrades: 45,
-        balances: [
-            {ticker: 'AAPL', quantity: 4090},
-            {ticker: 'JPM', quantity: 2440},
-        ],
-    },
-    {
-        id: 3,
-        name: 'FINA3203',
-        description: 'Derivative Securities — Prof. Li.',
-        users: 37,
-        mdpEndpoint: 'ws://localhost:9001',
-        role: 'member',
-        totalTrades: 128,
-        balances: [
-            {ticker: 'TSLA', quantity: 9950},
-            {ticker: 'NVDA', quantity: 4730},
-            {ticker: 'META', quantity: 3140},
-        ],
-    },
-];
-
-// TODO: fetch per-server initial USD balance from DB
 const INITIAL_BALANCE = 100000;
 
 const PIE_COLORS = [
@@ -109,19 +28,31 @@ function ServerModal({server, onClose}) {
 
 function AccountPage() {
     const {user} = useAuth();
-    const [selectedId, setSelectedId] = useState(DUMMY_SERVERS[0]?.id ?? null);
+    const [servers, setServers] = useState([]);
+    const [selectedId, setSelectedId] = useState(null);
     const [modalServer, setModalServer] = useState(undefined);
+    const [loading, setLoading] = useState(true);
 
-    const servers = DUMMY_SERVERS;
-    const prices = DUMMY_PRICES;
+    useEffect(() => {
+        if (!user?.username) return;
+        setLoading(true);
+        getUserServers(user.username)
+            .then((data) => {
+                const list = data.servers ?? [];
+                setServers(list);
+                if (list.length > 0) setSelectedId(list[0].server_id);
+            })
+            .catch((err) => console.error('Failed to fetch user servers:', err))
+            .finally(() => setLoading(false));
+    }, [user?.username]);
+
     const adminServers = servers.filter((s) => s.role === 'admin');
     const memberServers = servers.filter((s) => s.role === 'member');
-    const selected = servers.find((s) => s.id === selectedId) ?? null;
-    const totalValue = selected
-        ? selected.balances.reduce((sum, b) => sum + b.quantity * (prices[b.ticker] ?? 0), 0)
-        : 0;
+    const selected = servers.find((s) => s.server_id === selectedId) ?? null;
+    const balances = selected?.balances ?? [];
+    const totalValue = balances.reduce((sum, b) => sum + (b.balance ?? 0), 0);
     const pnl = totalValue - INITIAL_BALANCE;
-    const pnlPct = (pnl / INITIAL_BALANCE) * 100;
+    const pnlPct = INITIAL_BALANCE !== 0 ? (pnl / INITIAL_BALANCE) * 100 : 0;
 
     return (
         <div className="account-page">
@@ -148,11 +79,11 @@ function AccountPage() {
                         <p className="account-nav-empty">No servers yet.</p>
                     ) : adminServers.map((srv) => (
                         <button
-                            key={srv.id}
-                            className={`account-nav-item${selectedId === srv.id ? ' active' : ''}`}
-                            onClick={() => setSelectedId(srv.id)}
+                            key={srv.server_id}
+                            className={`account-nav-item${selectedId === srv.server_id ? ' active' : ''}`}
+                            onClick={() => setSelectedId(srv.server_id)}
                         >
-                            <span className="account-nav-name">{srv.name}</span>
+                            <span className="account-nav-name">{srv.server_name}</span>
                             <span className="account-nav-badge admin">Admin</span>
                         </button>
                     ))}
@@ -169,11 +100,11 @@ function AccountPage() {
                         <p className="account-nav-empty">Not a member of any server.</p>
                     ) : memberServers.map((srv) => (
                         <button
-                            key={srv.id}
-                            className={`account-nav-item${selectedId === srv.id ? ' active' : ''}`}
-                            onClick={() => setSelectedId(srv.id)}
+                            key={srv.server_id}
+                            className={`account-nav-item${selectedId === srv.server_id ? ' active' : ''}`}
+                            onClick={() => setSelectedId(srv.server_id)}
                         >
-                            <span className="account-nav-name">{srv.name}</span>
+                            <span className="account-nav-name">{srv.server_name}</span>
                             <span className="account-nav-badge member">Member</span>
                         </button>
                     ))}
@@ -189,13 +120,14 @@ function AccountPage() {
                         {/* Server header */}
                         <div className="account-detail-header">
                             <div className="account-detail-title-row">
-                                <h2 className="account-detail-name">{selected.name}</h2>
+                                <h2 className="account-detail-name">{selected.server_name}</h2>
                                 <span className={`account-detail-badge ${selected.role}`}>
                                     {selected.role === 'admin' ? 'Admin' : 'Member'}
                                 </span>
                             </div>
-                            <p className="account-detail-desc">{selected.description}</p>
-                            <p className="account-detail-endpoint">{selected.mdpEndpoint}</p>
+                            <p className="account-detail-desc">
+                                Symbols: {(selected.active_symbols ?? []).join(', ') || 'None'}
+                            </p>
                             {selected.role === 'admin' && (
                                 <button
                                     className="account-edit-btn"
@@ -224,16 +156,8 @@ function AccountPage() {
                                 <span className="account-stat-label">Total P&amp;L</span>
                             </div>
                             <div className="account-stat">
-                                <span className="account-stat-value">{selected.users}</span>
-                                <span className="account-stat-label">Users Online</span>
-                            </div>
-                            <div className="account-stat">
-                                <span className="account-stat-value">{selected.balances.length}</span>
+                                <span className="account-stat-value">{balances.length}</span>
                                 <span className="account-stat-label">Positions</span>
-                            </div>
-                            <div className="account-stat">
-                                <span className="account-stat-value">{selected.totalTrades}</span>
-                                <span className="account-stat-label">Total Trades</span>
                             </div>
                         </div>
 
@@ -260,26 +184,18 @@ function AccountPage() {
                             <div className="account-balances-body">
                                 <div className="account-table">
                                     <div className="account-table-head">
-                                        <span>Ticker</span>
-                                        <span>Quantity</span>
-                                        <span>Latest Price</span>
-                                        <span>USD Value</span>
+                                        <span>Symbol</span>
+                                        <span>Balance</span>
                                     </div>
-                                    {selected.balances.map(({ticker, quantity}, i) => {
-                                        const price = prices[ticker] ?? 0;
-                                        const usdValue = quantity * price;
+                                    {balances.map(({symbol, balance}, i) => {
                                         return (
-                                            <div className="account-row" key={ticker}>
+                                            <div className="account-row" key={symbol}>
                                                 <span className="account-ticker"
                                                       style={{color: PIE_COLORS[i % PIE_COLORS.length]}}>
-                                                    {ticker}
+                                                    {symbol}
                                                 </span>
                                                 <span
-                                                    className="account-value">{quantity.toLocaleString('en-US')}</span>
-                                                <span className="account-value">${price.toFixed(4)}</span>
-                                                <span className="account-value">
-                                                    ${usdValue.toLocaleString('en-US', {minimumFractionDigits: 2})}
-                                                </span>
+                                                    className="account-value">{balance.toLocaleString('en-US')}</span>
                                             </div>
                                         );
                                     })}
@@ -290,9 +206,9 @@ function AccountPage() {
                                     <ResponsiveContainer width="100%" height={260}>
                                         <PieChart>
                                             <Pie
-                                                data={selected.balances.map(({ticker, quantity}) => ({
-                                                    name: ticker,
-                                                    value: parseFloat((quantity * (prices[ticker] ?? 0)).toFixed(2)),
+                                                data={balances.map(({symbol, balance}) => ({
+                                                    name: symbol,
+                                                    value: balance,
                                                 }))}
                                                 cx="50%"
                                                 cy="50%"
@@ -301,7 +217,7 @@ function AccountPage() {
                                                 paddingAngle={3}
                                                 dataKey="value"
                                             >
-                                                {selected.balances.map((_, i) => (
+                                                {balances.map((_, i) => (
                                                     <Cell
                                                         key={i}
                                                         fill={PIE_COLORS[i % PIE_COLORS.length]}
@@ -310,7 +226,7 @@ function AccountPage() {
                                                 ))}
                                             </Pie>
                                             <Tooltip
-                                                formatter={(value) => [`$${value.toLocaleString('en-US', {minimumFractionDigits: 2})}`, 'USD Value']}
+                                                formatter={(value) => [value.toLocaleString('en-US'), 'Balance']}
                                                 contentStyle={{
                                                     backgroundColor: '#2a2a3a',
                                                     border: '1px solid #3a3a4a',

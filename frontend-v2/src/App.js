@@ -4,7 +4,8 @@ import {createChart} from 'lightweight-charts';
 import useWebSocket from './hooks/useWebSocket';
 import OrderBook from './components/OrderBook';
 import RecentTrades from './components/RecentTrades';
-import TickerSelector, {TICKERS} from './components/TickerSelector';
+import TickerSelector, {DEFAULT_TICKERS} from './components/TickerSelector';
+import {getActiveSymbols, getHistoricalTrades} from './api';
 import './App.css';
 
 const TIMEFRAMES = [
@@ -16,40 +17,27 @@ const TIMEFRAMES = [
     {label: '1d', ms: 86_400_000},
 ];
 
-// ---------------------------------------------------------------------------
-// TODO: Replace with a real API call to fetch historical trades from the DB.
-//       Expected return: array of { trade_id, ticker, price, quantity, create_timestamp (ms) }
-// ---------------------------------------------------------------------------
-async function fetchHistoricalTrades(ticker) {
-    // --- DEMO: generate random trades for the past 2 hours ---
-    const now = Date.now();
-    const twoHoursAgo = now - 2 * 60 * 60 * 1000;
-    const trades = [];
-    let price = 0.75; // starting price in the 0.5–1 range
-    let tradeId = 1;
-
-    // one trade roughly every 10 seconds over 2 hours → ~720 trades
-    for (let t = twoHoursAgo; t <= now; t += 10_000) {
-        // small random walk, clamped to [0.5, 1.0]
-        price += (Math.random() - 0.5) * 0.02;
-        price = Math.min(1.0, Math.max(0.5, price));
-        trades.push({
-            trade_id: tradeId++,
-            ticker,
-            price: parseFloat(price.toFixed(4)),
-            quantity: Math.floor(Math.random() * 90) + 10, // 10–100
-            create_timestamp: t,
-        });
-    }
-    return trades;
-}
 
 function App() {
     const {serverName, ticker} = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const mdpEndpoint = location.state?.mdpEndpoint ?? 'ws://localhost:9001';
-    const selectedTicker = TICKERS.includes(ticker?.toUpperCase()) ? ticker.toUpperCase() : 'AAPL';
+
+    const [activeTickers, setActiveTickers] = useState(DEFAULT_TICKERS);
+
+    // Fetch active symbols for this server
+    useEffect(() => {
+        if (!serverName) return;
+        getActiveSymbols(serverName)
+            .then((data) => {
+                const symbols = data.symbols ?? [];
+                if (symbols.length > 0) setActiveTickers(symbols);
+            })
+            .catch((err) => console.error('Failed to fetch active symbols:', err));
+    }, [serverName]);
+
+    const selectedTicker = activeTickers.includes(ticker?.toUpperCase()) ? ticker.toUpperCase() : (activeTickers[0] ?? 'AAPL');
     const selectedTickerRef = useRef(selectedTicker);
 
     const handleTickerChange = useCallback((newTicker) => {
@@ -176,8 +164,9 @@ function App() {
     // Load historical trades on mount and whenever the ticker changes
     useEffect(() => {
         let cancelled = false;
-        fetchHistoricalTrades(selectedTicker).then((trades) => {
+        getHistoricalTrades(serverName, selectedTicker).then((data) => {
             if (cancelled) return;
+            const trades = data.trades ?? [];
 
             // Aggregate all historical trades into the candle maps
             for (const t of trades) {
@@ -190,7 +179,7 @@ function App() {
         return () => {
             cancelled = true;
         };
-    }, [selectedTicker, ingestTrade, rebuildCandles]);
+    }, [selectedTicker, serverName, ingestTrade, rebuildCandles]);
 
     // Handle incoming live messages
     const handleMessage = useCallback((data) => {
@@ -305,6 +294,7 @@ function App() {
                         <TickerSelector
                             selectedTicker={selectedTicker}
                             onTickerChange={handleTickerChange}
+                            tickers={activeTickers}
                         />
                         <div className="timeframe-selector">
                             {TIMEFRAMES.map(tf => (

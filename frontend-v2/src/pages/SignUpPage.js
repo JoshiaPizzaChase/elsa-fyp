@@ -1,9 +1,12 @@
 import React, {useState} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
+import {signup as apiSignup} from '../api';
+import {useAuth} from '../context/AuthContext';
 import './AuthPage.css';
 
 function SignUpPage() {
     const navigate = useNavigate();
+    const {login} = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
@@ -29,16 +32,12 @@ function SignUpPage() {
 
         setLoading(true);
         try {
-            // TODO: Replace with a real DB registration call.
-            //       Expected: POST /api/auth/signup { username, password }
-            //       Returns: { success: boolean, error?: string }
-            await new Promise((res) => setTimeout(res, 600)); // simulate latency
-            const success = true; // placeholder — swap with real response check
-
-            if (success) {
-                navigate('/login');
+            const data = await apiSignup(username, password);
+            if (data.success) {
+                login(username);
+                navigate('/lobby');
             } else {
-                setError('Username already taken. Please choose another.');
+                setError(data.err_msg || 'Username already taken. Please choose another.');
             }
         } catch {
             setError('Something went wrong. Please try again.');

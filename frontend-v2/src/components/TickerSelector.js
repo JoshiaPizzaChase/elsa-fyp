@@ -1,8 +1,9 @@
 import React from 'react';
 
-const TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM'];
+const DEFAULT_TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM'];
 
-const TickerSelector = ({selectedTicker, onTickerChange}) => {
+const TickerSelector = ({selectedTicker, onTickerChange, tickers}) => {
+    const list = tickers && tickers.length > 0 ? tickers : DEFAULT_TICKERS;
     return (
         <div className="ticker-selector">
             <select
@@ -10,7 +11,7 @@ const TickerSelector = ({selectedTicker, onTickerChange}) => {
                 value={selectedTicker}
                 onChange={(e) => onTickerChange(e.target.value)}
             >
-                {TICKERS.map(ticker => (
+                {list.map(ticker => (
                     <option key={ticker} value={ticker}>{ticker}</option>
                 ))}
             </select>
@@ -18,6 +19,6 @@ const TickerSelector = ({selectedTicker, onTickerChange}) => {
     );
 };
 
-export {TICKERS};
+export {DEFAULT_TICKERS};
 export default TickerSelector;
 

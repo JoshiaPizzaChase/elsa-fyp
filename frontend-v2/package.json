@@ -2,6 +2,7 @@
   "name": "frontend-v2",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:8080",
   "dependencies": {
     "lightweight-charts": "^4.1.0",
     "react": "^18.2.0",
