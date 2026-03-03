@@ -25,7 +25,15 @@ private:
     json::object handle_user_info(const boost::urls::params_view& params);
     json::object handle_active_symbols(const boost::urls::params_view& params);
     json::object handle_user_servers(const boost::urls::params_view& params);
+    json::object handle_account_details(const boost::urls::params_view& params);
     json::object handle_historical_trades(const boost::urls::params_view& params);
+    json::object handle_create_server(const http::request<http::string_body>& req);
+    json::object handle_configure_server(const http::request<http::string_body>& req);
+
+    // Auth helper: returns the user_id of the requester if the
+    // Authorization header carries a valid "Bearer <username>" token,
+    // or -1 if the token is missing / invalid.
+    int authenticate_admin(const http::request<http::string_body>& req);
 };
 
 } // namespace backend

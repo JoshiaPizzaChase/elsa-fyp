@@ -2,7 +2,7 @@
 
 -- Set up the tables
 -- 1. users
-CREATE TABLE IF NOT EXISTS users 
+CREATE TABLE IF NOT EXISTS users
 (
     user_id INT PRIMARY KEY,
     username VARCHAR UNIQUE NOT NULL,
@@ -11,14 +11,15 @@ CREATE TABLE IF NOT EXISTS users
     last_modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- 2. servers
-CREATE TABLE IF NOT EXISTS servers 
+CREATE TABLE IF NOT EXISTS servers
 (
     server_id INT PRIMARY KEY,
     server_name VARCHAR UNIQUE NOT NULL,
     admin_id INT REFERENCES users(user_id),
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    active_tickers VARCHAR(10)[]
+    active_tickers VARCHAR(10)[],
+    description VARCHAR(200)
 );
 -- 3. whitelist
 CREATE TABLE IF NOT EXISTS allowlist

@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import {useAuth} from '../context/AuthContext';
-import {getUserServers} from '../api';
+import {getUserServers, getAccountDetails, createServer, configureServer} from '../api';
 import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend} from 'recharts';
 import './AccountPage.css';
 
@@ -11,16 +11,251 @@ const PIE_COLORS = [
     '#55efc4', '#00b894', '#ffeaa7', '#fdcb6e',
 ];
 
-function ServerModal({server, onClose}) {
+// ── TagInput ──────────────────────────────────────────────────────────────────
+// A small reusable tag-input: press Enter or comma to add, click × to remove.
+function TagInput({label, tags, onChange, placeholder}) {
+    const [draft, setDraft] = useState('');
+
+    const addTag = (raw) => {
+        const val = raw.trim().toUpperCase();
+        if (!val || tags.includes(val)) return;
+        onChange([...tags, val]);
+    };
+
+    const handleKey = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addTag(draft);
+            setDraft('');
+        } else if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
+            onChange(tags.slice(0, -1));
+        }
+    };
+
+    const handleBlur = () => {
+        if (draft.trim()) {
+            addTag(draft);
+            setDraft('');
+        }
+    };
+
+    return (
+        <div className="sm-field">
+            <label className="sm-label">{label}</label>
+            <div className="sm-tag-box">
+                {tags.map(t => (
+                    <span key={t} className="sm-tag">
+                        {t}
+                        <button type="button" className="sm-tag-remove"
+                                onClick={() => onChange(tags.filter(x => x !== t))}>×</button>
+                    </span>
+                ))}
+                <input
+                    className="sm-tag-input"
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={handleKey}
+                    onBlur={handleBlur}
+                    placeholder={tags.length === 0 ? placeholder : ''}
+                />
+            </div>
+        </div>
+    );
+}
+
+// ── AllowlistInput ────────────────────────────────────────────────────────────
+// Same as TagInput but preserves original casing (usernames are case-sensitive)
+function AllowlistInput({label, tags, onChange, placeholder}) {
+    const [draft, setDraft] = useState('');
+
+    const addTag = (raw) => {
+        const val = raw.trim();
+        if (!val || tags.includes(val)) return;
+        onChange([...tags, val]);
+    };
+
+    const handleKey = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addTag(draft);
+            setDraft('');
+        } else if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
+            onChange(tags.slice(0, -1));
+        }
+    };
+
+    const handleBlur = () => {
+        if (draft.trim()) {
+            addTag(draft);
+            setDraft('');
+        }
+    };
+
+    return (
+        <div className="sm-field">
+            <label className="sm-label">{label}</label>
+            <div className="sm-tag-box">
+                {tags.map(t => (
+                    <span key={t} className="sm-tag sm-tag-user">
+                        {t}
+                        <button type="button" className="sm-tag-remove"
+                                onClick={() => onChange(tags.filter(x => x !== t))}>×</button>
+                    </span>
+                ))}
+                <input
+                    className="sm-tag-input"
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={handleKey}
+                    onBlur={handleBlur}
+                    placeholder={tags.length === 0 ? placeholder : ''}
+                />
+            </div>
+        </div>
+    );
+}
+
+// ── ServerModal ───────────────────────────────────────────────────────────────
+function ServerModal({server, username, onClose, onSaved}) {
     const isNew = server === null;
+
+    // Pre-populate fields when editing
+    const [serverName, setServerName] = useState(isNew ? '' : (server.server_name ?? ''));
+    const [description, setDescription] = useState(isNew ? '' : (server.description ?? ''));
+    const [symbols, setSymbols] = useState(isNew ? [] : (server.active_symbols ?? []));
+    // Allowlist: for editing we'd need to fetch it; pre-fill with empty for now
+    const [allowlist, setAllowlist] = useState([]);
+
+    const [saving, setSaving] = useState(false);
+    const [toast, setToast] = useState(null); // {type:'success'|'error', msg}
+
+    const showToast = (type, msg) => {
+        setToast({type, msg});
+        setTimeout(() => setToast(null), 4000);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!serverName.trim()) {
+            showToast('error', 'Server name is required.');
+            return;
+        }
+
+        setSaving(true);
+        const payload = {
+            server_name: serverName.trim(),
+            description: description.trim(),
+            active_symbols: symbols,
+            allowlist,
+        };
+
+        try {
+            let data;
+            if (isNew) {
+                data = await createServer(username, payload);
+            } else {
+                data = await configureServer(username, payload);
+            }
+
+            if (data.auth_error) {
+                showToast('error', data.auth_error);
+            } else if (data.error) {
+                showToast('error', data.error);
+            } else {
+                showToast('success', isNew
+                    ? `Server "${data.server_name}" created!`
+                    : `Server "${data.server_name}" updated!`);
+                if (onSaved) onSaved(data);
+                // Close after a brief moment so the toast is visible
+                setTimeout(onClose, 1500);
+            }
+        } catch (err) {
+            const msg = err?.data?.auth_error ?? err?.data?.error ?? err.message ?? 'Request failed';
+            showToast('error', msg);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-                <h2 className="modal-title">
-                    {isNew ? 'Create Server' : `Edit — ${server.name}`}
-                </h2>
-                <p className="modal-placeholder">Server settings — Coming Soon</p>
-                <button className="modal-close-btn" onClick={onClose}>Close</button>
+            <div className="modal-box sm-box" onClick={e => e.stopPropagation()}>
+
+                {/* Header */}
+                <div className="sm-header">
+                    <h2 className="modal-title">
+                        {isNew ? '+ Create Server' : `Edit — ${server.server_name}`}
+                    </h2>
+                    <button className="sm-x-btn" onClick={onClose} title="Close">✕</button>
+                </div>
+
+                {/* Auth notice */}
+                <p className="sm-auth-notice">
+                    🔐 Only the server admin can save changes.
+                    Your identity is sent as <code>Authorization: Bearer {username}</code>.
+                </p>
+
+                {/* Toast */}
+                {toast && (
+                    <div className={`sm-toast sm-toast-${toast.type}`}>{toast.msg}</div>
+                )}
+
+                <form className="sm-form" onSubmit={handleSubmit}>
+
+                    {/* Server name — locked when editing */}
+                    <div className="sm-field">
+                        <label className="sm-label">Server Name <span className="sm-required">*</span></label>
+                        <input
+                            className="sm-input"
+                            value={serverName}
+                            onChange={e => setServerName(e.target.value)}
+                            placeholder="e.g. hk01"
+                            disabled={!isNew}
+                            required
+                        />
+                        {!isNew && (
+                            <span className="sm-hint">Server name cannot be changed after creation.</span>
+                        )}
+                    </div>
+
+                    {/* Description */}
+                    <div className="sm-field">
+                        <label className="sm-label">Description</label>
+                        <textarea
+                            className="sm-input sm-textarea"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Short description shown to users"
+                            rows={2}
+                        />
+                    </div>
+
+                    {/* Active symbols */}
+                    <TagInput
+                        label="Active Symbols"
+                        tags={symbols}
+                        onChange={setSymbols}
+                        placeholder="Type a symbol and press Enter…"
+                    />
+
+                    {/* Allowlist */}
+                    <AllowlistInput
+                        label="Allowed Users (Allowlist)"
+                        tags={allowlist}
+                        onChange={setAllowlist}
+                        placeholder="Type a username and press Enter…"
+                    />
+
+                    {/* Actions */}
+                    <div className="sm-actions">
+                        <button type="button" className="sm-cancel-btn" onClick={onClose}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="sm-save-btn" disabled={saving}>
+                            {saving ? 'Saving…' : (isNew ? 'Create Server' : 'Save Changes')}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
@@ -32,6 +267,8 @@ function AccountPage() {
     const [selectedId, setSelectedId] = useState(null);
     const [modalServer, setModalServer] = useState(undefined);
     const [loading, setLoading] = useState(true);
+    const [accountDetails, setAccountDetails] = useState(null);
+    const [detailsLoading, setDetailsLoading] = useState(false);
 
     useEffect(() => {
         if (!user?.username) return;
@@ -46,13 +283,40 @@ function AccountPage() {
             .finally(() => setLoading(false));
     }, [user?.username]);
 
+    const selectedServer = servers.find((s) => s.server_id === selectedId) ?? null;
+
+    useEffect(() => {
+        if (!user?.username || !selectedId || servers.length === 0) {
+            setAccountDetails(null);
+            return;
+        }
+        const srv = servers.find((s) => s.server_id === selectedId);
+        if (!srv) return;
+        setDetailsLoading(true);
+        setAccountDetails(null);
+        getAccountDetails(user.username, srv.server_name)
+            .then((data) => setAccountDetails(data))
+            .catch((err) => {
+                console.error('Failed to fetch account details:', err);
+                setAccountDetails(null);
+            })
+            .finally(() => setDetailsLoading(false));
+    }, [user?.username, selectedId, servers]);
+
     const adminServers = servers.filter((s) => s.role === 'admin');
     const memberServers = servers.filter((s) => s.role === 'member');
-    const selected = servers.find((s) => s.server_id === selectedId) ?? null;
-    const balances = selected?.balances ?? [];
-    const totalValue = balances.reduce((sum, b) => sum + (b.balance ?? 0), 0);
-    const pnl = totalValue - INITIAL_BALANCE;
-    const pnlPct = INITIAL_BALANCE !== 0 ? (pnl / INITIAL_BALANCE) * 100 : 0;
+    // Merge server list data with the richer account details response.
+    // accountDetails shape: { server: {...}, role, balances, total_value, pnl, pnl_pct }
+    // Hoist accountDetails.server one level up so selected.active_symbols etc. work directly.
+    const selected = selectedServer
+        ? {...selectedServer, ...(accountDetails?.server ?? {}), ...(accountDetails ?? {})}
+        : null;
+    const balances = accountDetails?.balances ?? selected?.balances ?? [];
+    const totalValue = accountDetails?.total_value
+        ?? balances.reduce((sum, b) => sum + (b.balance ?? 0), 0);
+    const pnl = accountDetails?.pnl ?? (totalValue - INITIAL_BALANCE);
+    const pnlPct = accountDetails?.pnl_pct
+        ?? (INITIAL_BALANCE !== 0 ? (pnl / INITIAL_BALANCE) * 100 : 0);
 
     return (
         <div className="account-page">
@@ -115,6 +379,8 @@ function AccountPage() {
             <main className="account-main">
                 {selected === null ? (
                     <div className="account-empty-state">Select a server to view details.</div>
+                ) : detailsLoading ? (
+                    <div className="account-empty-state">Loading details…</div>
                 ) : (
                     <>
                         {/* Server header */}
@@ -128,6 +394,9 @@ function AccountPage() {
                             <p className="account-detail-desc">
                                 Symbols: {(selected.active_symbols ?? []).join(', ') || 'None'}
                             </p>
+                            {selected.description && (
+                                <p className="account-detail-description">{selected.description}</p>
+                            )}
                             {selected.role === 'admin' && (
                                 <button
                                     className="account-edit-btn"
@@ -261,7 +530,18 @@ function AccountPage() {
             </main>
 
             {modalServer !== undefined && (
-                <ServerModal server={modalServer} onClose={() => setModalServer(undefined)}/>
+                <ServerModal
+                    server={modalServer}
+                    username={user?.username ?? ''}
+                    onClose={() => setModalServer(undefined)}
+                    onSaved={() => {
+                        // Refresh server list after create/edit
+                        if (!user?.username) return;
+                        getUserServers(user.username)
+                            .then(data => setServers(data.servers ?? []))
+                            .catch(console.error);
+                    }}
+                />
             )}
         </div>
     );

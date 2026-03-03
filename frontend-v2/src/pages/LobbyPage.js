@@ -80,7 +80,12 @@ function LobbyPage() {
                             </div>
                             {isOpen && (
                                 <div className="server-row-desc">
-                                    Symbols: {(server.active_symbols ?? []).join(', ') || 'None'}
+                                    {server.description && (
+                                        <span className="server-row-desc-text">{server.description}</span>
+                                    )}
+                                    <span className="server-row-desc-symbols">
+                                        Symbols: {(server.active_symbols ?? []).join(', ') || 'None'}
+                                    </span>
                                 </div>
                             )}
                         </div>

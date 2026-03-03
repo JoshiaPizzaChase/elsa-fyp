@@ -197,4 +197,15 @@
     color: #a0a0b0;
     line-height: 1.5;
     border-top: 1px solid #3a3a4a;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.server-row-desc-text {
+    color: #c0c0d0;
+}
+
+.server-row-desc-symbols {
+    color: #a0a0b0;
 }

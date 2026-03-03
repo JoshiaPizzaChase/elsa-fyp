@@ -27,7 +27,7 @@ constexpr std::string_view SIGNUP = R"(
 // Returns: all servers with admin username
 constexpr std::string_view ACTIVE_SERVERS = R"(
     SELECT s.server_id, s.server_name, u.username AS admin_name,
-           s.active_symbols, s.created_ts, s.last_modified_ts
+           s.active_tickers, s.created_ts, s.last_modified_ts, s.description
     FROM servers s
     JOIN users u ON s.admin_id = u.user_id
 )";
@@ -52,9 +52,9 @@ constexpr std::string_view USER_BALANCES = R"(
 
 // /active_symbols?server_name=...
 // Params: $1 = server_name
-// Returns: active_symbols array for the given server
+// Returns: active_tickers array for the given server
 constexpr std::string_view ACTIVE_SYMBOLS = R"(
-    SELECT server_name, active_symbols
+    SELECT server_name, active_tickers
     FROM servers
     WHERE server_name = $1
 )";
@@ -63,8 +63,8 @@ constexpr std::string_view ACTIVE_SYMBOLS = R"(
 // Params: $1 = username
 // Returns: all servers the user is associated with, as admin or member
 constexpr std::string_view USER_SERVERS = R"(
-    SELECT s.server_id, s.server_name, s.active_symbols,
-           s.created_ts, s.last_modified_ts,
+    SELECT s.server_id, s.server_name, s.active_tickers,
+           s.created_ts, s.last_modified_ts, s.description,
            CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' END AS role
     FROM users u
     JOIN (
@@ -83,6 +83,26 @@ constexpr std::string_view USER_SERVER_BALANCES = R"(
     SELECT symbol, balance
     FROM balances
     WHERE user_id = $1
+)";
+
+// /get_account_details?user_name=...&server_name=...
+// Params: $1 = username, $2 = server_name
+// Returns: server info, user role, and balances filtered to the server's active tickers
+constexpr std::string_view GET_ACCOUNT_DETAILS = R"(
+    SELECT s.server_id, s.server_name, s.description, s.active_tickers,
+           u_admin.username AS admin_name,
+           CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' END AS role,
+           b.symbol, b.balance
+    FROM users u
+    JOIN servers s ON s.server_name = $2
+    JOIN users u_admin ON u_admin.user_id = s.admin_id
+    LEFT JOIN balances b ON b.user_id = u.user_id
+        AND (b.symbol = 'USD' OR b.symbol = ANY(s.active_tickers))
+    WHERE u.username = $1
+      AND (
+          s.admin_id = u.user_id
+          OR EXISTS (SELECT 1 FROM allowlist a WHERE a.server_id = s.server_id AND a.user_id = u.user_id)
+      )
 )";
 
 // /get_historical_trades?server=...&symbol=...
