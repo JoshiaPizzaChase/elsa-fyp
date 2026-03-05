@@ -211,7 +211,8 @@ TEST_CASE("Submit order requests", "[integration]") {
         std::srand(static_cast<unsigned>(std::time(nullptr)));
     }
 
-    // while (true) {
+    // Test Random Order Submission
+    // for (int i{0}; i < 1000; i++) {
     //     // Random submit orders by first calling a random generator
     //     // then randomly choosing side, price and quantity. Ticker should be the same.
     //
@@ -240,6 +241,12 @@ TEST_CASE("Submit order requests", "[integration]") {
     //     // small delay between submissions
     //     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     // }
+
+    // Test Market Order Rejection
+    test_client_1.submit_limit_order("GME", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
+                                     "dfjkdfj");
+    test_client_1.submit_market_order("GME", 100.0, OrderSide::BUY, "BLAALAAL");
+    test_client_1.submit_market_order("GME", 100000.0, OrderSide::BUY, "TRALALAL");
 
     // cleanup
     test_client_1.disconnect();
