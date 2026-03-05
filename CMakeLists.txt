@@ -65,10 +65,10 @@ add_subdirectory(client_sdk)
 
 add_subdirectory(libs/transport/websocket)
 
+add_subdirectory(deps/c-questdb-client)
+
 # Add new services here
 add_subdirectory(services/gateway)
 add_subdirectory(services/order_manager)
 add_subdirectory(services/matching_engine)
 add_subdirectory(services/market_data_processor)
-
-

@@ -141,5 +141,4 @@ inline constexpr std::int32_t convert_to_internal_price(double price) {
 inline constexpr std::int32_t convert_to_internal_quantity(double quantity) {
     return static_cast<std::int32_t>(quantity * constants::decimal_to_int_multiplier);
 }
-
 } // namespace core

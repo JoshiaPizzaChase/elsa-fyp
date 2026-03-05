@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS orders
     ts TIMESTAMP,
     order_id INT,
     cl_order_id INT,
-    sender_comp_id VARCHAR,
+    sender_comp_id VARCHAR(15),
     symbol SYMBOL,
     side SYMBOL,
     order_qty INT,
