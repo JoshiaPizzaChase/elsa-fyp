@@ -6,6 +6,7 @@
 #include <expected>
 #include <pqxx/pqxx>
 #include <string>
+#include <vector>
 #include <questdb/ingress/line_sender.hpp>
 
 namespace database {
@@ -246,14 +247,134 @@ class DatabaseClient {
         }
     }
 
+    // ─── Query helpers (read-back via QuestDB PG wire) ───────────────────────
+
+    struct OrderRow {
+        int         order_id{};
+        int         cl_order_id{};
+        std::string sender_comp_id;
+        std::string symbol;
+        std::string side;
+        int         order_qty{};
+        int         filled_qty{};
+        std::string ord_type;
+        int         price{};
+        std::string time_in_force;
+        std::string order_status;
+    };
+
+    struct TradeRow {
+        int         price{};
+        int         quantity{};
+        std::string symbol;
+        int         trade_id{};
+        int         taker_id{};
+        int         maker_id{};
+        int         taker_order_id{};
+        int         maker_order_id{};
+        bool        is_taker_buyer{};
+    };
+
+    /// Return every row currently in the `orders` table.
+    auto query_orders() -> std::expected<std::vector<OrderRow>, std::string> {
+        try {
+            pqxx::work txn{m_timeseries_db_sql_connection};
+            pqxx::result res = txn.exec(
+                "SELECT order_id, cl_order_id, sender_comp_id, symbol, side, "
+                "order_qty, filled_qty, ord_type, price, time_in_force, order_status "
+                "FROM orders");
+            txn.commit();
+
+            std::vector<OrderRow> rows;
+            rows.reserve(res.size());
+            for (const auto& r : res) {
+                OrderRow row;
+                row.order_id       = r["order_id"].as<int>(0);
+                row.cl_order_id    = r["cl_order_id"].as<int>(0);
+                row.sender_comp_id = r["sender_comp_id"].as<std::string>("");
+                row.symbol         = r["symbol"].as<std::string>("");
+                row.side           = r["side"].as<std::string>("");
+                row.order_qty      = r["order_qty"].as<int>(0);
+                row.filled_qty     = r["filled_qty"].as<int>(0);
+                row.ord_type       = r["ord_type"].as<std::string>("");
+                row.price          = r["price"].as<int>(0);
+                row.time_in_force  = r["time_in_force"].as<std::string>("");
+                row.order_status   = r["order_status"].as<std::string>("");
+                rows.push_back(std::move(row));
+            }
+            return rows;
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error querying orders: {}", e.what())};
+        }
+    }
+
+    /// Return every row currently in the `trades` table.
+    auto query_trades() -> std::expected<std::vector<TradeRow>, std::string> {
+        try {
+            pqxx::work txn{m_timeseries_db_sql_connection};
+            pqxx::result res = txn.exec(
+                "SELECT price, quantity, symbol, trade_id, taker_id, maker_id, "
+                "taker_order_id, maker_order_id, is_taker_buyer "
+                "FROM trades");
+            txn.commit();
+
+            std::vector<TradeRow> rows;
+            rows.reserve(res.size());
+            for (const auto& r : res) {
+                TradeRow row;
+                row.price          = r["price"].as<int>(0);
+                row.quantity       = r["quantity"].as<int>(0);
+                row.symbol         = r["symbol"].as<std::string>("");
+                row.trade_id       = r["trade_id"].as<int>(0);
+                row.taker_id       = r["taker_id"].as<int>(0);
+                row.maker_id       = r["maker_id"].as<int>(0);
+                row.taker_order_id = r["taker_order_id"].as<int>(0);
+                row.maker_order_id = r["maker_order_id"].as<int>(0);
+                row.is_taker_buyer = r["is_taker_buyer"].as<bool>(false);
+                rows.push_back(std::move(row));
+            }
+            return rows;
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error querying trades: {}", e.what())};
+        }
+    }
+
+    /// Delete all rows from the orders table (for test cleanup).
+    auto truncate_orders() -> std::expected<void, std::string> {
+        try {
+            pqxx::work txn{m_timeseries_db_sql_connection};
+            txn.exec("TRUNCATE TABLE orders");
+            txn.commit();
+            return {};
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error truncating orders: {}", e.what())};
+        }
+    }
+
+    /// Delete all rows from the trades table (for test cleanup).
+    auto truncate_trades() -> std::expected<void, std::string> {
+        try {
+            pqxx::work txn{m_timeseries_db_sql_connection};
+            txn.exec("TRUNCATE TABLE trades");
+            txn.commit();
+            return {};
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error truncating trades: {}", e.what())};
+        }
+    }
+
   private:
     // SQL-based connection for edux_core_db (PostgreSQL).
     pqxx::connection m_core_db_sql_connection{
         "host=localhost port=5432 dbname=edux_core_db"};
 
-    // SQL-based connection for the questdb edux_timeseries_db.
+    // SQL-based connection for QuestDB (PG wire protocol on port 8812).
     pqxx::connection m_timeseries_db_sql_connection{
-        "host=localhost port=5432 dbname=edux_timeseries_db"};
+        "host=localhost port=8812 user=admin password=quest dbname=qdb"};
 
     // Influx-based protocol (append only) for the questdb edux_timeseries_db.
     questdb::ingress::line_sender m_timeseries_db_connection{

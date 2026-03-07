@@ -56,6 +56,7 @@ target_include_directories(test_database_client
         PRIVATE
         ${CMAKE_SOURCE_DIR}/libs
         /opt/homebrew/include
+        ${CMAKE_SOURCE_DIR}/deps/c-questdb-client/include
 )
 
 target_compile_options(test_interactive_client PRIVATE -Wall -Wextra -Wpedantic)
@@ -72,7 +73,7 @@ target_link_libraries(test_interactive_server PRIVATE websocket_lib)
 target_link_libraries(test_thread_safe_queue PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_client_server_ping_pong PRIVATE websocket_lib)
 target_link_libraries(test_two_client_one_server PRIVATE websocket_lib)
-target_link_libraries(test_database_client PRIVATE questdb_client)
+target_link_libraries(test_database_client PRIVATE Catch2::Catch2WithMain questdb_client pqxx pq)
 
 target_compile_definitions(test_interactive_client PRIVATE SPDLOG_USE_STD_FORMAT)
 target_compile_definitions(test_interactive_server PRIVATE SPDLOG_USE_STD_FORMAT)
@@ -80,3 +81,4 @@ target_compile_definitions(test_client_server_ping_pong PRIVATE SPDLOG_USE_STD_F
 target_compile_definitions(test_two_client_one_server PRIVATE SPDLOG_USE_STD_FORMAT)
 
 catch_discover_tests(test_thread_safe_queue)
+catch_discover_tests(test_database_client)
