@@ -1,5 +1,5 @@
 #include "order.h"
-#include <stdexcept>
+#include <boost/contract.hpp>
 
 namespace engine {
 Order::Order(int order_id, int price, int quantity, Side side)
@@ -23,9 +23,8 @@ Side Order::get_side() const {
 }
 
 void Order::fill(int fill_quantity) {
-    if (fill_quantity > quantity) {
-        throw std::invalid_argument("fill_quantity > quantity");
-    }
+    boost::contract::check c = boost::contract::function().precondition(
+        [&] { BOOST_CONTRACT_ASSERT(fill_quantity > quantity); });
 
     quantity -= fill_quantity;
 }
