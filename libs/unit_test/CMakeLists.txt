@@ -7,6 +7,7 @@ add_executable(test_mpsc_consumer test_mpsc_consumer.cpp test_mpsc.h)
 add_executable(test_thread_safe_queue test_thread_safe_queue.cpp)
 add_executable(test_client_server_ping_pong test_client_server_ping_pong.cpp)
 add_executable(test_two_client_one_server test_two_client_one_server.cpp)
+add_executable(test_database_client test_database_client.cpp)
 
 target_include_directories(test_mpsc_producer
         PRIVATE
@@ -51,6 +52,12 @@ target_include_directories(test_two_client_one_server
         /opt/homebrew/include
 )
 
+target_include_directories(test_database_client
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/libs
+        /opt/homebrew/include
+)
+
 target_compile_options(test_interactive_client PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(test_interactive_server PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(test_mpsc_producer PRIVATE -Wall -Wextra -Wpedantic)
@@ -58,12 +65,14 @@ target_compile_options(test_mpsc_consumer PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(test_thread_safe_queue PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(test_two_client_one_server PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(test_client_server_ping_pong PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(test_database_client PRIVATE -Wall -Wextra -Wpedantic)
 
 target_link_libraries(test_interactive_client PRIVATE websocket_lib)
 target_link_libraries(test_interactive_server PRIVATE websocket_lib)
 target_link_libraries(test_thread_safe_queue PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_client_server_ping_pong PRIVATE websocket_lib)
 target_link_libraries(test_two_client_one_server PRIVATE websocket_lib)
+target_link_libraries(test_database_client PRIVATE questdb_client)
 
 target_compile_definitions(test_interactive_client PRIVATE SPDLOG_USE_STD_FORMAT)
 target_compile_definitions(test_interactive_server PRIVATE SPDLOG_USE_STD_FORMAT)

@@ -2,14 +2,17 @@
 
 #include <core/trade.h>
 #include <core/containers.h>
+#include <core/orders.h>
 #include <expected>
 #include <pqxx/pqxx>
 #include <string>
+#include <questdb/ingress/line_sender.hpp>
 
 namespace database {
 
 using namespace std::literals::string_view_literals;
 using namespace questdb::ingress::literals;
+using namespace core;
 
 // Orders table preparsing
 static const auto orders_table     = "orders"_tn;
@@ -33,7 +36,7 @@ static const auto maker_id_cn      = "maker_id"_cn;
 static const auto taker_order_id_cn= "taker_order_id"_cn;
 static const auto maker_order_id_cn= "maker_order_id"_cn;
 static const auto quantity_cn      = "quantity"_cn;
-static const auto is_taker_buy_cn  = "is_taker_buy"_cn;
+static const auto is_taker_buyer_cn  = "is_taker_buyer"_cn;
 
 inline std::string_view to_string(Side s) {
     switch (s) {
@@ -59,7 +62,7 @@ inline std::string_view to_string(TimeInForce tif) {
     }
 }
 
-inline std::string_view to_string(OrderStatus s) {
+inline std::string_view to_string(ExecTypeOrOrderStatus s) {
     switch (s) {
     case OrderStatus::status_new:           return "NEW";
     case OrderStatus::status_partially_filled: return "PARTIALLY_FILLED";
@@ -71,10 +74,6 @@ inline std::string_view to_string(OrderStatus s) {
     }
 }
 
-// Reuse the same helper for ExecType since it's an alias.
-inline std::string_view to_string(ExecType e) {
-    return to_string(static_cast<OrderStatus>(e));
-}
 class DatabaseClient {
   public:
     DatabaseClient() = default;
@@ -130,8 +129,8 @@ class DatabaseClient {
                 .symbol(time_in_force,
                         to_string(new_order_request.time_in_force))
                 // columns next
-                .column(order_id, internal_order_id)
-                .column(cl_order_id, new_order_request.cl_ord_id)
+                .column(order_id, static_cast<std::int64_t>(internal_order_id))
+                .column(cl_order_id, static_cast<std::int64_t>(std::stoll(new_order_request.cl_ord_id)))
                 .column(order_qty, static_cast<std::int64_t>(
                                        new_order_request.order_qty))
                 .column(filled_qty, static_cast<std::int64_t>(0))
@@ -161,13 +160,13 @@ class DatabaseClient {
 
             // Represent cancel as an order row with status CANCELED and filled_qty = 0.
             buffer.table(orders_table)
-                .symbol(sender_comp_id, cancel_order_request.sender_comp_id)
                 .symbol(symbol, cancel_order_request.symbol)
                 .symbol(side, to_string(cancel_order_request.side))
                 .symbol(order_status, std::string_view{"CANCELED"})
-                .column(order_id,
-                        std::stoi(cancel_order_request.order_id.value()))
-                .column(cl_order_id, cancel_order_request.cl_ord_id)
+                .column(sender_comp_id, cancel_order_request.sender_comp_id)
+                .column(order_id,static_cast<int64_t>(
+                        std::stoll(cancel_order_request.order_id.value())))
+                .column(cl_order_id, static_cast<int64_t>(std::stoll(cancel_order_request.cl_ord_id)))
                 .column(order_qty, static_cast<std::int64_t>(
                                        cancel_order_request.order_qty))
                 .column(filled_qty, static_cast<std::int64_t>(0))
@@ -190,7 +189,6 @@ class DatabaseClient {
             // Map execution report to orders table row; use cum_qty as filled_qty and
             // ord_status from the report.
             buffer.table(orders_table)
-                .symbol(sender_comp_id, execution_report.sender_comp_id)
                 .symbol(symbol, execution_report.symbol)
                 .symbol(side, to_string(execution_report.side))
                 .symbol(order_status, to_string(execution_report.ord_status))
@@ -198,8 +196,9 @@ class DatabaseClient {
                         execution_report.time_in_force
                             ? to_string(*execution_report.time_in_force)
                             : std::string_view{"UNKNOWN"})
-                .column(order_id, std::stoi(execution_report.order_id))
-                .column(cl_order_id, execution_report.cl_order_id)
+                .column(sender_comp_id, execution_report.sender_comp_id)
+                .column(order_id, static_cast<std::int64_t>(std::stoll(execution_report.order_id)))
+                .column(cl_order_id, static_cast<std::int64_t>(std::stoll(execution_report.cl_order_id)))
                 .column(order_qty,
                         static_cast<std::int64_t>(execution_report.leaves_qty +
                                                   execution_report.cum_qty))
@@ -225,7 +224,7 @@ class DatabaseClient {
 
             buffer.table(trades_table)
                 // symbols
-                .symbol(symbol, trade.symbol)
+                .symbol(symbol, trade.ticker)
                 // columns
                 .column(price, static_cast<std::int64_t>(trade.price))
                 .column(quantity_cn, static_cast<std::int64_t>(trade.quantity))
@@ -236,7 +235,7 @@ class DatabaseClient {
                         static_cast<std::int64_t>(trade.taker_order_id))
                 .column(maker_order_id_cn,
                         static_cast<std::int64_t>(trade.maker_order_id))
-                .column(is_taker_buy_cn, trade.is_taker_buy)
+                .column(is_taker_buyer_cn, trade.is_taker_buyer)
                 .at(questdb::ingress::timestamp_micros::now());
 
             m_timeseries_db_connection.flush(buffer);
