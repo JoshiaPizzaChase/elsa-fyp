@@ -1,0 +1,31 @@
+[package]
+name = "questdb-rs-ffi"
+version = "6.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "questdb_client"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+libc = "0.2"
+questdb-confstr-ffi = { version = "0.1.1", optional = true }
+
+[dependencies.questdb-rs]
+path = "../questdb-rs"
+default-features = false
+features = [
+    "ring-crypto",
+    "insecure-skip-verify",
+    "tls-webpki-certs",
+    "tls-native-certs",
+    "sync-sender"
+]
+
+[features]
+# Expose the config parsing C API.
+# This used by `py-questdb-client` to parse the config file.
+# It is exposed here to avoid having multiple copies of the `questdb-confstr`
+# crate in the final binary.
+confstr-ffi = ["dep:questdb-confstr-ffi"]
