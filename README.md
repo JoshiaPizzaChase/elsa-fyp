@@ -35,7 +35,9 @@ target_compile_definitions(<target_name> <visibility> SPDLOG_USE_STD_FORMAT)
 ```
 
 ## libpqxx installation
-It is recommended to install libpqxx from source, and important to disable shared libraries. Without it, you *may* encounter double-free issues.
+1. First ensure you installed any postgresql related libraries on your system, perhaps via the package manager.
+This includes `libpq`, the underlying C-library powering `libpqxx`.
+2. It is recommended to install libpqxx from source, and important to disable shared libraries. Without it, you *may* encounter double-free issues.
 ```bash
 git clone https://github.com/jtv/libpqxx.git
 cd libpqxx
