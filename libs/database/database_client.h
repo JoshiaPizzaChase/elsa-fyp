@@ -7,6 +7,9 @@
 #include <core/trade.h>
 #include <expected>
 #include <optional>
+#include <format>
+#include <memory>
+#include <atomic>
 #include <pqxx/pqxx>
 #include <questdb/ingress/line_sender.hpp>
 #include <string>
