@@ -172,6 +172,7 @@ class AsyncWriter {
                 .symbol(side, to_string(new_order_request.side))
                 .symbol(ord_type, to_string(new_order_request.ord_type))
                 .symbol(time_in_force, to_string(new_order_request.time_in_force))
+                .symbol(order_status, std::string_view{"NEW"})
                 .column(sender_comp_id, new_order_request.sender_comp_id)
                 .column(order_id, static_cast<std::int64_t>(order.internal_order_id))
                 .column(cl_order_id,
@@ -182,7 +183,6 @@ class AsyncWriter {
                 .column(price, static_cast<std::int64_t>(
                                    new_order_request.price ? *new_order_request.price : 0))
                 // initial order_status is NEW
-                .column(order_status, std::string_view{"NEW"})
                 .at(questdb::ingress::timestamp_micros::now());
 
             return;
