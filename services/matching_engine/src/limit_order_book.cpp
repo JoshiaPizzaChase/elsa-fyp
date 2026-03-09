@@ -190,11 +190,10 @@ std::optional<int> LimitOrderBook::get_fill_cost(int quantity, Side side) const 
     boost::contract::check c = boost::contract::public_function(this)
                                    .precondition([&] { BOOST_CONTRACT_ASSERT(quantity > 0); })
                                    .postcondition([&] {
-                                       std::ignore =
-                                           total_cost.transform([](int c) -> int {
-                                               BOOST_CONTRACT_ASSERT(c > 0);
-                                               return c;
-                                           });
+                                       std::ignore = total_cost.transform([](int c) -> int {
+                                           BOOST_CONTRACT_ASSERT(c > 0);
+                                           return c;
+                                       });
                                    });
 
     const auto& side_map = get_side(side);
