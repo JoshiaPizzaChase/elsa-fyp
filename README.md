@@ -43,3 +43,7 @@ cd libpqxx
 make
 sudo make install
 ```
+
+## questdb installation
+Run this and you should see `deps/c-questdb-client/...` in your project directory.
+`git subtree add --prefix deps/c-questdb-client https://github.com/questdb/c-questdb-client.git 6.0.0 --squash`
