@@ -1,9 +1,7 @@
 #include "limit_order_book.h"
 #include "core/constants.h"
-#include <boost/asio/local/basic_endpoint.hpp>
 #include <boost/contract/assert.hpp>
 #include <boost/contract/check.hpp>
-#include <boost/contract/public_function.hpp>
 
 namespace engine {
 LimitOrderBook::LimitOrderBook(std::string_view ticker)
@@ -130,11 +128,17 @@ SideContainer& LimitOrderBook::get_side_mut(Side side) {
 }
 
 LevelAggregate LimitOrderBook::get_level_aggregate(Side side, int level) const {
-    boost::contract::check c = boost::contract::public_function(this).precondition([&] {
-        const auto& side_map = get_side(side);
-        BOOST_CONTRACT_ASSERT(!get_side(side).empty());
-        BOOST_CONTRACT_ASSERT(level >= 0 && level < side_map.size());
-    });
+    LevelAggregate level_aggregate{};
+    boost::contract::check c = boost::contract::public_function(this)
+                                   .precondition([&] {
+                                       const auto& side_map = get_side(side);
+                                       BOOST_CONTRACT_ASSERT(!get_side(side).empty());
+                                       BOOST_CONTRACT_ASSERT(level >= 0 && level < side_map.size());
+                                   })
+                                   .postcondition([&] {
+                                       BOOST_CONTRACT_ASSERT(level_aggregate.price > 0);
+                                       BOOST_CONTRACT_ASSERT(level_aggregate.quantity > 0);
+                                   });
 
     const auto& side_map = get_side(side);
     const auto it = (side == Side::bid) ? std::prev(side_map.cend(), level + 1)
@@ -147,7 +151,7 @@ LevelAggregate LimitOrderBook::get_level_aggregate(Side side, int level) const {
         level_quantity += order.get_quantity();
     }
 
-    return LevelAggregate{.price = level_price, .quantity = level_quantity};
+    return level_aggregate = LevelAggregate{.price = level_price, .quantity = level_quantity};
 }
 
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
@@ -182,33 +186,38 @@ Trade LimitOrderBook::create_trade(int taker_order_id, int maker_order_id, int p
 // Calculates the total cost of filling required quantity starting from best orders. If there is
 // insufficient liquidity, returns the total cost of fillable quantity.
 std::optional<int> LimitOrderBook::get_fill_cost(int quantity, Side side) const {
-    boost::contract::check c = boost::contract::public_function(this).precondition(
-        [&] { BOOST_CONTRACT_ASSERT(quantity > 0); });
+    std::optional<int> total_cost{std::nullopt};
+    boost::contract::check c = boost::contract::public_function(this)
+                                   .precondition([&] { BOOST_CONTRACT_ASSERT(quantity > 0); })
+                                   .postcondition([&] {
+                                       std::ignore =
+                                           total_cost.transform([](int c) -> int {
+                                               BOOST_CONTRACT_ASSERT(c > 0);
+                                               return c;
+                                           });
+                                   });
 
-    const auto far_side = (side == Side::bid) ? Side::ask : Side::bid;
-    const auto& far_side_map = get_side(far_side);
-    if (far_side_map.empty()) {
+    const auto& side_map = get_side(side);
+    if (side_map.empty()) {
         return std::nullopt;
     }
 
-    int total_cost{0};
-
-    for (int i{0}; i < far_side_map.size(); i++) {
+    total_cost = 0;
+    for (int i{0}; i < side_map.size(); i++) {
         if (quantity == 0) {
             break;
         }
 
-        auto level_aggregate = get_level_aggregate(far_side, i);
+        auto level_aggregate = get_level_aggregate(side, i);
 
         if (level_aggregate.quantity <= quantity) {
-            total_cost += level_aggregate.price * level_aggregate.quantity;
+            total_cost.value() += level_aggregate.price * level_aggregate.quantity;
             quantity -= level_aggregate.quantity;
         } else {
-            total_cost += level_aggregate.price * quantity;
+            total_cost.value() += level_aggregate.price * quantity;
             quantity = 0;
         }
     }
-
     return total_cost;
 }
 } // namespace engine
