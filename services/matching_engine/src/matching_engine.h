@@ -6,14 +6,14 @@
 
 namespace engine {
 using WebsocketManagerServer = transport::WebsocketManagerServer;
+
 class MatchingEngine {
   public:
     MatchingEngine(std::string_view host, int port);
-    std::expected<void, std::string> start();
+    void init();
+    void run();
 
   private:
-    std::shared_ptr<spdlog::logger> logger;
-
     WebsocketManagerServer inbound_ws_server;
 
     OrderbookSnapshotRingBuffer ring_buffer;
