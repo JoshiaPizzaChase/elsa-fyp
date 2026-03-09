@@ -47,6 +47,20 @@ class ThreadSafeQueue {
         return value;
     }
 
+    // An optimized dequeuing method to replace busy-waiting.
+    // Tries to dequeue all objects when the queue is non-empty, in a thread safe manner.
+    // Using in a while-true loop is safe as condition variables sleeps the thread.
+    std::vector<T> wait_and_dequeue_all() {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_condition_var.wait(lock, [this]() { return !m_queue.empty(); });
+        std::vector<T> values;
+        while (!m_queue.empty()) {
+            values.push_back(std::move(m_queue.front()));
+            m_queue.pop();
+        }
+        return values;
+    }
+
   private:
     mutable std::mutex m_mutex;
     mutable std::condition_variable m_condition_var;
