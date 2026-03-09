@@ -35,7 +35,7 @@ target_compile_definitions(<target_name> <visibility> SPDLOG_USE_STD_FORMAT)
 ```
 
 ## libpqxx installation
-It is recommended to install libpqxx from source, and important to disable shared libraries. Without it, you *may* encounter issues double free issues.
+It is recommended to install libpqxx from source, and important to disable shared libraries. Without it, you *may* encounter double-free issues.
 ```bash
 git clone https://github.com/jtv/libpqxx.git
 cd libpqxx
