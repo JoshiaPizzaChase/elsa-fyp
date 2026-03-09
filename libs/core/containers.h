@@ -24,7 +24,6 @@ struct NewOrderSingleContainer {
 struct CancelOrderRequestContainer {
     std::string sender_comp_id;
     std::string target_comp_id;
-    std::optional<std::string> order_id;
     std::string orig_cl_ord_id; // Original clOrdId for the order this cancel request is for.
     std::string cl_ord_id;
     std::string symbol;
