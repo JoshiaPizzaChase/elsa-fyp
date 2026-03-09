@@ -16,12 +16,13 @@
 #include <thread>
 #include <vector>
 
+
+namespace database {
+
 using namespace std::literals::string_view_literals;
 using namespace questdb::ingress::literals;
 using namespace std::chrono_literals;
 using namespace core;
-
-namespace database {
 
 // Enum to string helpers since questdb does not support enum types natively.
 inline std::string_view to_string(Side s) {
