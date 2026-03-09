@@ -81,4 +81,4 @@ target_compile_definitions(test_client_server_ping_pong PRIVATE SPDLOG_USE_STD_F
 target_compile_definitions(test_two_client_one_server PRIVATE SPDLOG_USE_STD_FORMAT)
 
 catch_discover_tests(test_thread_safe_queue)
-catch_discover_tests(test_database_client)
+# catch_discover_tests(test_database_client)

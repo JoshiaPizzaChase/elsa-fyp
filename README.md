@@ -33,3 +33,13 @@ For any new target that uses spdlog, please include a compiler flag:
 ```
 target_compile_definitions(<target_name> <visibility> SPDLOG_USE_STD_FORMAT)
 ```
+
+## libpqxx installation
+It is recommended to install libpqxx from source, and important to disable shared libraries. Without it, you *may* encounter issues double free issues.
+```bash
+git clone https://github.com/jbarnard/libpqxx.git
+cd libpqxx
+./configure --disable-shared
+make
+sudo make install
+```

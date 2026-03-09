@@ -9,35 +9,11 @@
 #include <vector>
 #include <questdb/ingress/line_sender.hpp>
 
-namespace database {
-
 using namespace std::literals::string_view_literals;
 using namespace questdb::ingress::literals;
 using namespace core;
 
-// Orders table preparsing
-static const auto orders_table     = "orders"_tn;
-static const auto order_id         = "order_id"_cn;
-static const auto cl_order_id      = "cl_order_id"_cn;
-static const auto sender_comp_id   = "sender_comp_id"_cn;
-static const auto symbol           = "symbol"_cn;
-static const auto side             = "side"_cn;
-static const auto order_qty        = "order_qty"_cn;
-static const auto filled_qty       = "filled_qty"_cn;
-static const auto ord_type         = "ord_type"_cn;
-static const auto price            = "price"_cn;
-static const auto time_in_force    = "time_in_force"_cn;
-static const auto order_status     = "order_status"_cn;
-
-// Trades table preparsing
-static const auto trades_table     = "trades"_tn;
-static const auto trade_id_cn      = "trade_id"_cn;
-static const auto taker_id_cn      = "taker_id"_cn;
-static const auto maker_id_cn      = "maker_id"_cn;
-static const auto taker_order_id_cn= "taker_order_id"_cn;
-static const auto maker_order_id_cn= "maker_order_id"_cn;
-static const auto quantity_cn      = "quantity"_cn;
-static const auto is_taker_buyer_cn  = "is_taker_buyer"_cn;
+namespace database {
 
 inline std::string_view to_string(Side s) {
     switch (s) {
@@ -77,12 +53,19 @@ inline std::string_view to_string(ExecTypeOrOrderStatus s) {
 
 class DatabaseClient {
   public:
+  // Move only.
     DatabaseClient() = default;
+
+    DatabaseClient& operator=(const DatabaseClient&) = delete;
+    DatabaseClient& operator=(DatabaseClient&&) = default;
+
+    DatabaseClient(const DatabaseClient&) = delete;
+    DatabaseClient(DatabaseClient&&) = default;
 
     auto read_balance(std::string user_id, std::string symbol)
         -> std::expected<int, std::string> {
         try {
-            pqxx::work transaction{m_core_db_sql_connection};
+            pqxx::work transaction{*m_core_db_sql_connection};
 
             int balance{transaction.query_value<int>(
                 "SELECT balance FROM balances WHERE user_id = $1 AND symbol = $2",
@@ -100,7 +83,7 @@ class DatabaseClient {
     auto update_balance(std::string user_id, std::string symbol, int balance)
         -> std::expected<void, std::string> {
         try {
-            pqxx::work transaction{m_core_db_sql_connection};
+            pqxx::work transaction{*m_core_db_sql_connection};
 
             transaction.exec(
                 "UPDATE balances SET balance = $3 WHERE user_id = $1 AND symbol = $2",
@@ -118,8 +101,21 @@ class DatabaseClient {
                       const core::NewOrderSingleContainer& new_order_request)
         -> std::expected<void, std::string> {
         try {
+            const auto orders_table   = "orders"_tn;
+            const auto order_id       = "order_id"_cn;
+            const auto cl_order_id    = "cl_order_id"_cn;
+            const auto sender_comp_id = "sender_comp_id"_cn;
+            const auto symbol         = "symbol"_cn;
+            const auto side           = "side"_cn;
+            const auto order_qty      = "order_qty"_cn;
+            const auto filled_qty     = "filled_qty"_cn;
+            const auto ord_type       = "ord_type"_cn;
+            const auto price          = "price"_cn;
+            const auto time_in_force  = "time_in_force"_cn;
+            const auto order_status   = "order_status"_cn;
+
             questdb::ingress::line_sender_buffer buffer =
-                m_timeseries_db_connection.new_buffer();
+                m_timeseries_db_connection->new_buffer();
 
             buffer.table(orders_table)
                 // symbols first
@@ -144,7 +140,7 @@ class DatabaseClient {
                 .column(order_status, std::string_view{"NEW"})
                 .at(questdb::ingress::timestamp_micros::now());
 
-            m_timeseries_db_connection.flush(buffer);
+            m_timeseries_db_connection->flush(buffer);
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{
@@ -156,8 +152,18 @@ class DatabaseClient {
         -> std::expected<void, std::string> {
         assert(cancel_order_request.order_id.has_value());
         try {
+            const auto orders_table   = "orders"_tn;
+            const auto order_id       = "order_id"_cn;
+            const auto cl_order_id    = "cl_order_id"_cn;
+            const auto sender_comp_id = "sender_comp_id"_cn;
+            const auto symbol         = "symbol"_cn;
+            const auto side           = "side"_cn;
+            const auto order_qty      = "order_qty"_cn;
+            const auto filled_qty     = "filled_qty"_cn;
+            const auto order_status   = "order_status"_cn;
+
             questdb::ingress::line_sender_buffer buffer =
-                m_timeseries_db_connection.new_buffer();
+                m_timeseries_db_connection->new_buffer();
 
             // Represent cancel as an order row with status CANCELED and filled_qty = 0.
             buffer.table(orders_table)
@@ -173,7 +179,7 @@ class DatabaseClient {
                 .column(filled_qty, static_cast<std::int64_t>(0))
                 .at(questdb::ingress::timestamp_micros::now());
 
-            m_timeseries_db_connection.flush(buffer);
+            m_timeseries_db_connection->flush(buffer);
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{
@@ -184,8 +190,20 @@ class DatabaseClient {
     auto insert_execution(const core::ExecutionReportContainer& execution_report)
         -> std::expected<void, std::string> {
         try {
+            const auto orders_table   = "orders"_tn;
+            const auto order_id       = "order_id"_cn;
+            const auto cl_order_id    = "cl_order_id"_cn;
+            const auto sender_comp_id = "sender_comp_id"_cn;
+            const auto symbol         = "symbol"_cn;
+            const auto side           = "side"_cn;
+            const auto order_qty      = "order_qty"_cn;
+            const auto filled_qty     = "filled_qty"_cn;
+            const auto price          = "price"_cn;
+            const auto time_in_force  = "time_in_force"_cn;
+            const auto order_status   = "order_status"_cn;
+
             questdb::ingress::line_sender_buffer buffer =
-                m_timeseries_db_connection.new_buffer();
+                m_timeseries_db_connection->new_buffer();
 
             // Map execution report to orders table row; use cum_qty as filled_qty and
             // ord_status from the report.
@@ -210,7 +228,7 @@ class DatabaseClient {
                             execution_report.price ? *execution_report.price : 0))
                 .at(questdb::ingress::timestamp_micros::now());
 
-            m_timeseries_db_connection.flush(buffer);
+            m_timeseries_db_connection->flush(buffer);
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{std::format(
@@ -220,8 +238,19 @@ class DatabaseClient {
 
     auto insert_trade(const Trade& trade) -> std::expected<void, std::string> {
         try {
+            const auto trades_table      = "trades"_tn;
+            const auto symbol            = "symbol"_cn;
+            const auto price             = "price"_cn;
+            const auto quantity_cn       = "quantity"_cn;
+            const auto trade_id_cn       = "trade_id"_cn;
+            const auto taker_id_cn       = "taker_id"_cn;
+            const auto maker_id_cn       = "maker_id"_cn;
+            const auto taker_order_id_cn = "taker_order_id"_cn;
+            const auto maker_order_id_cn = "maker_order_id"_cn;
+            const auto is_taker_buyer_cn = "is_taker_buyer"_cn;
+
             questdb::ingress::line_sender_buffer buffer =
-                m_timeseries_db_connection.new_buffer();
+                m_timeseries_db_connection->new_buffer();
 
             buffer.table(trades_table)
                 // symbols
@@ -239,15 +268,13 @@ class DatabaseClient {
                 .column(is_taker_buyer_cn, trade.is_taker_buyer)
                 .at(questdb::ingress::timestamp_micros::now());
 
-            m_timeseries_db_connection.flush(buffer);
+            m_timeseries_db_connection->flush(buffer);
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{
                 std::format("Error faced when inserting trade: {}", e.what())};
         }
     }
-
-    // ─── Query helpers (read-back via QuestDB PG wire) ───────────────────────
 
     struct OrderRow {
         int         order_id{};
@@ -275,10 +302,9 @@ class DatabaseClient {
         bool        is_taker_buyer{};
     };
 
-    /// Return every row currently in the `orders` table.
     auto query_orders() -> std::expected<std::vector<OrderRow>, std::string> {
         try {
-            pqxx::work txn{m_timeseries_db_sql_connection};
+            pqxx::work txn{*m_timeseries_db_sql_connection};
             pqxx::result res = txn.exec(
                 "SELECT order_id, cl_order_id, sender_comp_id, symbol, side, "
                 "order_qty, filled_qty, ord_type, price, time_in_force, order_status "
@@ -309,10 +335,9 @@ class DatabaseClient {
         }
     }
 
-    /// Return every row currently in the `trades` table.
     auto query_trades() -> std::expected<std::vector<TradeRow>, std::string> {
         try {
-            pqxx::work txn{m_timeseries_db_sql_connection};
+            pqxx::work txn{*m_timeseries_db_sql_connection};
             pqxx::result res = txn.exec(
                 "SELECT price, quantity, symbol, trade_id, taker_id, maker_id, "
                 "taker_order_id, maker_order_id, is_taker_buyer "
@@ -341,10 +366,9 @@ class DatabaseClient {
         }
     }
 
-    /// Delete all rows from the orders table (for test cleanup).
     auto truncate_orders() -> std::expected<void, std::string> {
         try {
-            pqxx::work txn{m_timeseries_db_sql_connection};
+            pqxx::work txn{*m_timeseries_db_sql_connection};
             txn.exec("TRUNCATE TABLE orders");
             txn.commit();
             return {};
@@ -354,10 +378,9 @@ class DatabaseClient {
         }
     }
 
-    /// Delete all rows from the trades table (for test cleanup).
     auto truncate_trades() -> std::expected<void, std::string> {
         try {
-            pqxx::work txn{m_timeseries_db_sql_connection};
+            pqxx::work txn{*m_timeseries_db_sql_connection};
             txn.exec("TRUNCATE TABLE trades");
             txn.commit();
             return {};
@@ -369,17 +392,20 @@ class DatabaseClient {
 
   private:
     // SQL-based connection for edux_core_db (PostgreSQL).
-    pqxx::connection m_core_db_sql_connection{
-        "host=localhost port=5432 dbname=edux_core_db"};
+    std::unique_ptr<pqxx::connection> m_core_db_sql_connection{
+        std::make_unique<pqxx::connection>(
+            "host=localhost port=5432 dbname=edux_core_db")};
 
     // SQL-based connection for QuestDB (PG wire protocol on port 8812).
-    pqxx::connection m_timeseries_db_sql_connection{
-        "host=localhost port=8812 user=admin password=quest dbname=qdb"};
+    std::unique_ptr<pqxx::connection> m_timeseries_db_sql_connection{
+        std::make_unique<pqxx::connection>(
+            "host=localhost port=8812 user=admin password=quest dbname=qdb")};
 
     // Influx-based protocol (append only) for the questdb edux_timeseries_db.
-    questdb::ingress::line_sender m_timeseries_db_connection{
-        questdb::ingress::line_sender::from_conf(
-            "tcp::addr=localhost:9000;protocol_version=3;")};
+    std::unique_ptr<questdb::ingress::line_sender> m_timeseries_db_connection{
+        std::make_unique<questdb::ingress::line_sender>(
+            questdb::ingress::line_sender::from_conf(
+                "tcp::addr=localhost:9000;"))};
 };
 
 } // namespace database
