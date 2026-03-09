@@ -168,13 +168,11 @@ class AsyncWriter {
 
             m_buffer
                 .table(orders_table)
-                // symbols first
-                .symbol(sender_comp_id, new_order_request.sender_comp_id)
                 .symbol(symbol, new_order_request.symbol)
                 .symbol(side, to_string(new_order_request.side))
                 .symbol(ord_type, to_string(new_order_request.ord_type))
                 .symbol(time_in_force, to_string(new_order_request.time_in_force))
-                // columns next
+                .column(sender_comp_id, new_order_request.sender_comp_id)
                 .column(order_id, static_cast<std::int64_t>(order.internal_order_id))
                 .column(cl_order_id,
                         static_cast<std::int64_t>(std::stoll(new_order_request.cl_ord_id)))
