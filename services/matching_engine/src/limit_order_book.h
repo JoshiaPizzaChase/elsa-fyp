@@ -32,9 +32,10 @@ class LimitOrderBook {
     [[nodiscard]] LevelAggregate get_level_aggregate(Side side, int level) const;
     [[nodiscard]] TopOrderBookLevelAggregates get_top_order_book_level_aggregate() const;
 
+    [[nodiscard]] bool order_id_exists(int order_id) const;
     [[nodiscard]] const Order& get_order_by_id(int order_id) const;
 
-    [[nodiscard]] std::expected<int, std::string> get_fill_cost(int quantity, Side side) const;
+    [[nodiscard]] std::optional<int> get_fill_cost(int quantity, Side side) const;
 
   private:
     OrderbookSnapshotRingBuffer shm_orderbook_snapshot;

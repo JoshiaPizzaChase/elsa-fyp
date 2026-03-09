@@ -24,7 +24,7 @@ Side Order::get_side() const {
 
 void Order::fill(int fill_quantity) {
     boost::contract::check c = boost::contract::function().precondition(
-        [&] { BOOST_CONTRACT_ASSERT(fill_quantity > quantity); });
+        [&] { BOOST_CONTRACT_ASSERT(fill_quantity <= quantity); });
 
     quantity -= fill_quantity;
 }

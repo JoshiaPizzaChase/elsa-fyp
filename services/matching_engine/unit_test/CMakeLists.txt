@@ -1,10 +1,11 @@
 include(Catch)
 
 add_executable(matching_engine_test limit_order_book_test.cpp)
+cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH MATCHING_ENGINE_DIR)
+target_include_directories(matching_engine_test PRIVATE ${MATCHING_ENGINE_DIR}/src)
 
-# link to catch2 library
-target_link_libraries(matching_engine_test PRIVATE Catch2::Catch2WithMain matching_engine_lib)
+target_link_libraries(matching_engine_test PRIVATE GTest::gtest_main matching_engine_lib)
 
-catch_discover_tests(matching_engine_test)
+gtest_discover_tests(matching_engine_test)
 
 target_precompile_headers(matching_engine_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/precompiled.h)

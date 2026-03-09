@@ -23,7 +23,7 @@ void LimitOrderBook::add_order(int order_id, int price, int quantity, Side side)
         BOOST_CONTRACT_ASSERT(quantity > 0);
     });
 
-    if (side == Side::Bid) {
+    if (side == Side::bid) {
         match_order(bids, asks, price, quantity, order_id, side);
     } else {
         match_order(asks, bids, price, quantity, order_id, side);
@@ -33,11 +33,11 @@ void LimitOrderBook::add_order(int order_id, int price, int quantity, Side side)
 void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_side, int price,
                                  int remaining_quantity, int order_id, Side side) {
     while (!far_side.empty() && remaining_quantity > 0) {
-        const auto best_level = (side == Side::Bid) ? far_side.begin() : std::prev(far_side.end());
+        const auto best_level = (side == Side::bid) ? far_side.begin() : std::prev(far_side.end());
 
         const auto& best_level_price = best_level->first;
-        if ((side == Side::Bid && price < best_level_price) ||
-            (side == Side::Ask && price > best_level_price)) {
+        if ((side == Side::bid && price < best_level_price) ||
+            (side == Side::ask && price > best_level_price)) {
             break;
         }
 
@@ -106,8 +106,12 @@ std::optional<std::reference_wrapper<const Order>> LimitOrderBook::get_best_orde
         return std::nullopt;
     }
 
-    return (side == Side::Bid) ? side_map.rbegin()->second.front()
+    return (side == Side::bid) ? side_map.rbegin()->second.front()
                                : side_map.begin()->second.front();
+}
+
+bool LimitOrderBook::order_id_exists(int order_id) const {
+    return order_id_map.contains(order_id);
 }
 
 const Order& LimitOrderBook::get_order_by_id(int order_id) const {
@@ -118,22 +122,22 @@ const Order& LimitOrderBook::get_order_by_id(int order_id) const {
 }
 
 const SideContainer& LimitOrderBook::get_side(Side side) const {
-    return (side == Side::Bid) ? bids : asks;
+    return (side == Side::bid) ? bids : asks;
 }
 
 SideContainer& LimitOrderBook::get_side_mut(Side side) {
-    return (side == Side::Bid) ? bids : asks;
+    return (side == Side::bid) ? bids : asks;
 }
 
 LevelAggregate LimitOrderBook::get_level_aggregate(Side side, int level) const {
     boost::contract::check c = boost::contract::public_function(this).precondition([&] {
         const auto& side_map = get_side(side);
         BOOST_CONTRACT_ASSERT(!get_side(side).empty());
-        BOOST_CONTRACT_ASSERT(level < side_map.size());
+        BOOST_CONTRACT_ASSERT(level >= 0 && level < side_map.size());
     });
 
     const auto& side_map = get_side(side);
-    const auto it = (side == Side::Bid) ? std::prev(side_map.cend(), level + 1)
+    const auto it = (side == Side::bid) ? std::prev(side_map.cend(), level + 1)
                                         : std::next(side_map.cbegin(), level);
 
     const int level_price = it->first;
@@ -151,12 +155,12 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
 
     const auto bid_level_count = bids.size();
     for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS && i < bid_level_count; i++) {
-        top_aggregate.bid_level_aggregates.at(i) = get_level_aggregate(Side::Bid, i);
+        top_aggregate.bid_level_aggregates.at(i) = get_level_aggregate(Side::bid, i);
     }
 
     const auto ask_level_count = asks.size();
     for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS && i < ask_level_count; i++) {
-        top_aggregate.ask_level_aggregates.at(i) = get_level_aggregate(Side::Ask, i);
+        top_aggregate.ask_level_aggregates.at(i) = get_level_aggregate(Side::ask, i);
     }
 
     return top_aggregate;
@@ -172,6 +176,39 @@ Trade LimitOrderBook::create_trade(int taker_order_id, int maker_order_id, int p
     // TODO: Add random trade_id generation
     // TODO: add back taker and maker id
     return Trade{ticker.data(),          price, quantity, 100, 1, 1, taker_order_id, maker_order_id,
-                 taker_side == Side::Bid};
+                 taker_side == Side::bid};
+}
+
+// Calculates the total cost of filling required quantity starting from best orders. If there is
+// insufficient liquidity, returns the total cost of fillable quantity.
+std::optional<int> LimitOrderBook::get_fill_cost(int quantity, Side side) const {
+    boost::contract::check c = boost::contract::public_function(this).precondition(
+        [&] { BOOST_CONTRACT_ASSERT(quantity > 0); });
+
+    const auto far_side = (side == Side::bid) ? Side::ask : Side::bid;
+    const auto& far_side_map = get_side(far_side);
+    if (far_side_map.empty()) {
+        return std::nullopt;
+    }
+
+    int total_cost{0};
+
+    for (int i{0}; i < far_side_map.size(); i++) {
+        if (quantity == 0) {
+            break;
+        }
+
+        auto level_aggregate = get_level_aggregate(far_side, i);
+
+        if (level_aggregate.quantity <= quantity) {
+            total_cost += level_aggregate.price * level_aggregate.quantity;
+            quantity -= level_aggregate.quantity;
+        } else {
+            total_cost += level_aggregate.price * quantity;
+            quantity = 0;
+        }
+    }
+
+    return total_cost;
 }
 } // namespace engine
