@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_ORDER_H
-#define ELSA_FYP_CLIENT_SDK_ORDER_H
+#pragma once
 
 #include <string>
 
@@ -28,8 +27,8 @@ struct Order {
     std::string custom_order_id; // custom id for client's reference only
     TimeInForce time_in_force;
 
-    Order(const std::string& symbol, const double price, const double quantity, const OrderSide side,
-          const OrderType order_type, const TimeInForce time_in_force)
+    Order(const std::string& symbol, const double price, const double quantity,
+          const OrderSide side, const OrderType order_type, const TimeInForce time_in_force)
         : symbol(symbol), side(side), order_type(order_type), quantity(quantity), price(price),
           time_in_force(time_in_force) {
     }
@@ -41,5 +40,3 @@ struct Order {
           time_in_force(time_in_force) {
     }
 };
-
-#endif // ELSA_FYP_CLIENT_SDK_ORDER_H

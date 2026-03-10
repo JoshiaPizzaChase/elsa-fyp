@@ -1,5 +1,4 @@
-#ifndef TRANSPORT_WEBSOCKET_CLIENT_H
-#define TRANSPORT_WEBSOCKET_CLIENT_H
+#pragma once
 
 #include "websocket.h"
 #include <boost/asio/placeholders.hpp>
@@ -100,5 +99,3 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
 };
 
 } // namespace transport
-
-#endif

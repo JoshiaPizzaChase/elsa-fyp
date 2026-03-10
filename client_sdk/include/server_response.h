@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_SERVER_RESPONSE_H
-#define ELSA_FYP_CLIENT_SDK_SERVER_RESPONSE_H
+#pragma once
 
 #include <string>
 
@@ -24,5 +23,3 @@ struct ExecutionReport {
     double avg_px;
     double remaining_qty;
 };
-
-#endif // ELSA_FYP_CLIENT_SDK_SERVER_RESPONSE_H

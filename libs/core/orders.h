@@ -1,5 +1,4 @@
-#ifndef CORE_ORDERS_H
-#define CORE_ORDERS_H
+#pragma once
 
 #include "constants.h"
 #include <quickfix/FixFields.h>
@@ -144,5 +143,3 @@ inline constexpr std::int32_t convert_to_internal_quantity(double quantity) {
 }
 
 } // namespace core
-
-#endif // CORE_ORDERS_H

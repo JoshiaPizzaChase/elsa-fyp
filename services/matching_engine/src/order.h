@@ -1,11 +1,10 @@
-#ifndef ELSA_FYP_ORDER_H
-#define ELSA_FYP_ORDER_H
+#pragma once
+
+#include "core/orders.h"
 
 namespace engine {
-enum class Side {
-    Bid,
-    Ask
-};
+
+using core::Side;
 
 class Order {
   public:
@@ -25,5 +24,3 @@ class Order {
     Side side{};
 };
 } // namespace engine
-
-#endif // ELSA_FYP_ORDER_H

@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_CLIENT_SDK_FIX_CLIENT_H
-#define ELSA_FYP_CLIENT_SDK_FIX_CLIENT_H
+#pragma once
 
 #include <memory>
 #include <quickfix/FileStore.h>
@@ -12,13 +11,11 @@
 #include "quickfix/fix42/ExecutionReport.h"
 #include "quickfix/fix42/MessageCracker.h"
 #include "quickfix/fix42/NewOrderSingle.h"
-#include "quickfix/fix42/OrderCancelReject.h"
 #include "quickfix/fix42/OrderCancelRequest.h"
 #include "server_response.h"
 
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/spdlog.h"
 
 class FixClient : FIX::Application, FIX42::MessageCracker {
     FIX::SessionSettings _settings;
@@ -98,5 +95,3 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
         return order_cancel_request;
     }
 };
-
-#endif // ELSA_FYP_CLIENT_SDK_FIX_CLIENT_H

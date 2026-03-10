@@ -1,8 +1,8 @@
-#ifndef TRANSPORT_MESSAGING_H
-#define TRANSPORT_MESSAGING_H
+#pragma once
 
 #include "core/containers.h"
 #include "protobufs/containers.pb.h"
+#include <optional>
 #include <stdexcept>
 
 namespace transport {
@@ -145,6 +145,30 @@ convert_to_internal(transport::ExecTypeOrOrderStatus exec_type_or_order_status) 
 }
 
 // Serializer and deserializer functions
+inline std::string serialize_container(const core::FillCostQueryContainer& container) {
+    transport::ContainerWrapper container_wrapper;
+    transport::FillCostQueryContainer container_proto;
+
+    container_proto.set_quantity(container.quantity);
+    container_proto.set_side(convert_to_proto(container.side));
+    container_proto.set_symbol(container.symbol);
+
+    *container_wrapper.mutable_fill_cost_query() = container_proto;
+    return container_wrapper.SerializeAsString();
+}
+
+inline std::string serialize_container(const core::FillCostResponseContainer& container) {
+    transport::ContainerWrapper container_wrapper;
+    transport::FillCostResponseContainer container_proto;
+
+    if (container.total_cost.has_value()) {
+        container_proto.set_total_cost(container.total_cost.value());
+    }
+
+    *container_wrapper.mutable_fill_cost_response() = container_proto;
+    return container_wrapper.SerializeAsString();
+}
+
 inline std::string serialize_container(const core::NewOrderSingleContainer& container) {
     transport::ContainerWrapper container_wrapper;
     transport::NewOrderSingleContainer container_proto;
@@ -172,7 +196,9 @@ inline std::string serialize_container(const core::CancelOrderRequestContainer& 
     container_proto.set_cl_ord_id(container.cl_ord_id);
     container_proto.set_sender_comp_id(container.sender_comp_id);
     container_proto.set_target_comp_id(container.target_comp_id);
-    container_proto.set_order_id(container.order_id);
+    if (container.order_id.has_value()) {
+        container_proto.set_order_id(container.order_id.value());
+    }
     container_proto.set_orig_cl_ord_id(container.orig_cl_ord_id);
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
@@ -241,7 +267,9 @@ inline core::Container deserialize_container(const std::string& data) {
         container.cl_ord_id = proto.cl_ord_id();
         container.sender_comp_id = proto.sender_comp_id();
         container.target_comp_id = proto.target_comp_id();
-        container.order_id = proto.order_id();
+        if (proto.has_order_id()) {
+             container.order_id = proto.order_id();
+        }
         container.orig_cl_ord_id = proto.orig_cl_ord_id();
         container.symbol = proto.symbol();
         container.side = convert_to_internal(proto.side());
@@ -277,11 +305,26 @@ inline core::Container deserialize_container(const std::string& data) {
 
         return container;
     }
+    case transport::ContainerWrapper::kFillCostQuery: {
+        const auto& proto = container_wrapper.fill_cost_query();
+        core::FillCostQueryContainer container;
+        container.symbol = proto.symbol();
+        container.side = convert_to_internal(proto.side());
+        container.quantity = proto.quantity();
+        return container;
+    }
+    case transport::ContainerWrapper::kFillCostResponse: {
+        const auto& proto = container_wrapper.fill_cost_response();
+        core::FillCostResponseContainer container;
+        if (proto.has_total_cost()) {
+            container.total_cost = proto.total_cost();
+        }
+        return container;
+    }
+
     default:
         throw std::invalid_argument("Unknown ContainerWrapper case");
     }
 }
 
 } // namespace transport
-
-#endif // TRANSPORT_MESSAGING_H

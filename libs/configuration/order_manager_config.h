@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_ORDER_MANAGER_CONFIG_H
-#define ELSA_FYP_ORDER_MANAGER_CONFIG_H
+#pragma once
 
 #include <string>
 
@@ -14,5 +13,3 @@ struct OrderManagerConfig {
     int gateway_count;
 };
 } // namespace om
-
-#endif // ELSA_FYP_ORDER_MANAGER_CONFIG_H

@@ -1,5 +1,4 @@
-#ifndef GATEWAY_APPLICATION_H
-#define GATEWAY_APPLICATION_H
+#pragma once
 
 #include "core/containers.h"
 #include "id_generator.h"
@@ -9,11 +8,9 @@
 #include <quickfix/FixCommonFields.h>
 #include <quickfix/FixFields.h>
 #include <quickfix/MessageCracker.h>
-#include <quickfix/fix42/OrderCancelRequest.h>
 
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/spdlog.h"
 
 namespace gateway {
 
@@ -59,4 +56,3 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
 };
 
 } // namespace gateway
-#endif // GATEWAY_APPLICATION_H

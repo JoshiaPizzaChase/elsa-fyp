@@ -8,14 +8,14 @@ CREATE TABLE IF NOT EXISTS orders
     side SYMBOL,
     order_qty INT,
     filled_qty INT,
-    ord_type INT,
+    ord_type SYMBOL,
     price INT,
     time_in_force SYMBOL,
     order_status SYMBOL
-) TIMESTAMP(ts) PARTITION BY DAY 
+) TIMESTAMP(ts) PARTITION BY DAY
 DEDUP UPSERT KEYS(ts, order_id);
-    
-CREATE TABLE IF NOT EXISTS trades 
+
+CREATE TABLE IF NOT EXISTS trades
 (
     ts TIMESTAMP,
     price INT,
@@ -26,6 +26,6 @@ CREATE TABLE IF NOT EXISTS trades
     maker_id INT,
     taker_order_id INT,
     maker_order_id INT,
-    is_taker_buy BOOLEAN
-) TIMESTAMP(ts) PARTITION BY DAY 
+    is_taker_buyer BOOLEAN
+) TIMESTAMP(ts) PARTITION BY DAY
 DEDUP UPSERT KEYS(ts, trade_id);

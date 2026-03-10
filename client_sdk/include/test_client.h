@@ -1,5 +1,5 @@
-#ifndef ELSA_FYP_CLIENT_SDK_TEST_CLIENT_H
-#define ELSA_FYP_CLIENT_SDK_TEST_CLIENT_H
+#pragma once
+
 #include "fix_client.h"
 
 class TestClient : public FixClient {
@@ -7,8 +7,7 @@ class TestClient : public FixClient {
     TestClient(const std::string& file) : FixClient(file) {};
     void on_order_cancel_rejected(const std::string& custom_order_id,
                                   const std::string& reason) override {
-        std::cout << "[Test] Order Cancel Rejected: " << custom_order_id << " " << reason
-                  << '\n';
+        std::cout << "[Test] Order Cancel Rejected: " << custom_order_id << " " << reason << '\n';
     }
     void on_order_update(const ExecutionReport& report) override {
         std::cout << "[Test] Order Update" << '\n';
@@ -19,5 +18,3 @@ class TestClient : public FixClient {
         std::cout << "Last Px" << report.last_px << '\n';
     }
 };
-
-#endif // ELSA_FYP_CLIENT_SDK_TEST_CLIENT_H

@@ -1,5 +1,4 @@
-#ifndef CORE_CONTAINERS_H
-#define CORE_CONTAINERS_H
+#pragma once
 
 #include "orders.h"
 #include <optional>
@@ -8,17 +7,6 @@
 
 namespace core {
 
-// TODO: Add constructors to ensure all members won't be accidentally missed to initialized on
-// creation.
-// TODO: Idea: Extract an abstract base struct with sender and target comp ids to enable dynamic
-// dispatch?
-// TODO: Idea 2: Consider using designated initializers (C++20) for better readability on
-// construction?
-// TODO: Idea 3: Consider using std::variant?
-// TODO: Consider trimming these containers. We probably don't need it to be a one-to-one mapping
-// with FIX protocol, and depends on what we need downstream.
-
-// https://www.onixs.biz/fix-dictionary/4.2/msgtype_f_70.html
 struct NewOrderSingleContainer {
     std::string sender_comp_id;
     std::string target_comp_id;
@@ -33,11 +21,10 @@ struct NewOrderSingleContainer {
     TimeInForce time_in_force;
 };
 
-// https://www.onixs.biz/fix-dictionary/4.2/msgtype_f_70.html
 struct CancelOrderRequestContainer {
     std::string sender_comp_id;
     std::string target_comp_id;
-    std::string order_id;
+    std::optional<std::string> order_id;
     std::string orig_cl_ord_id; // Original clOrdId for the order this cancel request is for.
     std::string cl_ord_id;
     std::string symbol;
@@ -46,7 +33,6 @@ struct CancelOrderRequestContainer {
     std::int32_t order_qty;
 };
 
-// https://www.onixs.biz/fix-dictionary/4.2/msgtype_8_8.html
 struct ExecutionReportContainer {
     std::string sender_comp_id;
     std::string target_comp_id;
@@ -68,9 +54,19 @@ struct ExecutionReportContainer {
     std::int32_t avg_px;
 };
 
+struct FillCostQueryContainer {
+    std::string symbol;
+    std::int32_t quantity;
+    Side side;
+};
+
+struct FillCostResponseContainer {
+    // Optional because Matching Engine may fail to retreive data.
+    std::optional<std::int32_t> total_cost;
+};
+
 using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderRequestContainer,
-                               core::ExecutionReportContainer>;
+                               core::ExecutionReportContainer, core::FillCostQueryContainer,
+                               core::FillCostResponseContainer>;
 
 } // namespace core
-
-#endif // CORE_CONTAINERS_H

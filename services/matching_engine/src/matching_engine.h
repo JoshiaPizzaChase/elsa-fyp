@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_MATCHING_ENGINE_H
-#define ELSA_FYP_MATCHING_ENGINE_H
+#pragma once
 
 #include "limit_order_book.h"
 #include "websocket_server.h"
@@ -26,5 +25,3 @@ class MatchingEngine {
 };
 
 } // namespace engine
-
-#endif // ELSA_FYP_MATCHING_ENGINE_H

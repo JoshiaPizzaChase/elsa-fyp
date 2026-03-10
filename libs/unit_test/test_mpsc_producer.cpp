@@ -1,17 +1,20 @@
+#include "inter_process/mpsc_shared_memory_ring_buffer.h"
+#include "test_mpsc.h"
+#include <chrono>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <thread>
-#include <chrono>
 #include <vector>
-#include "inter_process/mpsc_shared_memory_ring_buffer.h"
-#include "test_mpsc.h"
 
 constexpr int num_producers = 3;
 constexpr int data_per_producer = 5;
 
 void producer(Buffer& ring_buffer, int producer_id) {
     for (int i = 0; i < data_per_producer; ++i) {
-        ComplexObject obj(i + producer_id * 10, ("Producer " + std::to_string(producer_id) + ", Data " + std::to_string(i)).c_str());
+        ComplexObject obj(
+            i + producer_id * 10,
+            ("Producer " + std::to_string(producer_id) + ", Data " + std::to_string(i)).c_str());
         ring_buffer.push_blocking(obj);
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Simulates work
     }
@@ -20,9 +23,7 @@ void producer(Buffer& ring_buffer, int producer_id) {
 int main() {
     try {
         // Create shared memory ring buffer
-        Buffer ring_buffer =
-            Buffer::open_exist_shm("/test_shm");
-
+        Buffer ring_buffer = Buffer::open_exist_shm("/test_shm");
 
         std::vector<std::thread> producers;
 
@@ -30,7 +31,6 @@ int main() {
         for (int i = 0; i < num_producers; ++i) {
             producers.emplace_back(producer, std::ref(ring_buffer), i);
         }
-
 
         // Join producer threads
         for (auto& prod_thread : producers) {

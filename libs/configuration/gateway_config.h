@@ -1,5 +1,4 @@
-#ifndef ELSA_FYP_GATEWAY_CONFIG_H
-#define ELSA_FYP_GATEWAY_CONFIG_H
+#pragma once
 
 #include <string>
 
@@ -9,5 +8,3 @@ struct GatewayConfig {
     int downstream_order_manager_port;
 };
 } // namespace gateway
-
-#endif // ELSA_FYP_GATEWAY_CONFIG_H

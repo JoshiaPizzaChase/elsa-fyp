@@ -1,5 +1,4 @@
-#ifndef CORE_SPINLOCK_MUTEX_H
-#define CORE_SPINLOCK_MUTEX_H
+#pragma once
 
 #include <atomic>
 
@@ -21,5 +20,3 @@ class SpinlockMutex {
         flag.clear(std::memory_order_release);
     }
 };
-
-#endif // CORE_SPINLOCK_MUTEX_H

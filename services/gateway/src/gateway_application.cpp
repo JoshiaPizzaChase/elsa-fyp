@@ -1,13 +1,12 @@
 #include "gateway_application.h"
 #include "core/containers.h"
 #include "core/orders.h"
-#include <cmath>
-#include <cstddef>
 #include <optional>
 #include <quickfix/FixFields.h>
 #include <quickfix/FixValues.h>
 #include <quickfix/fix42/ExecutionReport.h>
 #include <quickfix/fix42/NewOrderSingle.h>
+#include <quickfix/fix42/OrderCancelRequest.h>
 #include <stdexcept>
 #include <transport/messaging.h>
 
