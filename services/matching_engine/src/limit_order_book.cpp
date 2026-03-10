@@ -216,7 +216,7 @@ std::expected<Trade, std::string> LimitOrderBook::create_trade(int taker_order_i
     // TODO: Add random trade_id generation
     // TODO: add back taker and maker id
     return Trade{ticker.data(),          price, quantity, 100, 1, 1, taker_order_id, maker_order_id,
-                 taker_side == Side::bid};
+                 taker_side == Side::bid, now_ts_ms};
 }
 
 std::expected<int, std::string> LimitOrderBook::get_fill_cost(int quantity, Side side) const {
