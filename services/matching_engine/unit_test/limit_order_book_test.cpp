@@ -443,7 +443,7 @@ TEST_F(FillCostQueryTest, GetFillCost) {
     limit_order_book.add_order(2, 101, 10, Side::ask);
 
     // Sufficient Liquidity
-    std::ignore = limit_order_book.get_fill_cost(40, Side::bid)
+    std::ignore = limit_order_book.get_fill_cost(40, Side::ask)
                       .transform([](int cost) -> int {
                           EXPECT_EQ(cost, 4010);
                           return cost;
@@ -454,7 +454,7 @@ TEST_F(FillCostQueryTest, GetFillCost) {
                       });
 
     // Insufficient Liquidity
-    std::ignore = limit_order_book.get_fill_cost(100, Side::bid)
+    std::ignore = limit_order_book.get_fill_cost(100, Side::ask)
                       .transform([](int cost) -> int {
                           EXPECT_EQ(cost, 4010);
                           return cost;
