@@ -37,6 +37,7 @@ static constexpr int         TEST_USER_ID           = 99999;
 static constexpr int         TEST_NON_EXIST_USER_ID = 67676767;
 static constexpr int         TEST_SERVER_ID         = 1;
 static constexpr const char* TEST_USERNAME       = "test_db_user_99999";
+static constexpr const char* TEST_SERVER_NAME    = "test_server_1";
 static constexpr const char* TEST_PASSWORD       = "test_password";
 static constexpr const char* TEST_SYMBOL         = "USD";
 static constexpr int         TEST_INITIAL_BALANCE = 5000;
@@ -58,9 +59,12 @@ struct BalanceFixture {
             "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             pqxx::params{TEST_USER_ID, TEST_USERNAME, TEST_PASSWORD});
         txn.exec(
-            "INSERT INTO balances (user_id, symbol, balance, created_ts, modified_ts) "
-            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-            pqxx::params{TEST_USER_ID, TEST_SYMBOL, TEST_INITIAL_BALANCE});
+            "INSERT INTO servers (server_id, server_name) VALUES ($1, $2)",
+            pqxx::params{TEST_SERVER_ID, TEST_SERVER_NAME});
+        txn.exec(
+            "INSERT INTO balances (user_id, symbol, balance, server_id, created_ts, modified_ts) "
+            "VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST_USER_ID, TEST_SYMBOL, TEST_INITIAL_BALANCE, TEST_SERVER_ID});
         txn.commit();
     }
 
@@ -74,6 +78,8 @@ struct BalanceFixture {
             pqxx::work txn{conn};
             txn.exec("DELETE FROM balances WHERE user_id = $1",
                      pqxx::params{TEST_USER_ID});
+            txn.exec("DELETE FROM servers WHERE server_id = $1",
+                     pqxx::params{TEST_SERVER_ID});
             txn.exec("DELETE FROM users WHERE user_id = $1",
                      pqxx::params{TEST_USER_ID});
             txn.commit();
@@ -90,7 +96,7 @@ struct BalanceFixture {
 TEST_CASE_METHOD(BalanceFixture,
                  "read_balance returns the seeded value for the test user",
                  "[DatabaseClient][balance]") {
-    auto result = db.read_balance(TEST_USER_ID, TEST_SYMBOL);
+    auto result = db.read_balance(TEST_USER_ID, TEST_SERVER_ID, TEST_SYMBOL);
     REQUIRE(result.has_value());
     REQUIRE(result.value() == TEST_INITIAL_BALANCE);
 }
@@ -98,7 +104,7 @@ TEST_CASE_METHOD(BalanceFixture,
 TEST_CASE_METHOD(BalanceFixture,
                  "read_balance returns error for non-existing user",
                  "[DatabaseClient][balance]") {
-    auto result = db.read_balance(TEST_NON_EXIST_USER_ID, TEST_SYMBOL);
+    auto result = db.read_balance(TEST_NON_EXIST_USER_ID, TEST_SERVER_ID, TEST_SYMBOL);
     // No row should match, so the query_value call throws -> std::unexpected.
     REQUIRE_FALSE(result.has_value());
 }
@@ -109,11 +115,11 @@ TEST_CASE_METHOD(BalanceFixture,
     const int new_balance = TEST_INITIAL_BALANCE + 100;
 
     auto update_result = db.update_balance(
-        TEST_USER_ID, TEST_SYMBOL, new_balance);
+        TEST_USER_ID, TEST_SERVER_ID, TEST_SYMBOL, new_balance);
     REQUIRE(update_result.has_value());
 
     auto after_update = db.read_balance(
-        TEST_USER_ID, TEST_SYMBOL);
+        TEST_USER_ID, TEST_SERVER_ID, TEST_SYMBOL);
     REQUIRE(after_update.has_value());
     REQUIRE(after_update.value() == new_balance);
 }
@@ -241,13 +247,16 @@ struct MultiSymbolBalanceFixture {
             "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
             pqxx::params{TEST_USER_ID, TEST_USERNAME, TEST_PASSWORD});
         txn.exec(
-            "INSERT INTO balances (user_id, symbol, balance, created_ts, modified_ts) "
-            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-            pqxx::params{TEST_USER_ID, TEST_SYMBOL, TEST_INITIAL_BALANCE});
+            "INSERT INTO servers (server_id, server_name) VALUES ($1, $2)",
+            pqxx::params{TEST_SERVER_ID, TEST_SERVER_NAME});
         txn.exec(
-            "INSERT INTO balances (user_id, symbol, balance, created_ts, modified_ts) "
-            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-            pqxx::params{TEST_USER_ID, "AAPL", AAPL_INITIAL_BALANCE});
+            "INSERT INTO balances (user_id, symbol, balance, server_id, created_ts, modified_ts) "
+            "VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST_USER_ID, TEST_SYMBOL, TEST_INITIAL_BALANCE, TEST_SERVER_ID});
+        txn.exec(
+            "INSERT INTO balances (user_id, symbol, balance, server_id, created_ts, modified_ts) "
+            "VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST_USER_ID, "AAPL", AAPL_INITIAL_BALANCE, TEST_SERVER_ID});
         txn.commit();
     }
 
@@ -261,6 +270,8 @@ struct MultiSymbolBalanceFixture {
             pqxx::work txn{conn};
             txn.exec("DELETE FROM balances WHERE user_id = $1",
                      pqxx::params{TEST_USER_ID});
+            txn.exec("DELETE FROM servers WHERE server_id = $1",
+                     pqxx::params{TEST_SERVER_ID});
             txn.exec("DELETE FROM users WHERE user_id = $1",
                      pqxx::params{TEST_USER_ID});
             txn.commit();
@@ -271,8 +282,8 @@ struct MultiSymbolBalanceFixture {
 TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "read_balance distinguishes between symbols for the same user",
                  "[DatabaseClient][balance][comprehensive]") {
-    auto usd = db.read_balance(TEST_USER_ID, TEST_SYMBOL);
-    auto aapl = db.read_balance(TEST_USER_ID, "AAPL");
+    auto usd = db.read_balance(TEST_USER_ID, TEST_SERVER_ID, TEST_SYMBOL);
+    auto aapl = db.read_balance(TEST_USER_ID, TEST_SERVER_ID, "AAPL");
 
     REQUIRE(usd.has_value());
     REQUIRE(aapl.has_value());
@@ -283,7 +294,7 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
 TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "read_balance returns error for existing user but wrong symbol",
                  "[DatabaseClient][balance][comprehensive]") {
-    auto result = db.read_balance(TEST_USER_ID, "NONEXISTENT_SYM");
+    auto result = db.read_balance(TEST_USER_ID, TEST_SERVER_ID, "NONEXISTENT_SYM");
     REQUIRE_FALSE(result.has_value());
 }
 
@@ -292,11 +303,11 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "[DatabaseClient][balance][comprehensive]") {
     const auto uid = TEST_USER_ID;
 
-    auto update = db.update_balance(uid, TEST_SYMBOL, 9999);
+    auto update = db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, 9999);
     REQUIRE(update.has_value());
 
-    auto usd = db.read_balance(uid, TEST_SYMBOL);
-    auto aapl = db.read_balance(uid, "AAPL");
+    auto usd = db.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
+    auto aapl = db.read_balance(uid, TEST_SERVER_ID, "AAPL");
     REQUIRE(usd.has_value());
     REQUIRE(aapl.has_value());
     CHECK(usd.value() == 9999);
@@ -308,10 +319,10 @@ TEST_CASE_METHOD(BalanceFixture,
                  "[DatabaseClient][balance][comprehensive]") {
     const auto uid = TEST_USER_ID;
 
-    auto update = db.update_balance(uid, TEST_SYMBOL, 0);
+    auto update = db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, 0);
     REQUIRE(update.has_value());
 
-    auto result = db.read_balance(uid, TEST_SYMBOL);
+    auto result = db.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
     REQUIRE(result.has_value());
     REQUIRE(result.value() == 0);
 }
@@ -322,10 +333,10 @@ TEST_CASE_METHOD(BalanceFixture,
     const auto uid = TEST_USER_ID;
     const int val = 4242;
 
-    REQUIRE(db.update_balance(uid, TEST_SYMBOL, val).has_value());
-    REQUIRE(db.update_balance(uid, TEST_SYMBOL, val).has_value());
+    REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, val).has_value());
+    REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, val).has_value());
 
-    auto result = db.read_balance(uid, TEST_SYMBOL);
+    auto result = db.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
     REQUIRE(result.has_value());
     REQUIRE(result.value() == val);
 }
@@ -335,11 +346,11 @@ TEST_CASE_METHOD(BalanceFixture,
                  "[DatabaseClient][balance][comprehensive]") {
     const auto uid = TEST_USER_ID;
 
-    REQUIRE(db.update_balance(uid, TEST_SYMBOL, 100).has_value());
-    REQUIRE(db.update_balance(uid, TEST_SYMBOL, 200).has_value());
-    REQUIRE(db.update_balance(uid, TEST_SYMBOL, 300).has_value());
+    REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, 100).has_value());
+    REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, 200).has_value());
+    REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, 300).has_value());
 
-    auto result = db.read_balance(uid, TEST_SYMBOL);
+    auto result = db.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
     REQUIRE(result.has_value());
     REQUIRE(result.value() == 300);
 }
@@ -353,7 +364,7 @@ TEST_CASE_METHOD(BalanceFixture,
                  "[DatabaseClient][balance][read_balances]") {
     const auto uid = TEST_USER_ID;
 
-    auto result = db.read_balances(uid);
+    auto result = db.read_balances(uid, TEST_SERVER_ID);
     REQUIRE(result.has_value());
     REQUIRE(result->size() == 1);
     CHECK(result->at(0).symbol  == TEST_SYMBOL);
@@ -365,7 +376,7 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "[DatabaseClient][balance][read_balances]") {
     const auto uid = TEST_USER_ID;
 
-    auto result = db.read_balances(uid);
+    auto result = db.read_balances(uid, TEST_SERVER_ID);
     REQUIRE(result.has_value());
     REQUIRE(result->size() == 2);
 
@@ -383,7 +394,7 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
 TEST_CASE_METHOD(BalanceFixture,
                  "read_balances returns empty vector for non-existing user",
                  "[DatabaseClient][balance][read_balances]") {
-    auto result = db.read_balances(TEST_NON_EXIST_USER_ID);
+    auto result = db.read_balances(TEST_NON_EXIST_USER_ID, TEST_SERVER_ID);
     REQUIRE(result.has_value());
     REQUIRE(result->empty());
 }
@@ -394,9 +405,9 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
     const auto uid = TEST_USER_ID;
     const int new_usd = 9876;
 
-    REQUIRE(db.update_balance(uid, TEST_SYMBOL, new_usd).has_value());
+    REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, new_usd).has_value());
 
-    auto result = db.read_balances(uid);
+    auto result = db.read_balances(uid, TEST_SERVER_ID);
     REQUIRE(result.has_value());
 
     std::unordered_map<std::string, int> by_symbol;
@@ -880,6 +891,9 @@ struct ConcurrencyBalanceFixture {
         cleanup_quietly();
 
         pqxx::work txn{conn};
+        txn.exec(
+            "INSERT INTO servers (server_id, server_name) VALUES ($1, $2)",
+            pqxx::params{TEST_SERVER_ID, TEST_SERVER_NAME});
         for (int i = 0; i < CONC_NUM_USERS; ++i) {
             const int uid = CONC_USER_BASE + i;
             const auto uname = "conc_user_" + std::to_string(uid);
@@ -888,9 +902,9 @@ struct ConcurrencyBalanceFixture {
                 "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                 pqxx::params{uid, uname, TEST_PASSWORD});
             txn.exec(
-                "INSERT INTO balances (user_id, symbol, balance, created_ts, modified_ts) "
-                "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                pqxx::params{uid, TEST_SYMBOL, 1000});
+                "INSERT INTO balances (user_id, symbol, balance, server_id, created_ts, modified_ts) "
+                "VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                pqxx::params{uid, TEST_SYMBOL, 1000, TEST_SERVER_ID});
         }
         txn.commit();
     }
@@ -910,6 +924,8 @@ struct ConcurrencyBalanceFixture {
                 txn.exec("DELETE FROM users WHERE user_id = $1",
                          pqxx::params{uid});
             }
+            txn.exec("DELETE FROM servers WHERE server_id = $1",
+                     pqxx::params{TEST_SERVER_ID});
             txn.commit();
         } catch (...) {}
     }
@@ -934,7 +950,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
 
             // Each thread reads its balance many times.
             for (int r = 0; r < 20; ++r) {
-                auto result = db.read_balance(uid, TEST_SYMBOL);
+                auto result = db.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
                 if (result.has_value() && result.value() == 1000) {
                     ++success_count;
                 } else {
@@ -970,7 +986,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
             const auto uid = CONC_USER_BASE + i;
 
             for (int u = 1; u <= NUM_UPDATES; ++u) {
-                auto res = db.update_balance(uid, TEST_SYMBOL, 1000 + u);
+                auto res = db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, 1000 + u);
                 if (!res.has_value()) ++error_count;
             }
         });
@@ -983,7 +999,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
     DatabaseClient verifier;
     for (int i = 0; i < CONC_NUM_USERS; ++i) {
         const auto uid = CONC_USER_BASE + i;
-        auto result = verifier.read_balance(uid, TEST_SYMBOL);
+        auto result = verifier.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
         REQUIRE(result.has_value());
         CHECK(result.value() == 1000 + NUM_UPDATES);
     }
@@ -1011,7 +1027,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
             for (int w = 0; w < WRITES_PER_THREAD; ++w) {
                 // Each thread writes a value that encodes thread id and iteration.
                 int val = (i + 1) * 1000 + w;
-                auto res = db.update_balance(uid, TEST_SYMBOL, val);
+                auto res = db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, val);
                 if (!res.has_value()) ++error_count;
             }
         });
@@ -1023,7 +1039,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
     // The final balance is deterministic only in that it must be one of the
     // values written.  Just verify it reads back without error.
     DatabaseClient verifier;
-    auto result = verifier.read_balance(uid, TEST_SYMBOL);
+    auto result = verifier.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
     REQUIRE(result.has_value());
     // Value should be in range [1000, 8014] — (thread 1..8) * 1000 + (0..14).
     CHECK(result.value() >= 1000);
@@ -1051,7 +1067,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
         threads.emplace_back([&uid, i, &write_errors]() {
             DatabaseClient db;
             for (int w = 0; w < OPS_PER_THREAD; ++w) {
-                auto res = db.update_balance(uid, TEST_SYMBOL, (i + 1) * 100 + w);
+                auto res = db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, (i + 1) * 100 + w);
                 if (!res.has_value()) ++write_errors;
             }
         });
@@ -1062,7 +1078,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
         threads.emplace_back([&uid, &read_errors]() {
             DatabaseClient db;
             for (int r = 0; r < OPS_PER_THREAD; ++r) {
-                auto res = db.read_balance(uid, TEST_SYMBOL);
+                auto res = db.read_balance(uid, TEST_SERVER_ID, TEST_SYMBOL);
                 if (!res.has_value()) ++read_errors;
             }
         });

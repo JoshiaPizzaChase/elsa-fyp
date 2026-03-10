@@ -395,13 +395,13 @@ class DatabaseClient {
     }
 
     // This is called periodically (e.g. hourly) by the OM so it should be performed asynchronously.
-    auto update_balance(int user_id, std::string symbol, int balance)
+    auto update_balance(int user_id, int server_id, std::string symbol, int balance)
         -> std::expected<void, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
 
-            transaction.exec("UPDATE balances SET balance = $3 WHERE user_id = $1 AND symbol = $2",
-                             pqxx::params{user_id, symbol, balance});
+            transaction.exec("UPDATE balances SET balance = $4 WHERE user_id = $1 AND server_id = $2 AND symbol = $3",
+                             pqxx::params{user_id, server_id, symbol, balance});
 
             transaction.commit();
             return {};
