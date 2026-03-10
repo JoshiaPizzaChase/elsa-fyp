@@ -73,7 +73,7 @@ target_link_libraries(test_interactive_server PRIVATE websocket_lib)
 target_link_libraries(test_thread_safe_queue PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_client_server_ping_pong PRIVATE websocket_lib)
 target_link_libraries(test_two_client_one_server PRIVATE websocket_lib)
-target_link_libraries(test_database_client PRIVATE Catch2::Catch2WithMain questdb_client pqxx pq)
+target_link_libraries(test_database_client PRIVATE Catch2::Catch2WithMain questdb_client pqxx::pqxx)
 
 target_compile_definitions(test_interactive_client PRIVATE SPDLOG_USE_STD_FORMAT)
 target_compile_definitions(test_interactive_server PRIVATE SPDLOG_USE_STD_FORMAT)
