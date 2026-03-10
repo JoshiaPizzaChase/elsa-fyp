@@ -8,6 +8,7 @@
 #include <set>
 #include <thread>
 #include <chrono>
+#include <unordered_map>
 
 // HONEST ADMISSION: This was vibe-coded lol.
 // NOTE: This clears the original database entries.
@@ -32,7 +33,9 @@ static constexpr auto CORE_DB_CONN_STR =
 // ---------------------------------------------------------------------------
 // Test-specific user/balance constants.
 // ---------------------------------------------------------------------------
-static constexpr int         TEST_USER_ID       = 99999;
+static constexpr int         TEST_USER_ID           = 99999;
+static constexpr int         TEST_NON_EXIST_USER_ID = 67676767;
+static constexpr int         TEST_SERVER_ID         = 1;
 static constexpr const char* TEST_USERNAME       = "test_db_user_99999";
 static constexpr const char* TEST_PASSWORD       = "test_password";
 static constexpr const char* TEST_SYMBOL         = "USD";
@@ -87,7 +90,7 @@ struct BalanceFixture {
 TEST_CASE_METHOD(BalanceFixture,
                  "read_balance returns the seeded value for the test user",
                  "[DatabaseClient][balance]") {
-    auto result = db.read_balance(std::to_string(TEST_USER_ID), TEST_SYMBOL);
+    auto result = db.read_balance(TEST_USER_ID, TEST_SYMBOL);
     REQUIRE(result.has_value());
     REQUIRE(result.value() == TEST_INITIAL_BALANCE);
 }
@@ -95,7 +98,7 @@ TEST_CASE_METHOD(BalanceFixture,
 TEST_CASE_METHOD(BalanceFixture,
                  "read_balance returns error for non-existing user",
                  "[DatabaseClient][balance]") {
-    auto result = db.read_balance("non_existing_user_xyz_000", TEST_SYMBOL);
+    auto result = db.read_balance(TEST_NON_EXIST_USER_ID, TEST_SYMBOL);
     // No row should match, so the query_value call throws -> std::unexpected.
     REQUIRE_FALSE(result.has_value());
 }
@@ -106,11 +109,11 @@ TEST_CASE_METHOD(BalanceFixture,
     const int new_balance = TEST_INITIAL_BALANCE + 100;
 
     auto update_result = db.update_balance(
-        std::to_string(TEST_USER_ID), TEST_SYMBOL, new_balance);
+        TEST_USER_ID, TEST_SYMBOL, new_balance);
     REQUIRE(update_result.has_value());
 
     auto after_update = db.read_balance(
-        std::to_string(TEST_USER_ID), TEST_SYMBOL);
+        TEST_USER_ID, TEST_SYMBOL);
     REQUIRE(after_update.has_value());
     REQUIRE(after_update.value() == new_balance);
 }
@@ -268,8 +271,8 @@ struct MultiSymbolBalanceFixture {
 TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "read_balance distinguishes between symbols for the same user",
                  "[DatabaseClient][balance][comprehensive]") {
-    auto usd = db.read_balance(std::to_string(TEST_USER_ID), TEST_SYMBOL);
-    auto aapl = db.read_balance(std::to_string(TEST_USER_ID), "AAPL");
+    auto usd = db.read_balance(TEST_USER_ID, TEST_SYMBOL);
+    auto aapl = db.read_balance(TEST_USER_ID, "AAPL");
 
     REQUIRE(usd.has_value());
     REQUIRE(aapl.has_value());
@@ -280,14 +283,14 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
 TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "read_balance returns error for existing user but wrong symbol",
                  "[DatabaseClient][balance][comprehensive]") {
-    auto result = db.read_balance(std::to_string(TEST_USER_ID), "NONEXISTENT_SYM");
+    auto result = db.read_balance(TEST_USER_ID, "NONEXISTENT_SYM");
     REQUIRE_FALSE(result.has_value());
 }
 
 TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "update_balance on one symbol does not affect another",
                  "[DatabaseClient][balance][comprehensive]") {
-    const auto uid = std::to_string(TEST_USER_ID);
+    const auto uid = TEST_USER_ID;
 
     auto update = db.update_balance(uid, TEST_SYMBOL, 9999);
     REQUIRE(update.has_value());
@@ -303,7 +306,7 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
 TEST_CASE_METHOD(BalanceFixture,
                  "update_balance to zero is valid",
                  "[DatabaseClient][balance][comprehensive]") {
-    const auto uid = std::to_string(TEST_USER_ID);
+    const auto uid = TEST_USER_ID;
 
     auto update = db.update_balance(uid, TEST_SYMBOL, 0);
     REQUIRE(update.has_value());
@@ -316,7 +319,7 @@ TEST_CASE_METHOD(BalanceFixture,
 TEST_CASE_METHOD(BalanceFixture,
                  "update_balance is idempotent – same value twice yields same result",
                  "[DatabaseClient][balance][comprehensive]") {
-    const auto uid = std::to_string(TEST_USER_ID);
+    const auto uid = TEST_USER_ID;
     const int val = 4242;
 
     REQUIRE(db.update_balance(uid, TEST_SYMBOL, val).has_value());
@@ -330,7 +333,7 @@ TEST_CASE_METHOD(BalanceFixture,
 TEST_CASE_METHOD(BalanceFixture,
                  "update_balance multiple times reads back the last written value",
                  "[DatabaseClient][balance][comprehensive]") {
-    const auto uid = std::to_string(TEST_USER_ID);
+    const auto uid = TEST_USER_ID;
 
     REQUIRE(db.update_balance(uid, TEST_SYMBOL, 100).has_value());
     REQUIRE(db.update_balance(uid, TEST_SYMBOL, 200).has_value());
@@ -339,6 +342,69 @@ TEST_CASE_METHOD(BalanceFixture,
     auto result = db.read_balance(uid, TEST_SYMBOL);
     REQUIRE(result.has_value());
     REQUIRE(result.value() == 300);
+}
+
+// ===========================================================================
+//  read_balances  (returns all symbol/balance rows for a user)
+// ===========================================================================
+
+TEST_CASE_METHOD(BalanceFixture,
+                 "read_balances returns a single entry for a single-symbol user",
+                 "[DatabaseClient][balance][read_balances]") {
+    const auto uid = TEST_USER_ID;
+
+    auto result = db.read_balances(uid);
+    REQUIRE(result.has_value());
+    REQUIRE(result->size() == 1);
+    CHECK(result->at(0).symbol  == TEST_SYMBOL);
+    CHECK(result->at(0).balance == TEST_INITIAL_BALANCE);
+}
+
+TEST_CASE_METHOD(MultiSymbolBalanceFixture,
+                 "read_balances returns all symbols for a multi-symbol user",
+                 "[DatabaseClient][balance][read_balances]") {
+    const auto uid = TEST_USER_ID;
+
+    auto result = db.read_balances(uid);
+    REQUIRE(result.has_value());
+    REQUIRE(result->size() == 2);
+
+    // Collect into a map for order-independent comparison.
+    std::unordered_map<std::string, int> by_symbol;
+    for (const auto& row : result.value())
+        by_symbol[row.symbol] = row.balance;
+
+    REQUIRE(by_symbol.count(TEST_SYMBOL) == 1);
+    REQUIRE(by_symbol.count("AAPL") == 1);
+    CHECK(by_symbol.at(TEST_SYMBOL) == TEST_INITIAL_BALANCE);
+    CHECK(by_symbol.at("AAPL")      == AAPL_INITIAL_BALANCE);
+}
+
+TEST_CASE_METHOD(BalanceFixture,
+                 "read_balances returns empty vector for non-existing user",
+                 "[DatabaseClient][balance][read_balances]") {
+    auto result = db.read_balances(TEST_NON_EXIST_USER_ID);
+    REQUIRE(result.has_value());
+    REQUIRE(result->empty());
+}
+
+TEST_CASE_METHOD(MultiSymbolBalanceFixture,
+                 "read_balances reflects updated balance after update_balance",
+                 "[DatabaseClient][balance][read_balances]") {
+    const auto uid = TEST_USER_ID;
+    const int new_usd = 9876;
+
+    REQUIRE(db.update_balance(uid, TEST_SYMBOL, new_usd).has_value());
+
+    auto result = db.read_balances(uid);
+    REQUIRE(result.has_value());
+
+    std::unordered_map<std::string, int> by_symbol;
+    for (const auto& row : result.value())
+        by_symbol[row.symbol] = row.balance;
+
+    CHECK(by_symbol.at(TEST_SYMBOL) == new_usd);
+    CHECK(by_symbol.at("AAPL")      == AAPL_INITIAL_BALANCE);
 }
 
 // ===========================================================================
@@ -864,7 +930,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
     for (int i = 0; i < CONC_NUM_USERS; ++i) {
         threads.emplace_back([i, &success_count, &failure_count]() {
             DatabaseClient db;
-            const auto uid = std::to_string(CONC_USER_BASE + i);
+            const auto uid = CONC_USER_BASE + i;
 
             // Each thread reads its balance many times.
             for (int r = 0; r < 20; ++r) {
@@ -901,7 +967,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
     for (int i = 0; i < CONC_NUM_USERS; ++i) {
         threads.emplace_back([i, &error_count]() {
             DatabaseClient db;
-            const auto uid = std::to_string(CONC_USER_BASE + i);
+            const auto uid = CONC_USER_BASE + i;
 
             for (int u = 1; u <= NUM_UPDATES; ++u) {
                 auto res = db.update_balance(uid, TEST_SYMBOL, 1000 + u);
@@ -916,7 +982,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
     // Verify final balances.
     DatabaseClient verifier;
     for (int i = 0; i < CONC_NUM_USERS; ++i) {
-        const auto uid = std::to_string(CONC_USER_BASE + i);
+        const auto uid = CONC_USER_BASE + i;
         auto result = verifier.read_balance(uid, TEST_SYMBOL);
         REQUIRE(result.has_value());
         CHECK(result.value() == 1000 + NUM_UPDATES);
@@ -934,7 +1000,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
                  "[DatabaseClient][balance][concurrency]") {
 
     constexpr int WRITES_PER_THREAD = 15;
-    const auto uid = std::to_string(CONC_USER_BASE); // all target user 90000
+    const auto uid = CONC_USER_BASE; // all target user 90000
 
     std::vector<std::thread> threads;
     std::atomic<int> error_count{0};
@@ -973,7 +1039,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
                  "concurrent mixed read_balance and update_balance",
                  "[DatabaseClient][balance][concurrency]") {
 
-    const auto uid = std::to_string(CONC_USER_BASE);
+    const auto uid = CONC_USER_BASE;
     constexpr int OPS_PER_THREAD = 20;
 
     std::atomic<int> read_errors{0};

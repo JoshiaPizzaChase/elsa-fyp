@@ -353,13 +353,13 @@ class DatabaseClient {
     DatabaseClient(DatabaseClient&&) = delete;
 
     // Usually called by the OM at initialization, so this can be left synchronous.
-    auto read_balance(std::string user_id, std::string symbol) -> std::expected<int, std::string> {
+    auto read_balance(int user_id, int server_id, std::string symbol) -> std::expected<int, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
 
             int balance{transaction.query_value<int>(
-                "SELECT balance FROM balances WHERE user_id = $1 AND symbol = $2",
-                pqxx::params{user_id, symbol})};
+                "SELECT balance FROM balances WHERE user_id = $1 AND symbol = $2 AND server_id = $3",
+                pqxx::params{user_id, symbol, server_id})};
 
             transaction.commit();
 
@@ -368,9 +368,34 @@ class DatabaseClient {
             return std::unexpected{std::format("Error faced when getting balance: {}", e.what())};
         }
     }
+    
+    struct BalanceRow {
+        std::string symbol;
+        int balance;
+    };
+    
+    auto read_balances(int user_id, int server_id) -> std::expected<std::vector<BalanceRow>, std::string> {
+        try {
+            pqxx::work transaction{*m_core_db_sql_connection};
+            std::vector<BalanceRow> balances;
+            auto res = transaction.exec(
+                "SELECT symbol, balance FROM balances WHERE user_id = $1 AND server_id = $2",
+                pqxx::params{user_id, server_id});
+            transaction.commit();
+            
+            balances.reserve(res.size());
+            for (const auto& row : res) {
+                balances.emplace_back(BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
+            }
+
+            return balances;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error faced when getting balance: {}", e.what())};
+        }
+    }
 
     // This is called periodically (e.g. hourly) by the OM so it should be performed asynchronously.
-    auto update_balance(std::string user_id, std::string symbol, int balance)
+    auto update_balance(int user_id, std::string symbol, int balance)
         -> std::expected<void, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
