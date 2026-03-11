@@ -38,5 +38,5 @@ CREATE TABLE IF NOT EXISTS balances
     balance INT NOT NULL,
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY(user_id, symbol)
+    PRIMARY KEY(user_id, symbol, server_id)
 );
