@@ -4,6 +4,7 @@
 #include <mutex>
 #include <optional>
 #include <queue>
+#include <vector>
 
 namespace core {
 

@@ -7,18 +7,22 @@
 #include <core/trade.h>
 #include <expected>
 #include <optional>
+#include <format>
+#include <memory>
+#include <atomic>
 #include <pqxx/pqxx>
 #include <questdb/ingress/line_sender.hpp>
 #include <string>
 #include <thread>
 #include <vector>
 
+
+namespace database {
+
 using namespace std::literals::string_view_literals;
 using namespace questdb::ingress::literals;
 using namespace std::chrono_literals;
 using namespace core;
-
-namespace database {
 
 // Enum to string helpers since questdb does not support enum types natively.
 inline std::string_view to_string(Side s) {
@@ -164,13 +168,12 @@ class AsyncWriter {
 
             m_buffer
                 .table(orders_table)
-                // symbols first
-                .symbol(sender_comp_id, new_order_request.sender_comp_id)
                 .symbol(symbol, new_order_request.symbol)
                 .symbol(side, to_string(new_order_request.side))
                 .symbol(ord_type, to_string(new_order_request.ord_type))
                 .symbol(time_in_force, to_string(new_order_request.time_in_force))
-                // columns next
+                .symbol(order_status, std::string_view{"NEW"})
+                .column(sender_comp_id, new_order_request.sender_comp_id)
                 .column(order_id, static_cast<std::int64_t>(order.internal_order_id))
                 .column(cl_order_id,
                         static_cast<std::int64_t>(std::stoll(new_order_request.cl_ord_id)))
@@ -180,7 +183,6 @@ class AsyncWriter {
                 .column(price, static_cast<std::int64_t>(
                                    new_order_request.price ? *new_order_request.price : 0))
                 // initial order_status is NEW
-                .column(order_status, std::string_view{"NEW"})
                 .at(questdb::ingress::timestamp_micros::now());
 
             return;
@@ -351,13 +353,13 @@ class DatabaseClient {
     DatabaseClient(DatabaseClient&&) = delete;
 
     // Usually called by the OM at initialization, so this can be left synchronous.
-    auto read_balance(std::string user_id, std::string symbol) -> std::expected<int, std::string> {
+    auto read_balance(int user_id, int server_id, std::string symbol) -> std::expected<int, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
 
             int balance{transaction.query_value<int>(
-                "SELECT balance FROM balances WHERE user_id = $1 AND symbol = $2",
-                pqxx::params{user_id, symbol})};
+                "SELECT balance FROM balances WHERE user_id = $1 AND symbol = $2 AND server_id = $3",
+                pqxx::params{user_id, symbol, server_id})};
 
             transaction.commit();
 
@@ -366,15 +368,40 @@ class DatabaseClient {
             return std::unexpected{std::format("Error faced when getting balance: {}", e.what())};
         }
     }
+    
+    struct BalanceRow {
+        std::string symbol;
+        int balance;
+    };
+    
+    auto read_balances(int user_id, int server_id) -> std::expected<std::vector<BalanceRow>, std::string> {
+        try {
+            pqxx::work transaction{*m_core_db_sql_connection};
+            std::vector<BalanceRow> balances;
+            auto res = transaction.exec(
+                "SELECT symbol, balance FROM balances WHERE user_id = $1 AND server_id = $2",
+                pqxx::params{user_id, server_id});
+            transaction.commit();
+            
+            balances.reserve(res.size());
+            for (const auto& row : res) {
+                balances.emplace_back(BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
+            }
+
+            return balances;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error faced when getting balance: {}", e.what())};
+        }
+    }
 
     // This is called periodically (e.g. hourly) by the OM so it should be performed asynchronously.
-    auto update_balance(std::string user_id, std::string symbol, int balance)
+    auto update_balance(int user_id, int server_id, std::string symbol, int balance)
         -> std::expected<void, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
 
-            transaction.exec("UPDATE balances SET balance = $3 WHERE user_id = $1 AND symbol = $2",
-                             pqxx::params{user_id, symbol, balance});
+            transaction.exec("UPDATE balances SET balance = $4 WHERE user_id = $1 AND server_id = $2 AND symbol = $3",
+                             pqxx::params{user_id, server_id, symbol, balance});
 
             transaction.commit();
             return {};
