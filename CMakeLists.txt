@@ -53,6 +53,16 @@ if (BUILD_TESTS)
     find_package(Catch2 3 REQUIRED)
 endif ()
 
+# Googletest
+if (BUILD_TESTS)
+    include(FetchContent)
+    FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/52eb8108c5bdec04579160ae17225d66034bd723.zip
+    )
+    FetchContent_MakeAvailable(googletest)
+endif ()
+
 set(PostgreSQL_ROOT "/opt/homebrew/Cellar/libpq/18.3")
 find_package(PostgreSQL REQUIRED)
 
@@ -97,3 +107,5 @@ add_subdirectory(services/gateway)
 add_subdirectory(services/order_manager)
 add_subdirectory(services/matching_engine)
 add_subdirectory(services/market_data_processor)
+
+
