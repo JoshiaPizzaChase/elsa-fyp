@@ -55,8 +55,8 @@ export async function getAccountDetails(user_name, server_name) {
     return fetchJSON('/get_account_details', {user_name, server_name});
 }
 
-export async function getHistoricalTrades(server, symbol) {
-    return fetchJSON('/get_historical_trades', {server, symbol});
+export async function getHistoricalTrades(server, symbol, after_ts_ms) {
+    return fetchJSON('/get_historical_trades', {server, symbol, after_ts_ms});
 }
 
 /**

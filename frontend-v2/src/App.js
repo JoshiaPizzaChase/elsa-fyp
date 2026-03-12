@@ -164,7 +164,8 @@ function App() {
     // Load historical trades on mount and whenever the ticker changes
     useEffect(() => {
         let cancelled = false;
-        getHistoricalTrades(serverName, selectedTicker).then((data) => {
+        const after_ts_ms = Date.now() - 2 * 60 * 60 * 1000;
+        getHistoricalTrades(serverName, selectedTicker, after_ts_ms).then((data) => {
             if (cancelled) return;
             const trades = data.trades ?? [];
 

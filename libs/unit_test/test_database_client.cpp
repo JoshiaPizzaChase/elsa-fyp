@@ -1587,10 +1587,10 @@ TEST_CASE("query_trades returns empty after truncate", "[DatabaseClient][trades]
 }
 
 // ===========================================================================
-//  get_historical_trades  (QuestDB – last-2-hours window)
+//  query_trades(symbol, after_ts_ms)  (QuestDB – last-2-hours window)
 // ===========================================================================
 
-TEST_CASE("get_historical_trades returns inserted trades for symbol",
+TEST_CASE("query_trades returns inserted trades for symbol",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
 
@@ -1603,7 +1603,7 @@ TEST_CASE("get_historical_trades returns inserted trades for symbol",
     REQUIRE(db.insert_trade(t2).has_value());
     wait_for_questdb_ingestion();
 
-    auto result = db.get_historical_trades("NVDA");
+    auto result = db.query_trades("NVDA", 0);
     REQUIRE(result.has_value());
     REQUIRE(result->size() >= 2);
 
@@ -1617,7 +1617,7 @@ TEST_CASE("get_historical_trades returns inserted trades for symbol",
     [[maybe_unused]] auto cleanup = db.truncate_trades();
 }
 
-TEST_CASE("get_historical_trades does not return rows for a different symbol",
+TEST_CASE("query_trades does not return rows for a different symbol",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
 
@@ -1629,17 +1629,17 @@ TEST_CASE("get_historical_trades does not return rows for a different symbol",
     wait_for_questdb_ingestion();
 
     // Query for a symbol we never inserted.
-    auto result = db.get_historical_trades("TSLA");
+    auto result = db.query_trades("TSLA", 0);
     REQUIRE(result.has_value());
     CHECK(result->empty());
 
     [[maybe_unused]] auto cleanup = db.truncate_trades();
 }
 
-TEST_CASE("get_historical_trades returns empty for unknown symbol",
+TEST_CASE("query_trades returns empty for unknown symbol",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
-    auto result = db.get_historical_trades("UNKNOWN_ZZZ");
+    auto result = db.query_trades("UNKNOWN_ZZZ", 0);
     REQUIRE(result.has_value());
     CHECK(result->empty());
 }

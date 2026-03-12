@@ -13,6 +13,7 @@
 #include <pqxx/pqxx>
 #include <questdb/ingress/line_sender.hpp>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -368,12 +369,12 @@ class DatabaseClient {
             return std::unexpected{std::format("Error faced when getting balance: {}", e.what())};
         }
     }
-    
+
     struct BalanceRow {
         std::string symbol;
         int balance;
     };
-    
+
     auto read_balances(int user_id) -> std::expected<std::vector<BalanceRow>, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
@@ -400,7 +401,7 @@ class DatabaseClient {
                 "SELECT symbol, balance FROM balances WHERE user_id = $1 AND server_id = $2",
                 pqxx::params{user_id, server_id});
             transaction.commit();
-            
+
             balances.reserve(res.size());
             for (const auto& row : res) {
                 balances.emplace_back(BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
@@ -681,22 +682,23 @@ class DatabaseClient {
         }
     }
 
-    // Recent trades for a symbol from QuestDB (last 2 hours), ordered oldest-first.
-    auto get_historical_trades(const std::string& symbol)
+    // Trades for a symbol from QuestDB after a given Unix timestamp (ms), ordered oldest-first.
+    auto query_trades(const std::string_view& symbol, long long after_ts_ms)
         -> std::expected<std::vector<HistoricalTradeRow>, std::string> {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
             // QuestDB: CAST(ts AS LONG) returns microseconds since epoch.
             // Parameterised queries over QuestDB's PG wire are unreliable, so we
-            // quote the literal manually (safe: tickers are alphanumeric).
+            // quote literals manually (safe: tickers are alphanumeric, after_ts_micros is numeric).
+            const auto after_ts_micros = after_ts_ms * 1000LL;
             const std::string query =
                 "SELECT trade_id, symbol, price, quantity, CAST(ts AS LONG) AS ts_micros "
                 "FROM trades "
-                "WHERE symbol = " + txn.quote(symbol) +
-                " AND ts >= dateadd('h', -2, now()) "
+                "WHERE symbol = $1"
+                " AND ts >= to_timestamp($2) "
                 "ORDER BY ts ASC";
-            auto res = txn.exec(query);
+            auto res = txn.exec(query, pqxx::params{symbol, after_ts_micros});
             txn.commit();
 
             std::vector<HistoricalTradeRow> result;
@@ -712,7 +714,7 @@ class DatabaseClient {
             }
             return result;
         } catch (const std::exception& e) {
-            return std::unexpected{std::format("Error getting historical trades: {}", e.what())};
+            return std::unexpected{std::format("Error querying trades: {}", e.what())};
         }
     }
 

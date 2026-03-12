@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS users
 (
     user_id SERIAL PRIMARY KEY,
-    username VARCHAR UNIQUE NOT NULL,
+    username VARCHAR UNIQUE NOT NULL, -- also used as sender_comp_id
     password VARCHAR NOT NULL,
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

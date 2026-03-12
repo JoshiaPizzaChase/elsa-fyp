@@ -295,7 +295,17 @@ bj::object RequestHandler::handle_historical_trades(const boost::urls::params_vi
 
     const std::string symbol = (*symbol_it).value;
 
-    auto result = m_db_client.get_historical_trades(symbol);
+    auto after_ts_it = params.find("after_ts_ms");
+    std::expected<std::vector<database::DatabaseClient::HistoricalTradeRow>, std::string> result;
+    if (after_ts_it != params.end()) {
+        long long after_ts_ms{};
+        try { after_ts_ms = std::stoll(std::string((*after_ts_it).value)); }
+        catch (...) { res["error"] = "Invalid after_ts_ms"; return res; }
+        result = m_db_client.query_trades(symbol, after_ts_ms);
+    } else {
+        res["error"] = "No after_ts_ms specified";
+        return res;
+    }
     if (!result.has_value()) {
         std::cerr << result.error() << '\n';
         res["error"] = "Internal server error";
