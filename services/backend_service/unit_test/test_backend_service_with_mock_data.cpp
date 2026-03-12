@@ -126,6 +126,7 @@ static void start_backend() {
             throw std::runtime_error(std::string{"Cannot write test config to "} + TOML_PATH);
         f << "host = \"" << TEST_HOST << "\"\n";
         f << "port = " << TEST_PORT << "\n";
+        f << "uat = false\n";
     }
 
     g_backend_pid = fork();
