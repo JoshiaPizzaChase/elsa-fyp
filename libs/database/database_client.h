@@ -375,24 +375,6 @@ class DatabaseClient {
         int balance;
     };
 
-    auto read_balances(int user_id) -> std::expected<std::vector<BalanceRow>, std::string> {
-        try {
-            pqxx::work transaction{*m_core_db_sql_connection};
-            auto res = transaction.exec(
-                "SELECT symbol, balance FROM balances WHERE user_id = $1",
-                pqxx::params{user_id});
-            transaction.commit();
-
-            std::vector<BalanceRow> balances;
-            balances.reserve(res.size());
-            for (const auto& row : res)
-                balances.emplace_back(BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
-            return balances;
-        } catch (const std::exception& e) {
-            return std::unexpected{std::format("Error faced when getting balance: {}", e.what())};
-        }
-    }
-
     auto read_balances(int user_id, int server_id) -> std::expected<std::vector<BalanceRow>, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
@@ -657,13 +639,14 @@ class DatabaseClient {
 
             const auto& row = res[0];
             AccountDetailsRow details;
-            details.server_id   = row["server_id"].as<int>();
+            const int server_id = row["server_id"].as<int>();
+            const int user_id = row["user_id"].as<int>();
+            details.server_id   = server_id;
             details.server_name = row["server_name"].as<std::string>();
             details.admin_name  = row["admin_name"].as<std::string>();
             details.description = row["description"].as<std::string>("");
             details.role        = row["role"].as<std::string>();
             details.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
-            const int user_id = row["user_id"].as<int>();
 
             // Build the PostgreSQL array literal for active tickers
             const std::string arr_lit = build_pg_array(details.active_tickers);

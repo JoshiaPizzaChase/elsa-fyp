@@ -29,8 +29,6 @@ http::response<http::string_body> RequestHandler::handle(const http::request<htt
             res = handle_signup(params);
         } else if (path == "/active_servers") {
             res = handle_active_servers();
-        } else if (path == "/user_info") {
-            res = handle_user_info(params);
         } else if (path == "/active_symbols") {
             res = handle_active_symbols(params);
         } else if (path == "/user_servers") {
@@ -154,53 +152,6 @@ bj::object RequestHandler::handle_active_servers() {
     }
 
     res["servers"] = std::move(arr);
-    return res;
-}
-
-bj::object RequestHandler::handle_user_info(const boost::urls::params_view& params) {
-    bj::object res;
-
-    auto user_name_it = params.find("user_name");
-    if (user_name_it == params.end()) {
-        res["error"] = "Missing user_name";
-        return res;
-    }
-
-    const std::string user_name = (*user_name_it).value;
-
-    auto user_result = m_db_client.get_user(user_name);
-    if (!user_result.has_value()) {
-        std::cerr << user_result.error() << '\n';
-        res["error"] = "Internal server error";
-        return res;
-    }
-    if (!user_result.value().has_value()) {
-        res["error"] = "User not found";
-        return res;
-    }
-
-    const auto& user = user_result.value().value();
-
-    bj::object user_obj;
-    user_obj["user_id"]  = user.user_id;
-    user_obj["username"] = user.username;
-    res["user"] = std::move(user_obj);
-
-    auto bal_result = m_db_client.read_balances(user.user_id);
-    if (!bal_result.has_value()) {
-        std::cerr << bal_result.error() << '\n';
-        res["error"] = "Internal server error";
-        return res;
-    }
-
-    bj::array bal_arr;
-    for (const auto& b : bal_result.value()) {
-        bj::object bo;
-        bo["symbol"]  = b.symbol;
-        bo["balance"] = b.balance;
-        bal_arr.emplace_back(std::move(bo));
-    }
-    res["balances"] = std::move(bal_arr);
     return res;
 }
 

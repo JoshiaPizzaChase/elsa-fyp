@@ -26,7 +26,6 @@ private:
     bj::object handle_login(const boost::urls::params_view& params);
     bj::object handle_signup(const boost::urls::params_view& params);
     bj::object handle_active_servers();
-    bj::object handle_user_info(const boost::urls::params_view& params);
     bj::object handle_active_symbols(const boost::urls::params_view& params);
     bj::object handle_user_servers(const boost::urls::params_view& params);
     bj::object handle_account_details(const boost::urls::params_view& params);

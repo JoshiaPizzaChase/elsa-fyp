@@ -344,30 +344,6 @@ TEST_F(BackendServiceTest, ActiveServersContainsSeededServer) {
     EXPECT_TRUE(found) << "test_server was not returned by /active_servers";
 }
 
-// ── GET /user_info ────────────────────────────────────────────────────────────
-
-TEST_F(BackendServiceTest, UserInfoReturnsUserAndBalances) {
-    auto r = do_get("/user_info?user_name=test_member");
-    EXPECT_EQ(r.status, http::status::ok);
-
-    const auto& obj = r.body.as_object();
-    EXPECT_EQ(obj.at("user").as_object().at("username").as_string(), "test_member");
-    // Two balances seeded: USD and AAPL
-    EXPECT_EQ(obj.at("balances").as_array().size(), 2u);
-}
-
-TEST_F(BackendServiceTest, UserInfoMissingParam) {
-    auto r = do_get("/user_info");
-    EXPECT_EQ(r.status, http::status::ok);
-    EXPECT_TRUE(r.body.as_object().contains("error"));
-}
-
-TEST_F(BackendServiceTest, UserInfoUnknownUser) {
-    auto r = do_get("/user_info?user_name=no_such_user_xyz");
-    EXPECT_EQ(r.status, http::status::ok);
-    EXPECT_TRUE(r.body.as_object().contains("error"));
-}
-
 // ── GET /active_symbols ───────────────────────────────────────────────────────
 
 TEST_F(BackendServiceTest, ActiveSymbolsForSeededServer) {

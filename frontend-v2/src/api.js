@@ -39,10 +39,6 @@ export async function getActiveServers() {
     return fetchJSON('/active_servers');
 }
 
-export async function getUserInfo(user_name) {
-    return fetchJSON('/user_info', {user_name});
-}
-
 export async function getActiveSymbols(server_name) {
     return fetchJSON('/active_symbols', {server_name});
 }
