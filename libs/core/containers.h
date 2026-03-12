@@ -44,7 +44,7 @@ struct ExecutionReportContainer {
     ExecTransType exec_trans_type; // Describes the type of execution report.
     ExecType exec_type;            // Order event that caused the issuance of this report.
     OrderStatus ord_status;        // Always the order status.
-    std::string ord_reject_reason;
+    std::optional<std::string> ord_reject_reason;
     std::string symbol;
     Side side;
     std::optional<std::int32_t> price; // Only required in response to limit orders.
@@ -65,8 +65,25 @@ struct FillCostResponseContainer {
     std::optional<std::int32_t> total_cost;
 };
 
+struct TradeContainer {
+    std::string ticker{};
+    int price{0};
+    int quantity{0};
+    int trade_id{0};
+    int taker_id{0};
+    int maker_id{0};
+    int taker_order_id{0};
+    int maker_order_id{0};
+    bool is_taker_buyer{false};
+};
+
+struct CancelOrderResponseContainer {
+    int order_id;
+    bool success;
+ };
+
 using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderRequestContainer,
                                core::ExecutionReportContainer, core::FillCostQueryContainer,
-                               core::FillCostResponseContainer>;
+                               core::FillCostResponseContainer, core::TradeContainer, core::CancelOrderResponseContainer>;
 
 } // namespace core

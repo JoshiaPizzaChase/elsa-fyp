@@ -60,7 +60,7 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
      * An example of uri is ws://localhost:6767.
      * Returns the connection id if successful.
      */
-    std::expected<int, int> connect(std::string_view uri) {
+    std::expected<int, int> connect(std::string_view uri, std::string_view name = "N/A") {
         websocketpp::lib::error_code error_code;
 
         Client::connection_ptr connection =
@@ -70,6 +70,9 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
             m_logger->error("Connect initialization error: {}", error_code.message());
             return std::unexpected{-1};
         }
+
+        // We use a user-provided label, to help the server side identify the client.
+        connection->append_header("client_name", static_cast<std::string>(name));
 
         int new_id = m_next_id++;
 

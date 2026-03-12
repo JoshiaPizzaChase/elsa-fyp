@@ -145,6 +145,34 @@ convert_to_internal(transport::ExecTypeOrOrderStatus exec_type_or_order_status) 
 }
 
 // Serializer and deserializer functions
+inline std::string serialize_container(const core::TradeContainer& container) {
+    transport::ContainerWrapper container_wrapper;
+    transport::TradeContainer container_proto;
+
+    container_proto.set_ticker(container.ticker);
+    container_proto.set_price(container.price);
+    container_proto.set_quantity(container.quantity);
+    container_proto.set_taker_id(container.taker_id);
+    container_proto.set_trade_id(container.trade_id);
+    container_proto.set_taker_order_id(container.taker_order_id);
+    container_proto.set_maker_order_id(container.maker_order_id);
+    container_proto.set_is_taker_buyer(container.is_taker_buyer);
+
+    *container_wrapper.mutable_trade() = container_proto;
+    return container_wrapper.SerializeAsString();
+}
+
+inline std::string serialize_container(const core::CancelOrderResponseContainer& container) {
+    transport::ContainerWrapper container_wrapper;
+    transport::CancelOrderResponseContainer container_proto;
+
+    container_proto.set_order_id(container.order_id);
+    container_proto.set_success(container.success);
+
+    *container_wrapper.mutable_cancel_order_response() = container_proto;
+    return container_wrapper.SerializeAsString();
+}
+
 inline std::string serialize_container(const core::FillCostQueryContainer& container) {
     transport::ContainerWrapper container_wrapper;
     transport::FillCostQueryContainer container_proto;
@@ -221,7 +249,9 @@ inline std::string serialize_container(const core::ExecutionReportContainer& con
     container_proto.set_exec_trans_type(convert_to_proto(container.exec_trans_type));
     container_proto.set_exec_type(convert_to_proto(container.exec_type));
     container_proto.set_ord_status(convert_to_proto(container.ord_status));
-    container_proto.set_ord_reject_reason(container.ord_reject_reason);
+    if (container.ord_reject_reason.has_value()) {
+        container_proto.set_ord_reject_reason(container.ord_reject_reason.value());
+    }
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
     if (container.price.has_value()) {
@@ -319,6 +349,24 @@ inline core::Container deserialize_container(const std::string& data) {
         if (proto.has_total_cost()) {
             container.total_cost = proto.total_cost();
         }
+        return container;
+    }
+    case transport::ContainerWrapper::kTrade: {
+        const auto& proto = container_wrapper.trade();
+        core::TradeContainer container;
+        container.trade_id = proto.trade_id();
+        container.taker_id = proto.taker_id();
+        container.maker_id = proto.maker_id();
+        container.taker_order_id = proto.taker_order_id();
+        container.maker_order_id = proto.maker_order_id();
+        container.is_taker_buyer = proto.is_taker_buyer();
+        return container;
+    }
+    case transport::ContainerWrapper::kCancelOrderResponse: {
+        const auto& proto = container_wrapper.cancel_order_response();
+        core::CancelOrderResponseContainer container;
+        container.order_id = proto.order_id();
+        container.success = proto.success();
         return container;
     }
 
