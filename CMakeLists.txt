@@ -62,6 +62,7 @@ if (BUILD_TESTS)
     )
     FetchContent_MakeAvailable(googletest)
 endif ()
+
 set(PostgreSQL_ROOT "/opt/homebrew/Cellar/libpq/18.3")
 find_package(PostgreSQL REQUIRED)
 
