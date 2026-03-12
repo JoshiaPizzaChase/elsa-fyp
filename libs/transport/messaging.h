@@ -196,7 +196,9 @@ inline std::string serialize_container(const core::CancelOrderRequestContainer& 
     container_proto.set_cl_ord_id(container.cl_ord_id);
     container_proto.set_sender_comp_id(container.sender_comp_id);
     container_proto.set_target_comp_id(container.target_comp_id);
-    container_proto.set_order_id(container.order_id);
+    if (container.order_id.has_value()) {
+        container_proto.set_order_id(container.order_id.value());
+    }
     container_proto.set_orig_cl_ord_id(container.orig_cl_ord_id);
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
@@ -265,7 +267,9 @@ inline core::Container deserialize_container(const std::string& data) {
         container.cl_ord_id = proto.cl_ord_id();
         container.sender_comp_id = proto.sender_comp_id();
         container.target_comp_id = proto.target_comp_id();
-        container.order_id = proto.order_id();
+        if (proto.has_order_id()) {
+             container.order_id = proto.order_id();
+        }
         container.orig_cl_ord_id = proto.orig_cl_ord_id();
         container.symbol = proto.symbol();
         container.side = convert_to_internal(proto.side());

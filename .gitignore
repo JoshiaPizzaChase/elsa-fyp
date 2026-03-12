@@ -5,6 +5,7 @@ store/
 *.pb.h
 logs/*
 Testing
+deps/
 
 # Usual ignores
 .vscode

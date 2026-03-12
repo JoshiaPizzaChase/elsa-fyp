@@ -63,6 +63,29 @@ if (BUILD_TESTS)
     FetchContent_MakeAvailable(googletest)
 endif ()
 
+set(PostgreSQL_ROOT "/opt/homebrew/Cellar/libpq/18.3")
+find_package(PostgreSQL REQUIRED)
+
+# libpqxx (C++ PostgreSQL client) — must be compiled with the same stdlib as this project.
+# Use the Homebrew bottle (built with Apple Clang/libc++) to avoid ABI mismatches with
+# manually-compiled GCC/libstdc++ builds at /usr/local.
+find_library(PQXX_LIB
+        NAMES pqxx
+        HINTS /opt/homebrew/lib
+        REQUIRED
+)
+find_path(PQXX_INCLUDE_DIR
+        NAMES pqxx/pqxx
+        HINTS /opt/homebrew/include
+        REQUIRED
+)
+add_library(pqxx::pqxx UNKNOWN IMPORTED)
+set_target_properties(pqxx::pqxx PROPERTIES
+        IMPORTED_LOCATION "${PQXX_LIB}"
+        INTERFACE_INCLUDE_DIRECTORIES "${PQXX_INCLUDE_DIR}"
+        INTERFACE_LINK_LIBRARIES PostgreSQL::PostgreSQL
+)
+
 # Building our code
 if (BUILD_TESTS)
     enable_testing()
@@ -74,6 +97,10 @@ endif ()
 add_subdirectory(client_sdk)
 
 add_subdirectory(libs/transport/websocket)
+
+add_subdirectory(
+        deps/c-questdb-client
+        EXCLUDE_FROM_ALL)
 
 # Add new services here
 add_subdirectory(services/gateway)
