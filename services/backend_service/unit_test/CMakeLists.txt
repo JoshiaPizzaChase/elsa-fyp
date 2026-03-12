@@ -1,4 +1,4 @@
-find_package(Boost REQUIRED COMPONENTS system json)
+find_package(Boost REQUIRED COMPONENTS json)
 
 add_executable(test_backend_service_with_mock_data
         test_backend_service_with_mock_data.cpp
@@ -10,10 +10,10 @@ target_include_directories(test_backend_service_with_mock_data PRIVATE
 )
 
 target_compile_options(test_backend_service_with_mock_data PRIVATE -Wall -Wextra -Wpedantic)
+add_dependencies(test_backend_service_with_mock_data backend_service)
 
 target_link_libraries(test_backend_service_with_mock_data PRIVATE
         GTest::gtest
-        Boost::system
         Boost::json
         pqxx::pqxx
 )
