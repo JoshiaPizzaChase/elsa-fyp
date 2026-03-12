@@ -917,6 +917,43 @@ class DatabaseClient {
         }
     }
 
+    auto insert_balance(int user_id, int server_id, const std::string& symbol, int balance)
+        -> std::expected<void, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            txn.exec(
+                "INSERT INTO balances (user_id, server_id, symbol, balance) "
+                "VALUES ($1, $2, $3, $4)",
+                pqxx::params{user_id, server_id, symbol, balance});
+            txn.commit();
+            return {};
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error inserting balance: {}", e.what())};
+        }
+    }
+
+    // Remove UAT-generated rows from PostgreSQL.
+    // Deletes in dependency order: allowlist → balances → servers → users.
+    auto delete_uat_data(const std::vector<int>& user_ids, const std::vector<int>& server_ids)
+        -> std::expected<void, std::string> {
+        if (user_ids.empty() && server_ids.empty()) return {};
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            for (int sid : server_ids)
+                txn.exec("DELETE FROM allowlist WHERE server_id = $1", pqxx::params{sid});
+            for (int uid : user_ids)
+                txn.exec("DELETE FROM balances WHERE user_id = $1", pqxx::params{uid});
+            for (int sid : server_ids)
+                txn.exec("DELETE FROM servers WHERE server_id = $1", pqxx::params{sid});
+            for (int uid : user_ids)
+                txn.exec("DELETE FROM users WHERE user_id = $1", pqxx::params{uid});
+            txn.commit();
+            return {};
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error deleting UAT data: {}", e.what())};
+        }
+    }
+
     auto truncate_orders() -> std::expected<void, std::string> {
         try {
             ensure_timeseries_connection();

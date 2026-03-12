@@ -17,8 +17,11 @@ class RequestHandler {
 public:
     // Takes a parsed HTTP request, returns an HTTP response
     http::response<http::string_body> handle(const http::request<http::string_body>& req);
+    // Returns the underlying database client (e.g. for UAT seeding).
+    database::DatabaseClient& get_db_client() { return m_db_client; }
 
 private:
+
     // Individual endpoint handlers
     bj::object handle_login(const boost::urls::params_view& params);
     bj::object handle_signup(const boost::urls::params_view& params);

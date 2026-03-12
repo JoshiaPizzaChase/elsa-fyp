@@ -6,5 +6,6 @@ namespace backend {
 struct BackendConfig {
     std::string host;
     int port;
+    bool uat = false;
 };
 }
