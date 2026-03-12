@@ -374,6 +374,24 @@ class DatabaseClient {
         int balance;
     };
     
+    auto read_balances(int user_id) -> std::expected<std::vector<BalanceRow>, std::string> {
+        try {
+            pqxx::work transaction{*m_core_db_sql_connection};
+            auto res = transaction.exec(
+                "SELECT symbol, balance FROM balances WHERE user_id = $1",
+                pqxx::params{user_id});
+            transaction.commit();
+
+            std::vector<BalanceRow> balances;
+            balances.reserve(res.size());
+            for (const auto& row : res)
+                balances.emplace_back(BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
+            return balances;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error faced when getting balance: {}", e.what())};
+        }
+    }
+
     auto read_balances(int user_id, int server_id) -> std::expected<std::vector<BalanceRow>, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
@@ -410,6 +428,374 @@ class DatabaseClient {
         }
     }
 
+    struct UserRow {
+        int user_id{};
+        std::string username;
+    };
+
+    struct ServerRow {
+        int server_id{};
+        int admin_id{};
+        std::string server_name;
+        std::string admin_name;
+        std::vector<std::string> active_tickers;
+        std::string description;
+    };
+
+    struct UserServerRow {
+        int server_id{};
+        std::string server_name;
+        std::string role;
+        std::vector<std::string> active_tickers;
+        std::string description;
+        std::vector<BalanceRow> balances;
+    };
+
+    struct AccountDetailsRow {
+        int server_id{};
+        std::string server_name;
+        std::string admin_name;
+        std::string description;
+        std::vector<std::string> active_tickers;
+        std::string role;
+        std::vector<BalanceRow> balances;
+    };
+
+    struct HistoricalTradeRow {
+        int trade_id{};
+        std::string symbol;
+        int price{};
+        int quantity{};
+        long long ts_ms{};
+    };
+
+    // Verify credentials; returns the user row on success or nullopt on mismatch.
+    auto authenticate_user(const std::string& username, const std::string& password)
+        -> std::expected<std::optional<UserRow>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec(
+                "SELECT user_id, username FROM users WHERE username = $1 AND password = $2",
+                pqxx::params{username, password});
+            txn.commit();
+            if (res.empty()) return std::nullopt;
+            return UserRow{res[0]["user_id"].as<int>(), res[0]["username"].as<std::string>()};
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error authenticating user: {}", e.what())};
+        }
+    }
+
+    // Insert a new user; returns the newly created row.
+    auto create_user(const std::string& username, const std::string& password)
+        -> std::expected<UserRow, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec(
+                "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING user_id, username",
+                pqxx::params{username, password});
+            txn.commit();
+            if (res.empty()) return std::unexpected{std::string{"Failed to create user"}};
+            return UserRow{res[0]["user_id"].as<int>(), res[0]["username"].as<std::string>()};
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error creating user: {}", e.what())};
+        }
+    }
+
+    // Lookup a user by username; returns nullopt when not found.
+    auto get_user(const std::string& username)
+        -> std::expected<std::optional<UserRow>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec(
+                "SELECT user_id, username FROM users WHERE username = $1",
+                pqxx::params{username});
+            txn.commit();
+            if (res.empty()) return std::nullopt;
+            return UserRow{res[0]["user_id"].as<int>(), res[0]["username"].as<std::string>()};
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting user: {}", e.what())};
+        }
+    }
+
+    auto get_active_servers()
+        -> std::expected<std::vector<ServerRow>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec(
+                "SELECT s.server_id, s.admin_id, s.server_name, u.username AS admin_name, "
+                "s.active_tickers, s.description "
+                "FROM servers s JOIN users u ON s.admin_id = u.user_id");
+            txn.commit();
+            std::vector<ServerRow> result;
+            result.reserve(res.size());
+            for (const auto& row : res) {
+                ServerRow srv;
+                srv.server_id = row["server_id"].as<int>();
+                srv.admin_id  = row["admin_id"].as<int>();
+                srv.server_name  = row["server_name"].as<std::string>();
+                srv.admin_name   = row["admin_name"].as<std::string>();
+                srv.description  = row["description"].as<std::string>("");
+                srv.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+                result.push_back(std::move(srv));
+            }
+            return result;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting active servers: {}", e.what())};
+        }
+    }
+
+    auto get_server(const std::string& server_name)
+        -> std::expected<std::optional<ServerRow>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec(
+                "SELECT s.server_id, s.admin_id, s.server_name, u.username AS admin_name, "
+                "s.active_tickers, s.description "
+                "FROM servers s JOIN users u ON s.admin_id = u.user_id "
+                "WHERE s.server_name = $1",
+                pqxx::params{server_name});
+            txn.commit();
+            if (res.empty()) return std::nullopt;
+            const auto& row = res[0];
+            ServerRow srv;
+            srv.server_id   = row["server_id"].as<int>();
+            srv.admin_id    = row["admin_id"].as<int>();
+            srv.server_name = row["server_name"].as<std::string>();
+            srv.admin_name  = row["admin_name"].as<std::string>();
+            srv.description = row["description"].as<std::string>("");
+            srv.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+            return srv;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting server: {}", e.what())};
+        }
+    }
+
+    // Active tickers for a server; returns an empty vector when not found.
+    auto get_server_active_symbols(const std::string& server_name)
+        -> std::expected<std::vector<std::string>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec(
+                "SELECT active_tickers FROM servers WHERE server_name = $1",
+                pqxx::params{server_name});
+            txn.commit();
+            if (res.empty()) return std::vector<std::string>{};
+            return parse_pg_array(res[0]["active_tickers"].as<std::string>("{}"));
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting active symbols: {}", e.what())};
+        }
+    }
+
+    // All servers a user is associated with (as admin or member), each entry
+    // carrying the user's full balance list.
+    auto get_user_servers(const std::string& username)
+        -> std::expected<std::vector<UserServerRow>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+
+            auto user_res = txn.exec(
+                "SELECT user_id FROM users WHERE username = $1",
+                pqxx::params{username});
+            if (user_res.empty()) return std::vector<UserServerRow>{};
+            const int user_id = user_res[0]["user_id"].as<int>();
+
+            auto srv_res = txn.exec(
+                "SELECT s.server_id, s.server_name, s.active_tickers, s.description, "
+                "CASE WHEN s.admin_id = $1 THEN 'admin' ELSE 'member' END AS role "
+                "FROM servers s "
+                "WHERE s.admin_id = $1 "
+                "OR EXISTS (SELECT 1 FROM allowlist a WHERE a.server_id = s.server_id AND a.user_id = $1)",
+                pqxx::params{user_id});
+
+            auto bal_res = txn.exec(
+                "SELECT symbol, balance FROM balances WHERE user_id = $1",
+                pqxx::params{user_id});
+            txn.commit();
+
+            std::vector<BalanceRow> balances;
+            balances.reserve(bal_res.size());
+            for (const auto& row : bal_res)
+                balances.push_back({row["symbol"].as<std::string>(), row["balance"].as<int>()});
+
+            std::vector<UserServerRow> result;
+            result.reserve(srv_res.size());
+            for (const auto& row : srv_res) {
+                UserServerRow usr;
+                usr.server_id   = row["server_id"].as<int>();
+                usr.server_name = row["server_name"].as<std::string>();
+                usr.role        = row["role"].as<std::string>();
+                usr.description = row["description"].as<std::string>("");
+                usr.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+                usr.balances = balances;
+                result.push_back(std::move(usr));
+            }
+            return result;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting user servers: {}", e.what())};
+        }
+    }
+
+    auto get_account_details(const std::string& username, const std::string& server_name)
+        -> std::expected<std::optional<AccountDetailsRow>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+
+            auto res = txn.exec(
+                "SELECT s.server_id, s.server_name, s.description, s.active_tickers, "
+                "u_admin.username AS admin_name, u.user_id, "
+                "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' END AS role "
+                "FROM users u "
+                "JOIN servers s ON s.server_name = $2 "
+                "JOIN users u_admin ON u_admin.user_id = s.admin_id "
+                "WHERE u.username = $1 "
+                "AND (s.admin_id = u.user_id "
+                "     OR EXISTS (SELECT 1 FROM allowlist a "
+                "                WHERE a.server_id = s.server_id AND a.user_id = u.user_id))",
+                pqxx::params{username, server_name});
+            if (res.empty()) return std::nullopt;
+
+            const auto& row = res[0];
+            AccountDetailsRow details;
+            details.server_id   = row["server_id"].as<int>();
+            details.server_name = row["server_name"].as<std::string>();
+            details.admin_name  = row["admin_name"].as<std::string>();
+            details.description = row["description"].as<std::string>("");
+            details.role        = row["role"].as<std::string>();
+            details.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+            const int user_id = row["user_id"].as<int>();
+
+            // Build the PostgreSQL array literal for active tickers
+            const std::string arr_lit = build_pg_array(details.active_tickers);
+            auto bal_res = txn.exec(
+                "SELECT symbol, balance FROM balances "
+                "WHERE user_id = $1 AND (symbol = 'USD' OR symbol = ANY($2::varchar[]))",
+                pqxx::params{user_id, arr_lit});
+            txn.commit();
+
+            for (const auto& brow : bal_res)
+                details.balances.push_back(
+                    {brow["symbol"].as<std::string>(), brow["balance"].as<int>()});
+            return details;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting account details: {}", e.what())};
+        }
+    }
+
+    // Recent trades for a symbol from QuestDB (last 2 hours), ordered oldest-first.
+    auto get_historical_trades(const std::string& symbol)
+        -> std::expected<std::vector<HistoricalTradeRow>, std::string> {
+        try {
+            ensure_timeseries_connection();
+            pqxx::work txn{*m_timeseries_db_sql_connection};
+            // QuestDB: CAST(ts AS LONG) returns microseconds since epoch.
+            // Parameterised queries over QuestDB's PG wire are unreliable, so we
+            // quote the literal manually (safe: tickers are alphanumeric).
+            const std::string query =
+                "SELECT trade_id, symbol, price, quantity, CAST(ts AS LONG) AS ts_micros "
+                "FROM trades "
+                "WHERE symbol = " + txn.quote(symbol) +
+                " AND ts >= dateadd('h', -2, now()) "
+                "ORDER BY ts ASC";
+            auto res = txn.exec(query);
+            txn.commit();
+
+            std::vector<HistoricalTradeRow> result;
+            result.reserve(res.size());
+            for (const auto& row : res) {
+                HistoricalTradeRow trade;
+                trade.trade_id = row["trade_id"].as<int>(0);
+                trade.symbol   = row["symbol"].as<std::string>("");
+                trade.price    = row["price"].as<int>(0);
+                trade.quantity = row["quantity"].as<int>(0);
+                trade.ts_ms    = row["ts_micros"].as<long long>(0) / 1000;
+                result.push_back(std::move(trade));
+            }
+            return result;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting historical trades: {}", e.what())};
+        }
+    }
+
+    // Insert a new server and populate its allowlist in one transaction.
+    // Returns the newly created server_id.
+    auto create_server(const std::string& server_name, int admin_id,
+                       const std::string& description,
+                       const std::vector<std::string>& symbols,
+                       const std::vector<int>& allowlist_user_ids)
+        -> std::expected<int, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            const std::string arr = build_pg_array(symbols);
+            auto res = txn.exec(
+                "INSERT INTO servers (server_name, admin_id, description, active_tickers) "
+                "VALUES ($1, $2, $3, $4::varchar[]) RETURNING server_id",
+                pqxx::params{server_name, admin_id, description, arr});
+            if (res.empty()) return std::unexpected{std::string{"Failed to create server"}};
+            const int server_id = res[0]["server_id"].as<int>();
+            for (int uid : allowlist_user_ids) {
+                txn.exec(
+                    "INSERT INTO allowlist (server_id, user_id) VALUES ($1, $2)",
+                    pqxx::params{server_id, uid});
+            }
+            txn.commit();
+            return server_id;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error creating server: {}", e.what())};
+        }
+    }
+
+    // Update an existing server's metadata and replace its allowlist.
+    // Returns false when the server is not found or caller_id is not the admin.
+    auto configure_server(const std::string& server_name, int caller_id,
+                          const std::string& description,
+                          const std::vector<std::string>& symbols,
+                          const std::vector<int>& allowlist_user_ids)
+        -> std::expected<bool, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto srv_res = txn.exec(
+                "SELECT server_id, admin_id FROM servers WHERE server_name = $1",
+                pqxx::params{server_name});
+            if (srv_res.empty()) return false;
+            if (srv_res[0]["admin_id"].as<int>() != caller_id) return false;
+            const int server_id = srv_res[0]["server_id"].as<int>();
+
+            const std::string arr = build_pg_array(symbols);
+            txn.exec(
+                "UPDATE servers SET description = $1, active_tickers = $2::varchar[] "
+                "WHERE server_id = $3",
+                pqxx::params{description, arr, server_id});
+
+            txn.exec("DELETE FROM allowlist WHERE server_id = $1", pqxx::params{server_id});
+            for (int uid : allowlist_user_ids) {
+                txn.exec(
+                    "INSERT INTO allowlist (server_id, user_id) VALUES ($1, $2)",
+                    pqxx::params{server_id, uid});
+            }
+            txn.commit();
+            return true;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error configuring server: {}", e.what())};
+        }
+    }
+
+    // Resolve a list of usernames to user_ids; returns an error naming the first
+    // unknown username.
+    auto resolve_user_ids(const std::vector<std::string>& usernames)
+        -> std::expected<std::vector<int>, std::string> {
+        std::vector<int> ids;
+        ids.reserve(usernames.size());
+        for (const auto& uname : usernames) {
+            auto res = get_user(uname);
+            if (!res.has_value()) return std::unexpected{res.error()};
+            if (!res.value().has_value())
+                return std::unexpected{"User not found: " + uname};
+            ids.push_back(res.value()->user_id);
+        }
+        return ids;
+    }
+
+    // -----------------------------------------------------------------------
     // Insert-based functions for questdb should also be asynchronous.
     auto insert_order(int internal_order_id, const core::NewOrderSingleContainer& new_order_request)
         -> std::expected<void, std::string> {
@@ -573,6 +959,37 @@ class DatabaseClient {
     }
 
   private:
+    // Parse a PostgreSQL text-array literal (e.g. "{AAPL,GOOGL}") into a vector.
+    static std::vector<std::string> parse_pg_array(const std::string& pg_array) {
+        std::vector<std::string> result;
+        if (pg_array.size() < 2 || pg_array.front() != '{') return result;
+        const std::string inner = pg_array.substr(1, pg_array.size() - 2);
+        if (inner.empty()) return result;
+        size_t pos = 0;
+        while (pos <= inner.size()) {
+            const size_t comma = inner.find(',', pos);
+            const size_t end   = (comma == std::string::npos) ? inner.size() : comma;
+            std::string token  = inner.substr(pos, end - pos);
+            if (token.size() >= 2 && token.front() == '"' && token.back() == '"')
+                token = token.substr(1, token.size() - 2);
+            if (!token.empty()) result.push_back(std::move(token));
+            if (comma == std::string::npos) break;
+            pos = comma + 1;
+        }
+        return result;
+    }
+
+    // Build a PostgreSQL text-array literal from a vector of strings.
+    static std::string build_pg_array(const std::vector<std::string>& items) {
+        std::string arr = "{";
+        for (size_t i = 0; i < items.size(); ++i) {
+            if (i > 0) arr += ',';
+            arr += items[i];
+        }
+        arr += '}';
+        return arr;
+    }
+
     // This will be shared with async writer
     ThreadSafeQueue<WriteTask> m_write_queue{};
     std::chrono::milliseconds m_flush_interval{0};

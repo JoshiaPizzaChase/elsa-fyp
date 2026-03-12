@@ -1,86 +1,7 @@
 #include "request_handler.h"
-#include "queries.h"
-#include <chrono>
-#include <cstdlib>
 #include <iostream>
-#include <map>
-#include <vector>
 
 namespace backend {
-
-// hardcoded demo data
-struct UserRecord {
-    int user_id;
-    std::string username;
-    std::string password;
-};
-
-struct ServerRecord {
-    int server_id;
-    std::string server_name;
-    int admin_id;
-    std::vector<std::string> active_symbols;
-    std::string mdp_endpoint;
-    std::string description;
-};
-
-struct BalanceRecord {
-    int user_id;
-    std::string symbol;
-    int balance;
-};
-
-struct AllowlistEntry {
-    int server_id;
-    int user_id;
-};
-
-static const std::vector<UserRecord> USERS = {
-    {1, "alice",   "password"},
-    {2, "bob",     "password"},
-    {3, "charlie", "password"},
-};
-
-static const std::vector<ServerRecord> SERVERS = {
-    {1, "hk01",  1, {"AAPL", "GOOGL", "MSFT", "AMZN"}, "ws://localhost:9001", "Hong Kong equities sandbox — US tech names."},
-    {2, "us01",  2, {"TSLA", "META", "NVDA", "JPM"},    "ws://localhost:9002", "US equities sandbox — EV, social media & finance."},
-    {3, "eu01",  1, {"AAPL", "TSLA"},                    "ws://localhost:9003", "European session sandbox — limited symbol set."},
-};
-
-static const std::vector<BalanceRecord> BALANCES = {
-    {1, "USD",   50000},
-    {1, "AAPL",  15000},
-    {1, "GOOGL", 10000},
-    {1, "MSFT",  12000},
-    {1, "TSLA",   8000},
-    {2, "USD",   60000},
-    {2, "TSLA",  20000},
-    {2, "META",  10000},
-    {3, "USD",   40000},
-    {3, "AAPL",   5000},
-};
-
-static const std::vector<AllowlistEntry> ALLOWLIST = {
-    {1, 2},  // bob is member of hk01
-    {1, 3},  // charlie is member of hk01
-    {2, 1},  // alice is member of us01
-    {3, 3},  // charlie is member of eu01
-};
-
-// helpers
-static const UserRecord* find_user(const std::string& username) {
-    for (auto& u : USERS) {
-        if (u.username == username) return &u;
-    }
-    return nullptr;
-}
-
-static const UserRecord* find_user_by_id(int user_id) {
-    for (auto& u : USERS) {
-        if (u.user_id == user_id) return &u;
-    }
-    return nullptr;
-}
 
 http::response<http::string_body> RequestHandler::handle(const http::request<http::string_body>& req) {
     // Handle CORS preflight
@@ -98,7 +19,7 @@ http::response<http::string_body> RequestHandler::handle(const http::request<htt
     std::string path(url.path());
     auto params = url.params();
 
-    json::object res;
+    bj::object res;
     http::status status = http::status::ok;
 
     if (req.method() == http::verb::get) {
@@ -143,27 +64,34 @@ http::response<http::string_body> RequestHandler::handle(const http::request<htt
     http::response<http::string_body> response{status, req.version()};
     response.set(http::field::content_type, "application/json");
     response.set(http::field::access_control_allow_origin, "*");
-    response.body() = json::serialize(res);
+    response.body() = bj::serialize(res);
     response.prepare_payload();
     return response;
 }
 
-json::object RequestHandler::handle_login(const boost::urls::params_view& params) {
-    json::object res;
+bj::object RequestHandler::handle_login(const boost::urls::params_view& params) {
+    bj::object res;
 
     auto user_name_it = params.find("user_name");
-    auto password_it = params.find("password");
+    auto password_it  = params.find("password");
     if (user_name_it == params.end() || password_it == params.end()) {
         res["success"] = false;
         res["err_msg"] = "Missing user_name or password";
         return res;
     }
 
-    std::string user_name = (*user_name_it).value;
-    std::string password = (*password_it).value;
+    const std::string user_name = (*user_name_it).value;
+    const std::string password  = (*password_it).value;
 
-    const auto* user = find_user(user_name);
-    if (user && user->password == password) {
+    auto result = m_db_client.authenticate_user(user_name, password);
+    if (!result.has_value()) {
+        std::cerr << result.error() << '\n';
+        res["success"] = false;
+        res["err_msg"] = "Internal server error";
+        return res;
+    }
+
+    if (result.value().has_value()) {
         res["success"] = true;
         res["err_msg"] = "";
     } else {
@@ -173,41 +101,55 @@ json::object RequestHandler::handle_login(const boost::urls::params_view& params
     return res;
 }
 
-json::object RequestHandler::handle_signup(const boost::urls::params_view& params) {
-    json::object res;
+bj::object RequestHandler::handle_signup(const boost::urls::params_view& params) {
+    bj::object res;
 
     auto user_name_it = params.find("user_name");
-    auto password_it = params.find("password");
+    auto password_it  = params.find("password");
     if (user_name_it == params.end() || password_it == params.end()) {
         res["success"] = false;
         res["err_msg"] = "Missing user_name or password";
         return res;
     }
 
-    // TODO: INSERT INTO users (username, password) VALUES ($1, $2)
-    // return error if username already exists
+    const std::string user_name = (*user_name_it).value;
+    const std::string password  = (*password_it).value;
+
+    auto result = m_db_client.create_user(user_name, password);
+    if (!result.has_value()) {
+        // Likely a duplicate username constraint violation
+        res["success"] = false;
+        res["err_msg"] = "Username already exists";
+        return res;
+    }
+
     res["success"] = true;
     res["err_msg"] = "";
     return res;
 }
 
-json::object RequestHandler::handle_active_servers() {
-    json::object res;
-    json::array arr;
+bj::object RequestHandler::handle_active_servers() {
+    bj::object res;
 
-    for (auto& srv : SERVERS) {
-        json::object obj;
-        obj["server_id"] = srv.server_id;
+    auto result = m_db_client.get_active_servers();
+    if (!result.has_value()) {
+        std::cerr << result.error() << '\n';
+        res["error"] = "Internal server error";
+        return res;
+    }
+
+    bj::array arr;
+    for (const auto& srv : result.value()) {
+        bj::object obj;
+        obj["server_id"]   = srv.server_id;
         obj["server_name"] = srv.server_name;
-        const auto* admin = find_user_by_id(srv.admin_id);
-        obj["admin_name"] = admin ? admin->username : "unknown";
+        obj["admin_name"]  = srv.admin_name;
+        obj["description"] = srv.description;
 
-        json::array symbols;
-        for (auto& s : srv.active_symbols) symbols.emplace_back(s);
+        bj::array symbols;
+        for (const auto& s : srv.active_tickers) symbols.emplace_back(s);
         obj["active_symbols"] = std::move(symbols);
 
-        obj["mdp_endpoint"] = srv.mdp_endpoint;
-        obj["description"] = srv.description;
         arr.emplace_back(std::move(obj));
     }
 
@@ -215,8 +157,8 @@ json::object RequestHandler::handle_active_servers() {
     return res;
 }
 
-json::object RequestHandler::handle_user_info(const boost::urls::params_view& params) {
-    json::object res;
+bj::object RequestHandler::handle_user_info(const boost::urls::params_view& params) {
+    bj::object res;
 
     auto user_name_it = params.find("user_name");
     if (user_name_it == params.end()) {
@@ -224,34 +166,46 @@ json::object RequestHandler::handle_user_info(const boost::urls::params_view& pa
         return res;
     }
 
-    std::string user_name = (*user_name_it).value;
-    const auto* user = find_user(user_name);
+    const std::string user_name = (*user_name_it).value;
 
-    if (!user) {
+    auto user_result = m_db_client.get_user(user_name);
+    if (!user_result.has_value()) {
+        std::cerr << user_result.error() << '\n';
+        res["error"] = "Internal server error";
+        return res;
+    }
+    if (!user_result.value().has_value()) {
         res["error"] = "User not found";
         return res;
     }
 
-    json::object user_obj;
-    user_obj["user_id"] = user->user_id;
-    user_obj["username"] = user->username;
+    const auto& user = user_result.value().value();
+
+    bj::object user_obj;
+    user_obj["user_id"]  = user.user_id;
+    user_obj["username"] = user.username;
     res["user"] = std::move(user_obj);
 
-    json::array bal_arr;
-    for (auto& b : BALANCES) {
-        if (b.user_id == user->user_id) {
-            json::object bo;
-            bo["symbol"] = b.symbol;
-            bo["balance"] = b.balance;
-            bal_arr.emplace_back(std::move(bo));
-        }
+    auto bal_result = m_db_client.read_balances(user.user_id);
+    if (!bal_result.has_value()) {
+        std::cerr << bal_result.error() << '\n';
+        res["error"] = "Internal server error";
+        return res;
+    }
+
+    bj::array bal_arr;
+    for (const auto& b : bal_result.value()) {
+        bj::object bo;
+        bo["symbol"]  = b.symbol;
+        bo["balance"] = b.balance;
+        bal_arr.emplace_back(std::move(bo));
     }
     res["balances"] = std::move(bal_arr);
     return res;
 }
 
-json::object RequestHandler::handle_active_symbols(const boost::urls::params_view& params) {
-    json::object res;
+bj::object RequestHandler::handle_active_symbols(const boost::urls::params_view& params) {
+    bj::object res;
 
     auto server_name_it = params.find("server_name");
     if (server_name_it == params.end()) {
@@ -259,23 +213,23 @@ json::object RequestHandler::handle_active_symbols(const boost::urls::params_vie
         return res;
     }
 
-    std::string server_name = (*server_name_it).value;
+    const std::string server_name = (*server_name_it).value;
 
-    for (auto& srv : SERVERS) {
-        if (srv.server_name == server_name) {
-            json::array symbols;
-            for (auto& s : srv.active_symbols) symbols.emplace_back(s);
-            res["symbols"] = std::move(symbols);
-            return res;
-        }
+    auto result = m_db_client.get_server_active_symbols(server_name);
+    if (!result.has_value()) {
+        std::cerr << result.error() << '\n';
+        res["error"] = "Internal server error";
+        return res;
     }
 
-    res["symbols"] = json::array();
+    bj::array symbols;
+    for (const auto& s : result.value()) symbols.emplace_back(s);
+    res["symbols"] = std::move(symbols);
     return res;
 }
 
-json::object RequestHandler::handle_user_servers(const boost::urls::params_view& params) {
-    json::object res;
+bj::object RequestHandler::handle_user_servers(const boost::urls::params_view& params) {
+    bj::object res;
 
     auto user_name_it = params.find("user_name");
     if (user_name_it == params.end()) {
@@ -283,83 +237,54 @@ json::object RequestHandler::handle_user_servers(const boost::urls::params_view&
         return res;
     }
 
-    std::string user_name = (*user_name_it).value;
-    const auto* user = find_user(user_name);
+    const std::string user_name = (*user_name_it).value;
 
-    if (!user) {
-        res["error"] = "User not found";
-        res["servers"] = json::array();
+    auto result = m_db_client.get_user_servers(user_name);
+    if (!result.has_value()) {
+        std::cerr << result.error() << '\n';
+        res["error"] = "Internal server error";
         return res;
     }
 
-    json::array arr;
-
-    // Servers where user is admin
-    for (auto& srv : SERVERS) {
-        if (srv.admin_id == user->user_id) {
-            json::object obj;
-            obj["server_id"] = srv.server_id;
-            obj["server_name"] = srv.server_name;
-            obj["role"] = "admin";
-
-            json::array symbols;
-            for (auto& s : srv.active_symbols) symbols.emplace_back(s);
-            obj["active_symbols"] = std::move(symbols);
-            obj["description"] = srv.description;
-
-            // Balances for this user
-            json::array bal_arr;
-            for (auto& b : BALANCES) {
-                if (b.user_id == user->user_id) {
-                    json::object bo;
-                    bo["symbol"] = b.symbol;
-                    bo["balance"] = b.balance;
-                    bal_arr.emplace_back(std::move(bo));
-                }
-            }
-            obj["balances"] = std::move(bal_arr);
-            arr.emplace_back(std::move(obj));
+    if (result.value().empty()) {
+        // Could be user not found or simply no servers — check user existence
+        auto user_result = m_db_client.get_user(user_name);
+        if (!user_result.has_value() || !user_result.value().has_value()) {
+            res["error"] = "User not found";
+            res["servers"] = bj::array();
+            return res;
         }
     }
 
-    // Servers where user is member (via allowlist)
-    for (auto& entry : ALLOWLIST) {
-        if (entry.user_id == user->user_id) {
-            for (auto& srv : SERVERS) {
-                if (srv.server_id == entry.server_id) {
-                    json::object obj;
-                    obj["server_id"] = srv.server_id;
-                    obj["server_name"] = srv.server_name;
-                    obj["role"] = "member";
+    bj::array arr;
+    for (const auto& srv : result.value()) {
+        bj::object obj;
+        obj["server_id"]   = srv.server_id;
+        obj["server_name"] = srv.server_name;
+        obj["role"]        = srv.role;
+        obj["description"] = srv.description;
 
-                    json::array symbols;
-                    for (auto& s : srv.active_symbols) symbols.emplace_back(s);
-                    obj["active_symbols"] = std::move(symbols);
-                    obj["description"] = srv.description;
+        bj::array symbols;
+        for (const auto& s : srv.active_tickers) symbols.emplace_back(s);
+        obj["active_symbols"] = std::move(symbols);
 
-                    json::array bal_arr;
-                    for (auto& b : BALANCES) {
-                        if (b.user_id == user->user_id) {
-                            json::object bo;
-                            bo["symbol"] = b.symbol;
-                            bo["balance"] = b.balance;
-                            bal_arr.emplace_back(std::move(bo));
-                        }
-                    }
-                    obj["balances"] = std::move(bal_arr);
-                    arr.emplace_back(std::move(obj));
-                    break;
-                }
-            }
+        bj::array bal_arr;
+        for (const auto& b : srv.balances) {
+            bj::object bo;
+            bo["symbol"]  = b.symbol;
+            bo["balance"] = b.balance;
+            bal_arr.emplace_back(std::move(bo));
         }
+        obj["balances"] = std::move(bal_arr);
+        arr.emplace_back(std::move(obj));
     }
 
     res["servers"] = std::move(arr);
     return res;
 }
 
-json::object RequestHandler::handle_historical_trades(const boost::urls::params_view& params) {
-    json::object res;
+bj::object RequestHandler::handle_historical_trades(const boost::urls::params_view& params) {
+    bj::object res;
 
     auto server_it = params.find("server");
     auto symbol_it = params.find("symbol");
@@ -368,44 +293,23 @@ json::object RequestHandler::handle_historical_trades(const boost::urls::params_
         return res;
     }
 
-    std::string symbol = (*symbol_it).value;
+    const std::string symbol = (*symbol_it).value;
 
-    // TODO: query QuestDB with queries::GET_HISTORICAL_TRADES
-    //       SELECT trade_id, symbol, price, quantity, ts FROM trades
-    //       WHERE symbol = $1 AND ts >= dateadd('h', -2, now()) ORDER BY ts ASC
-    //       Map each row to { trade_id, ticker, price, quantity, create_timestamp (epoch ms) }
+    auto result = m_db_client.get_historical_trades(symbol);
+    if (!result.has_value()) {
+        std::cerr << result.error() << '\n';
+        res["error"] = "Internal server error";
+        return res;
+    }
 
-    // Hardcoded: generate a random walk for the past 2 hours (~720 trades, one per 10 s)
-    const long long now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-    const long long two_hours_ms = 2LL * 60 * 60 * 1000;
-    const long long start_ms = now_ms - two_hours_ms;
-    const long long step_ms = 10'000;
-
-    json::array trades;
-    double price = 0.75;
-    int trade_id = 1;
-
-    // Use a simple deterministic seed based on symbol so different symbols
-    // produce different-looking charts
-    unsigned int seed = 0;
-    for (char c : symbol) seed = seed * 31 + static_cast<unsigned char>(c);
-    std::srand(seed);
-
-    for (long long t = start_ms; t <= now_ms; t += step_ms) {
-        double delta = ((std::rand() % 200) - 100) / 5000.0; // ±0.02
-        price += delta;
-        if (price < 0.5) price = 0.5;
-        if (price > 1.0) price = 1.0;
-
-        int qty = (std::rand() % 91) + 10; // 10–100
-
-        json::object trade;
-        trade["trade_id"]        = trade_id++;
-        trade["ticker"]          = symbol;
-        trade["price"]           = static_cast<double>(static_cast<int>(price * 10000)) / 10000.0;
-        trade["quantity"]        = qty;
-        trade["create_timestamp"] = t;
+    bj::array trades;
+    for (const auto& t : result.value()) {
+        bj::object trade;
+        trade["trade_id"]         = t.trade_id;
+        trade["ticker"]           = t.symbol;
+        trade["price"]            = t.price;
+        trade["quantity"]         = t.quantity;
+        trade["create_timestamp"] = t.ts_ms;
         trades.emplace_back(std::move(trade));
     }
 
@@ -413,90 +317,57 @@ json::object RequestHandler::handle_historical_trades(const boost::urls::params_
     return res;
 }
 
-json::object RequestHandler::handle_account_details(const boost::urls::params_view& params) {
-    json::object res;
+bj::object RequestHandler::handle_account_details(const boost::urls::params_view& params) {
+    bj::object res;
 
-    auto user_name_it  = params.find("user_name");
+    auto user_name_it   = params.find("user_name");
     auto server_name_it = params.find("server_name");
     if (user_name_it == params.end() || server_name_it == params.end()) {
         res["error"] = "Missing user_name or server_name";
         return res;
     }
 
-    std::string user_name   = (*user_name_it).value;
-    std::string server_name = (*server_name_it).value;
+    const std::string user_name   = (*user_name_it).value;
+    const std::string server_name = (*server_name_it).value;
 
-    const auto* user = find_user(user_name);
-    if (!user) {
-        res["error"] = "User not found";
+    auto result = m_db_client.get_account_details(user_name, server_name);
+    if (!result.has_value()) {
+        std::cerr << result.error() << '\n';
+        res["error"] = "Internal server error";
         return res;
     }
-
-    // Find the server
-    const ServerRecord* srv = nullptr;
-    for (auto& s : SERVERS) {
-        if (s.server_name == server_name) { srv = &s; break; }
-    }
-    if (!srv) {
-        res["error"] = "Server not found";
-        return res;
-    }
-
-    // Determine role
-    std::string role;
-    if (srv->admin_id == user->user_id) {
-        role = "admin";
-    } else {
-        for (auto& entry : ALLOWLIST) {
-            if (entry.server_id == srv->server_id && entry.user_id == user->user_id) {
-                role = "member";
-                break;
-            }
-        }
-    }
-    if (role.empty()) {
+    if (!result.value().has_value()) {
         res["error"] = "User is not a member of this server";
         return res;
     }
 
-    // Server info
-    json::object server_obj;
-    server_obj["server_id"]   = srv->server_id;
-    server_obj["server_name"] = srv->server_name;
-    server_obj["description"] = srv->description;
-    const auto* admin = find_user_by_id(srv->admin_id);
-    server_obj["admin_name"]  = admin ? admin->username : "unknown";
-    json::array ticker_arr;
-    for (auto& t : srv->active_symbols) ticker_arr.emplace_back(t);
+    const auto& details = result.value().value();
+
+    bj::object server_obj;
+    server_obj["server_id"]   = details.server_id;
+    server_obj["server_name"] = details.server_name;
+    server_obj["description"] = details.description;
+    server_obj["admin_name"]  = details.admin_name;
+
+    bj::array ticker_arr;
+    for (const auto& t : details.active_tickers) ticker_arr.emplace_back(t);
     server_obj["active_symbols"] = std::move(ticker_arr);
     res["server"] = std::move(server_obj);
 
-    res["role"] = role;
+    res["role"] = details.role;
 
-    // Balances filtered to the server's active symbols
-    const auto& active = srv->active_symbols;
-    json::array bal_arr;
+    bj::array bal_arr;
     int total_value = 0;
-    for (auto& b : BALANCES) {
-        if (b.user_id != user->user_id) continue;
-        bool in_server = (b.symbol == "USD");  // always include cash
-        if (!in_server) {
-            for (auto& sym : active) {
-                if (sym == b.symbol) { in_server = true; break; }
-            }
-        }
-        if (in_server) {
-            json::object bo;
-            bo["symbol"]  = b.symbol;
-            bo["balance"] = b.balance;
-            bal_arr.emplace_back(std::move(bo));
-            total_value += b.balance;
-        }
+    for (const auto& b : details.balances) {
+        bj::object bo;
+        bo["symbol"]  = b.symbol;
+        bo["balance"] = b.balance;
+        bal_arr.emplace_back(std::move(bo));
+        total_value += b.balance;
     }
     res["balances"]    = std::move(bal_arr);
     res["total_value"] = total_value;
 
-    // Simple P&L vs a fixed starting balance of 100 000
     constexpr int INITIAL_BALANCE = 100000;
     res["pnl"]     = total_value - INITIAL_BALANCE;
     res["pnl_pct"] = static_cast<double>(total_value - INITIAL_BALANCE) / INITIAL_BALANCE * 100.0;
@@ -509,7 +380,6 @@ json::object RequestHandler::handle_account_details(const boost::urls::params_vi
 // ---------------------------------------------------------------------------
 // Simple scheme: the frontend sends  "Authorization: Bearer <username>"
 // This lets us identify who is making the request without a real JWT stack.
-// In a production system this should be replaced with signed tokens.
 int RequestHandler::authenticate_admin(const http::request<http::string_body>& req) {
     auto it = req.find(http::field::authorization);
     if (it == req.end()) return -1;
@@ -518,31 +388,27 @@ int RequestHandler::authenticate_admin(const http::request<http::string_body>& r
     const std::string prefix = "Bearer ";
     if (value.rfind(prefix, 0) != 0) return -1;
 
-    std::string username = value.substr(prefix.size());
-    const auto* u = find_user(username);
-    return u ? u->user_id : -1;
+    const std::string username = value.substr(prefix.size());
+    auto result = m_db_client.get_user(username);
+    if (!result.has_value() || !result.value().has_value()) return -1;
+    return result.value()->user_id;
 }
 
 // ---------------------------------------------------------------------------
 // POST /create_server
-// Body (JSON): { "user_name": "...", "server_name": "...", "description": "...",
-//                "mdp_endpoint": "...", "active_symbols": ["A","B"],
-//                "allowlist": ["user1","user2"] }
-// Header:      Authorization: Bearer <username>
 // ---------------------------------------------------------------------------
-json::object RequestHandler::handle_create_server(const http::request<http::string_body>& req) {
-    json::object res;
+bj::object RequestHandler::handle_create_server(const http::request<http::string_body>& req) {
+    bj::object res;
 
-    int caller_id = authenticate_admin(req);
+    const int caller_id = authenticate_admin(req);
     if (caller_id < 0) {
         res["auth_error"] = "Unauthorized: valid Authorization header required";
         return res;
     }
 
-    // Parse JSON body
-    json::value body_val;
+    bj::value body_val;
     try {
-        body_val = json::parse(req.body());
+        body_val = bj::parse(req.body());
     } catch (...) {
         res["error"] = "Invalid JSON body";
         return res;
@@ -553,65 +419,55 @@ json::object RequestHandler::handle_create_server(const http::request<http::stri
     }
     const auto& body = body_val.as_object();
 
-    // Required fields
     auto name_it = body.find("server_name");
     if (name_it == body.end() || !name_it->value().is_string()) {
         res["error"] = "Missing or invalid server_name";
         return res;
     }
-    std::string server_name = std::string(name_it->value().as_string());
+    const std::string server_name = std::string(name_it->value().as_string());
 
-    // Optional fields with defaults
     std::string description;
     if (auto it = body.find("description"); it != body.end() && it->value().is_string())
         description = std::string(it->value().as_string());
 
-    std::string mdp_endpoint = "ws://localhost:9999";
-    if (auto it = body.find("mdp_endpoint"); it != body.end() && it->value().is_string())
-        mdp_endpoint = std::string(it->value().as_string());
-
-    // Active symbols
     std::vector<std::string> symbols;
     if (auto it = body.find("active_symbols"); it != body.end() && it->value().is_array()) {
-        for (const auto& s : it->value().as_array()) {
+        for (const auto& s : it->value().as_array())
             if (s.is_string()) symbols.emplace_back(std::string(s.as_string()));
-        }
     }
 
-    // Allowlist usernames
-    std::vector<std::string> allowlist;
+    std::vector<std::string> allowlist_names;
     if (auto it = body.find("allowlist"); it != body.end() && it->value().is_array()) {
-        for (const auto& s : it->value().as_array()) {
-            if (s.is_string()) allowlist.emplace_back(std::string(s.as_string()));
-        }
+        for (const auto& s : it->value().as_array())
+            if (s.is_string()) allowlist_names.emplace_back(std::string(s.as_string()));
     }
 
-    // Validate all allowlist users exist
-    for (const auto& uname : allowlist) {
-        if (!find_user(uname)) {
-            res["error"] = "User not found: " + uname;
-            return res;
-        }
+    // Resolve allowlist usernames to user IDs
+    auto ids_result = m_db_client.resolve_user_ids(allowlist_names);
+    if (!ids_result.has_value()) {
+        res["error"] = ids_result.error();
+        return res;
     }
 
-    // TODO: INSERT INTO servers (server_name, admin_id, description, mdp_endpoint) VALUES (...)
-    //       INSERT INTO server_symbols (server_id, symbol) VALUES (...)  for each symbol
-    //       INSERT INTO allowlist (server_id, user_id) VALUES (...)  for each allowlist user
-    //
-    // For now, echo back a success response with the submitted data so the
-    // frontend can confirm the call worked.
-    res["success"] = true;
+    auto create_result = m_db_client.create_server(
+        server_name, caller_id, description, symbols, ids_result.value());
+    if (!create_result.has_value()) {
+        res["error"] = create_result.error();
+        return res;
+    }
+
+    res["success"]    = true;
+    res["server_id"]  = create_result.value();
     res["server_name"] = server_name;
-    res["admin_id"]    = caller_id;
+    res["admin_id"]   = caller_id;
     res["description"] = description;
-    res["mdp_endpoint"] = mdp_endpoint;
 
-    json::array sym_arr;
-    for (auto& s : symbols) sym_arr.emplace_back(s);
+    bj::array sym_arr;
+    for (const auto& s : symbols) sym_arr.emplace_back(s);
     res["active_symbols"] = std::move(sym_arr);
 
-    json::array al_arr;
-    for (auto& u : allowlist) al_arr.emplace_back(u);
+    bj::array al_arr;
+    for (const auto& u : allowlist_names) al_arr.emplace_back(u);
     res["allowlist"] = std::move(al_arr);
 
     return res;
@@ -619,24 +475,19 @@ json::object RequestHandler::handle_create_server(const http::request<http::stri
 
 // ---------------------------------------------------------------------------
 // POST /configure_server
-// Body (JSON): { "server_name": "...", "description": "...",
-//                "mdp_endpoint": "...", "active_symbols": ["A","B"],
-//                "allowlist": ["user1","user2"] }
-// Header:      Authorization: Bearer <username>
-// Only the admin of the server (caller_id == server.admin_id) may configure it.
 // ---------------------------------------------------------------------------
-json::object RequestHandler::handle_configure_server(const http::request<http::string_body>& req) {
-    json::object res;
+bj::object RequestHandler::handle_configure_server(const http::request<http::string_body>& req) {
+    bj::object res;
 
-    int caller_id = authenticate_admin(req);
+    const int caller_id = authenticate_admin(req);
     if (caller_id < 0) {
         res["auth_error"] = "Unauthorized: valid Authorization header required";
         return res;
     }
 
-    json::value body_val;
+    bj::value body_val;
     try {
-        body_val = json::parse(req.body());
+        body_val = bj::parse(req.body());
     } catch (...) {
         res["error"] = "Invalid JSON body";
         return res;
@@ -652,85 +503,70 @@ json::object RequestHandler::handle_configure_server(const http::request<http::s
         res["error"] = "Missing or invalid server_name";
         return res;
     }
-    std::string server_name = std::string(name_it->value().as_string());
+    const std::string server_name = std::string(name_it->value().as_string());
 
-    // Find the server in the in-memory data
-    const ServerRecord* srv = nullptr;
-    for (const auto& s : SERVERS) {
-        if (s.server_name == server_name) { srv = &s; break; }
+    // Fetch current server state so we can fall back to existing values
+    auto srv_result = m_db_client.get_server(server_name);
+    if (!srv_result.has_value()) {
+        std::cerr << srv_result.error() << '\n';
+        res["error"] = "Internal server error";
+        return res;
     }
-    if (!srv) {
+    if (!srv_result.value().has_value()) {
         res["error"] = "Server not found: " + server_name;
         return res;
     }
+    const auto& srv = srv_result.value().value();
 
-    // Permission check: only the admin of this server may configure it
-    if (srv->admin_id != caller_id) {
+    if (srv.admin_id != caller_id) {
         res["auth_error"] = "Forbidden: you are not the admin of this server";
         return res;
     }
 
-    // Collect updated fields (fall back to current values when not supplied)
-    std::string description = srv->description;
+    std::string description = srv.description;
     if (auto it = body.find("description"); it != body.end() && it->value().is_string())
         description = std::string(it->value().as_string());
 
-    std::string mdp_endpoint = srv->mdp_endpoint;
-    if (auto it = body.find("mdp_endpoint"); it != body.end() && it->value().is_string())
-        mdp_endpoint = std::string(it->value().as_string());
-
-    std::vector<std::string> symbols = srv->active_symbols;
+    std::vector<std::string> symbols = srv.active_tickers;
     if (auto it = body.find("active_symbols"); it != body.end() && it->value().is_array()) {
         symbols.clear();
-        for (const auto& s : it->value().as_array()) {
+        for (const auto& s : it->value().as_array())
             if (s.is_string()) symbols.emplace_back(std::string(s.as_string()));
-        }
     }
 
-    std::vector<std::string> allowlist;
+    // Allowlist: use provided list, or keep existing by querying current members
+    std::vector<std::string> allowlist_names;
     if (auto it = body.find("allowlist"); it != body.end() && it->value().is_array()) {
-        for (const auto& s : it->value().as_array()) {
-            if (s.is_string()) allowlist.emplace_back(std::string(s.as_string()));
-        }
-    } else {
-        // Keep existing allowlist
-        for (const auto& entry : ALLOWLIST) {
-            if (entry.server_id == srv->server_id) {
-                const auto* u = find_user_by_id(entry.user_id);
-                if (u) allowlist.emplace_back(u->username);
-            }
-        }
+        for (const auto& s : it->value().as_array())
+            if (s.is_string()) allowlist_names.emplace_back(std::string(s.as_string()));
     }
 
-    // Validate all allowlist users exist
-    for (const auto& uname : allowlist) {
-        if (!find_user(uname)) {
-            res["error"] = "User not found: " + uname;
-            return res;
-        }
+    auto ids_result = m_db_client.resolve_user_ids(allowlist_names);
+    if (!ids_result.has_value()) {
+        res["error"] = ids_result.error();
+        return res;
     }
 
-    // TODO: UPDATE servers SET description=$1, mdp_endpoint=$2 WHERE server_name=$3
-    //       DELETE FROM server_symbols WHERE server_id=$4;
-    //       INSERT INTO server_symbols (server_id, symbol) VALUES (...)
-    //       DELETE FROM allowlist WHERE server_id=$4;
-    //       INSERT INTO allowlist (server_id, user_id) VALUES (...)
+    auto cfg_result = m_db_client.configure_server(
+        server_name, caller_id, description, symbols, ids_result.value());
+    if (!cfg_result.has_value()) {
+        res["error"] = cfg_result.error();
+        return res;
+    }
 
-    res["success"]      = true;
-    res["server_name"]  = server_name;
-    res["description"]  = description;
-    res["mdp_endpoint"] = mdp_endpoint;
+    res["success"]     = true;
+    res["server_name"] = server_name;
+    res["description"] = description;
 
-    json::array sym_arr;
-    for (auto& s : symbols) sym_arr.emplace_back(s);
+    bj::array sym_arr;
+    for (const auto& s : symbols) sym_arr.emplace_back(s);
     res["active_symbols"] = std::move(sym_arr);
 
-    json::array al_arr;
-    for (auto& u : allowlist) al_arr.emplace_back(u);
+    bj::array al_arr;
+    for (const auto& u : allowlist_names) al_arr.emplace_back(u);
     res["allowlist"] = std::move(al_arr);
 
     return res;
 }
 
 } // namespace backend
-

@@ -4,7 +4,7 @@
 -- 1. users
 CREATE TABLE IF NOT EXISTS users
 (
-    user_id INT PRIMARY KEY,
+    user_id SERIAL PRIMARY KEY,
     username VARCHAR UNIQUE NOT NULL,
     password VARCHAR NOT NULL,
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users
 -- 2. servers
 CREATE TABLE IF NOT EXISTS servers
 (
-    server_id INT PRIMARY KEY,
+    server_id SERIAL PRIMARY KEY,
     server_name VARCHAR UNIQUE NOT NULL,
     admin_id INT REFERENCES users(user_id),
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,5 +38,5 @@ CREATE TABLE IF NOT EXISTS balances
     balance INT NOT NULL,
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY(user_id, symbol)
+    PRIMARY KEY(user_id, symbol, server_id)
 );
