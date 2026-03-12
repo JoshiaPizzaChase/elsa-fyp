@@ -354,7 +354,7 @@ class DatabaseClient {
     DatabaseClient(DatabaseClient&&) = delete;
 
     // Usually called by the OM at initialization, so this can be left synchronous.
-    auto read_balance(int user_id, int server_id, std::string symbol) -> std::expected<int, std::string> {
+    auto read_balance(int user_id, int server_id, std::string_view symbol) -> std::expected<int, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
 
@@ -414,7 +414,7 @@ class DatabaseClient {
     }
 
     // This is called periodically (e.g. hourly) by the OM so it should be performed asynchronously.
-    auto update_balance(int user_id, int server_id, std::string symbol, int balance)
+    auto update_balance(int user_id, int server_id, std::string_view symbol, int balance)
         -> std::expected<void, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
@@ -471,7 +471,7 @@ class DatabaseClient {
     };
 
     // Verify credentials; returns the user row on success or nullopt on mismatch.
-    auto authenticate_user(const std::string& username, const std::string& password)
+    auto authenticate_user(std::string_view username, std::string_view password)
         -> std::expected<std::optional<UserRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -487,7 +487,7 @@ class DatabaseClient {
     }
 
     // Insert a new user; returns the newly created row.
-    auto create_user(const std::string& username, const std::string& password)
+    auto create_user(std::string_view username, std::string_view password)
         -> std::expected<UserRow, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -503,7 +503,7 @@ class DatabaseClient {
     }
 
     // Lookup a user by username; returns nullopt when not found.
-    auto get_user(const std::string& username)
+    auto get_user(std::string_view username)
         -> std::expected<std::optional<UserRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -545,7 +545,7 @@ class DatabaseClient {
         }
     }
 
-    auto get_server(const std::string& server_name)
+    auto get_server(const std::string_view& server_name)
         -> std::expected<std::optional<ServerRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -572,7 +572,7 @@ class DatabaseClient {
     }
 
     // Active tickers for a server; returns an empty vector when not found.
-    auto get_server_active_symbols(const std::string& server_name)
+    auto get_server_active_symbols(std::string_view server_name)
         -> std::expected<std::vector<std::string>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -589,7 +589,7 @@ class DatabaseClient {
 
     // All servers a user is associated with (as admin or member), each entry
     // carrying the user's full balance list.
-    auto get_user_servers(const std::string& username)
+    auto get_user_servers(std::string_view username)
         -> std::expected<std::vector<UserServerRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -636,7 +636,7 @@ class DatabaseClient {
         }
     }
 
-    auto get_account_details(const std::string& username, const std::string& server_name)
+    auto get_account_details(std::string_view username, std::string_view server_name)
         -> std::expected<std::optional<AccountDetailsRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -720,8 +720,8 @@ class DatabaseClient {
 
     // Insert a new server and populate its allowlist in one transaction.
     // Returns the newly created server_id.
-    auto create_server(const std::string& server_name, int admin_id,
-                       const std::string& description,
+    auto create_server(std::string_view server_name, int admin_id,
+                       std::string_view description,
                        const std::vector<std::string>& symbols,
                        const std::vector<int>& allowlist_user_ids)
         -> std::expected<int, std::string> {
@@ -748,8 +748,8 @@ class DatabaseClient {
 
     // Update an existing server's metadata and replace its allowlist.
     // Returns false when the server is not found or caller_id is not the admin.
-    auto configure_server(const std::string& server_name, int caller_id,
-                          const std::string& description,
+    auto configure_server(std::string_view server_name, int caller_id,
+                          std::string_view description,
                           const std::vector<std::string>& symbols,
                           const std::vector<int>& allowlist_user_ids)
         -> std::expected<bool, std::string> {
@@ -919,7 +919,7 @@ class DatabaseClient {
         }
     }
 
-    auto insert_balance(int user_id, int server_id, const std::string& symbol, int balance)
+    auto insert_balance(int user_id, int server_id, std::string_view symbol, int balance)
         -> std::expected<void, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -999,7 +999,7 @@ class DatabaseClient {
 
   private:
     // Parse a PostgreSQL text-array literal (e.g. "{AAPL,GOOGL}") into a vector.
-    static std::vector<std::string> parse_pg_array(const std::string& pg_array) {
+    static std::vector<std::string> parse_pg_array(std::string pg_array) {
         std::vector<std::string> result;
         if (pg_array.size() < 2 || pg_array.front() != '{') return result;
         const std::string inner = pg_array.substr(1, pg_array.size() - 2);
