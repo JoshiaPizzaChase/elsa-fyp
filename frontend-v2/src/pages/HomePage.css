@@ -1,0 +1,75 @@
+.home-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: radial-gradient(ellipse at 50% 50%, #1a1a2e 0%, #0d0d1a 100%);
+    overflow: hidden;
+    position: relative;
+}
+
+.home-content {
+    text-align: center;
+    opacity: 0;
+    animation: fadeIn 2s ease-in-out forwards;
+    position: relative;
+    z-index: 1;
+}
+
+.home-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 72px;
+    color: #ffffff;
+    letter-spacing: 4px;
+    margin-bottom: 16px;
+}
+
+.home-slogan {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    color: #a0a0b0;
+    letter-spacing: 1px;
+    margin-bottom: 48px;
+}
+
+.home-button {
+    display: inline-block;
+    padding: 14px 40px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    opacity: 0;
+    animation: fadeIn 2s ease-in-out 0.8s forwards;
+    position: relative;
+    z-index: 1;
+}
+
+.home-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(108, 92, 231, 0.4);
+}
+
+.home-button:active {
+    transform: translateY(0);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

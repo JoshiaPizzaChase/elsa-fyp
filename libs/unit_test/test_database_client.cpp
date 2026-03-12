@@ -9,6 +9,7 @@
 #include <thread>
 #include <chrono>
 #include <unordered_map>
+#include <algorithm>
 
 // HONEST ADMISSION: This was vibe-coded lol.
 // NOTE: This clears the original database entries.
@@ -1457,4 +1458,646 @@ TEST_CASE("concurrent query_orders reads while inserting",
 
     [[maybe_unused]] DatabaseClient cleanup_db;
     [[maybe_unused]] auto cleanup = cleanup_db.truncate_orders();
+}
+
+// ===========================================================================
+//  Constants for untested-method sections
+// ===========================================================================
+
+static constexpr int         TEST2_ADMIN_USER_ID   = 77777;
+static constexpr const char* TEST2_ADMIN_USERNAME  = "test_admin_77777";
+static constexpr const char* TEST2_ADMIN_PASSWORD  = "admin_pass_77777";
+
+static constexpr int         TEST2_MEMBER_USER_ID  = 66666;
+static constexpr const char* TEST2_MEMBER_USERNAME = "test_member_66666";
+static constexpr const char* TEST2_MEMBER_PASSWORD = "member_pass_66666";
+
+static constexpr const char* TEST2_SERVER_NAME     = "test_srv_mgmt_77777";
+
+static constexpr const char* TEST_NEW_USERNAME     = "test_new_user_55555";
+static constexpr const char* TEST_NEW_PASSWORD     = "new_pass_55555";
+
+// ---------------------------------------------------------------------------
+// Helper: drop a server (by name) and its dependent allowlist / balance rows.
+// Must be called inside an open pqxx::work transaction.
+// ---------------------------------------------------------------------------
+static void delete_server_by_name(pqxx::work& txn, const std::string& server_name) {
+    auto res = txn.exec("SELECT server_id FROM servers WHERE server_name = $1",
+                        pqxx::params{server_name});
+    for (const auto& row : res) {
+        int sid = row["server_id"].as<int>();
+        txn.exec("DELETE FROM allowlist WHERE server_id = $1", pqxx::params{sid});
+        txn.exec("DELETE FROM balances  WHERE server_id = $1", pqxx::params{sid});
+    }
+    txn.exec("DELETE FROM servers WHERE server_name = $1", pqxx::params{server_name});
+}
+
+// ===========================================================================
+//  insert_trade / query_trades / truncate_trades  (QuestDB – trades table)
+// ===========================================================================
+
+TEST_CASE("insert_trade succeeds and row is queryable via query_trades",
+          "[DatabaseClient][trades]") {
+    DatabaseClient db;
+
+    auto trunc = db.truncate_trades();
+    REQUIRE(trunc.has_value());
+    wait_for_questdb_ingestion();
+
+    Trade trade{"AAPL", 15000, 10, 12345, 101, 102, 1001, 1002, true, 0};
+    REQUIRE(db.insert_trade(trade).has_value());
+    wait_for_questdb_ingestion();
+
+    auto rows = db.query_trades();
+    REQUIRE(rows.has_value());
+    REQUIRE(rows->size() >= 1);
+
+    bool found = false;
+    for (const auto& r : rows.value()) {
+        if (r.trade_id == 12345) {
+            CHECK(r.symbol         == "AAPL");
+            CHECK(r.price          == 15000);
+            CHECK(r.quantity       == 10);
+            CHECK(r.taker_id       == 101);
+            CHECK(r.maker_id       == 102);
+            CHECK(r.taker_order_id == 1001);
+            CHECK(r.maker_order_id == 1002);
+            CHECK(r.is_taker_buyer == true);
+            found = true;
+            break;
+        }
+    }
+    REQUIRE(found);
+
+    [[maybe_unused]] auto cleanup = db.truncate_trades();
+}
+
+TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
+          "[DatabaseClient][trades]") {
+    DatabaseClient db;
+
+    auto trunc = db.truncate_trades();
+    REQUIRE(trunc.has_value());
+    wait_for_questdb_ingestion();
+
+    Trade trade{"MSFT", 30000, 5, 99991, 200, 201, 2001, 2002, false, 0};
+    REQUIRE(db.insert_trade(trade).has_value());
+    wait_for_questdb_ingestion();
+
+    auto rows = db.query_trades();
+    REQUIRE(rows.has_value());
+
+    bool found = false;
+    for (const auto& r : rows.value()) {
+        if (r.trade_id == 99991) {
+            CHECK(r.is_taker_buyer == false);
+            found = true;
+            break;
+        }
+    }
+    REQUIRE(found);
+
+    [[maybe_unused]] auto cleanup = db.truncate_trades();
+}
+
+TEST_CASE("truncate_trades clears all trade rows", "[DatabaseClient][trades]") {
+    DatabaseClient db;
+
+    Trade trade{"GOOG", 28000, 3, 77771, 300, 301, 3001, 3002, true, 0};
+    REQUIRE(db.insert_trade(trade).has_value());
+    wait_for_questdb_ingestion();
+
+    REQUIRE(db.truncate_trades().has_value());
+    wait_for_questdb_ingestion();
+
+    auto rows = db.query_trades();
+    REQUIRE(rows.has_value());
+    REQUIRE(rows->empty());
+}
+
+TEST_CASE("query_trades returns empty after truncate", "[DatabaseClient][trades]") {
+    DatabaseClient db;
+
+    REQUIRE(db.truncate_trades().has_value());
+    wait_for_questdb_ingestion();
+
+    auto rows = db.query_trades();
+    REQUIRE(rows.has_value());
+    REQUIRE(rows->empty());
+}
+
+// ===========================================================================
+//  query_trades(symbol, after_ts_ms)  (QuestDB – last-2-hours window)
+// ===========================================================================
+
+TEST_CASE("query_trades returns inserted trades for symbol",
+          "[DatabaseClient][trades]") {
+    DatabaseClient db;
+
+    REQUIRE(db.truncate_trades().has_value());
+    wait_for_questdb_ingestion();
+
+    Trade t1{"NVDA", 40000, 8,  77771, 300, 301, 3001, 3002, true,  0};
+    Trade t2{"NVDA", 40100, 12, 77772, 302, 303, 3003, 3004, false, 0};
+    REQUIRE(db.insert_trade(t1).has_value());
+    REQUIRE(db.insert_trade(t2).has_value());
+    wait_for_questdb_ingestion();
+
+    auto result = db.query_trades("NVDA", 0);
+    REQUIRE(result.has_value());
+    REQUIRE(result->size() >= 2);
+
+    for (const auto& row : result.value()) {
+        CHECK(row.symbol   == "NVDA");
+        CHECK(row.price    >  0);
+        CHECK(row.quantity >  0);
+        CHECK(row.ts_ms    >  0);
+    }
+
+    [[maybe_unused]] auto cleanup = db.truncate_trades();
+}
+
+TEST_CASE("query_trades does not return rows for a different symbol",
+          "[DatabaseClient][trades]") {
+    DatabaseClient db;
+
+    REQUIRE(db.truncate_trades().has_value());
+    wait_for_questdb_ingestion();
+
+    Trade trade{"AAPL", 15000, 10, 12399, 101, 102, 1001, 1002, true, 0};
+    REQUIRE(db.insert_trade(trade).has_value());
+    wait_for_questdb_ingestion();
+
+    // Query for a symbol we never inserted.
+    auto result = db.query_trades("TSLA", 0);
+    REQUIRE(result.has_value());
+    CHECK(result->empty());
+
+    [[maybe_unused]] auto cleanup = db.truncate_trades();
+}
+
+TEST_CASE("query_trades returns empty for unknown symbol",
+          "[DatabaseClient][trades]") {
+    DatabaseClient db;
+    auto result = db.query_trades("UNKNOWN_ZZZ", 0);
+    REQUIRE(result.has_value());
+    CHECK(result->empty());
+}
+
+// ===========================================================================
+//  create_user / get_user / authenticate_user  (PostgreSQL – users table)
+// ===========================================================================
+
+struct UserManagementFixture {
+    pqxx::connection conn{CORE_DB_CONN_STR};
+
+    UserManagementFixture()  { cleanup_quietly(); }
+    ~UserManagementFixture() { cleanup_quietly(); }
+
+  private:
+    void cleanup_quietly() {
+        try {
+            pqxx::work txn{conn};
+            txn.exec("DELETE FROM users WHERE username = $1",
+                     pqxx::params{TEST_NEW_USERNAME});
+            txn.commit();
+        } catch (...) {}
+    }
+};
+
+TEST_CASE_METHOD(UserManagementFixture,
+                 "create_user returns a valid UserRow with correct username",
+                 "[DatabaseClient][user]") {
+    DatabaseClient db;
+    auto result = db.create_user(TEST_NEW_USERNAME, TEST_NEW_PASSWORD);
+    REQUIRE(result.has_value());
+    CHECK(result->username == TEST_NEW_USERNAME);
+    CHECK(result->user_id  >  0);
+}
+
+TEST_CASE_METHOD(UserManagementFixture,
+                 "create_user fails on duplicate username",
+                 "[DatabaseClient][user]") {
+    DatabaseClient db;
+    REQUIRE(db.create_user(TEST_NEW_USERNAME, TEST_NEW_PASSWORD).has_value());
+
+    // Second insert must fail due to UNIQUE constraint on username.
+    auto second = db.create_user(TEST_NEW_USERNAME, "different_password");
+    REQUIRE_FALSE(second.has_value());
+}
+
+TEST_CASE_METHOD(UserManagementFixture,
+                 "get_user returns the user after creation",
+                 "[DatabaseClient][user]") {
+    DatabaseClient db;
+    auto created = db.create_user(TEST_NEW_USERNAME, TEST_NEW_PASSWORD);
+    REQUIRE(created.has_value());
+
+    auto result = db.get_user(TEST_NEW_USERNAME);
+    REQUIRE(result.has_value());
+    REQUIRE(result->has_value());
+    CHECK(result->value().username == TEST_NEW_USERNAME);
+    CHECK(result->value().user_id  == created->user_id);
+}
+
+TEST_CASE("get_user returns nullopt for non-existent user",
+          "[DatabaseClient][user]") {
+    DatabaseClient db;
+    auto result = db.get_user("nonexistent_user_xyz_99999");
+    REQUIRE(result.has_value());
+    REQUIRE_FALSE(result->has_value());
+}
+
+TEST_CASE_METHOD(UserManagementFixture,
+                 "authenticate_user returns user on correct credentials",
+                 "[DatabaseClient][user]") {
+    DatabaseClient db;
+    auto created = db.create_user(TEST_NEW_USERNAME, TEST_NEW_PASSWORD);
+    REQUIRE(created.has_value());
+
+    auto result = db.authenticate_user(TEST_NEW_USERNAME, TEST_NEW_PASSWORD);
+    REQUIRE(result.has_value());
+    REQUIRE(result->has_value());
+    CHECK(result->value().username == TEST_NEW_USERNAME);
+    CHECK(result->value().user_id  == created->user_id);
+}
+
+TEST_CASE_METHOD(UserManagementFixture,
+                 "authenticate_user returns nullopt on wrong password",
+                 "[DatabaseClient][user]") {
+    DatabaseClient db;
+    REQUIRE(db.create_user(TEST_NEW_USERNAME, TEST_NEW_PASSWORD).has_value());
+
+    auto result = db.authenticate_user(TEST_NEW_USERNAME, "wrong_password");
+    REQUIRE(result.has_value());
+    REQUIRE_FALSE(result->has_value());
+}
+
+TEST_CASE("authenticate_user returns nullopt for non-existent user",
+          "[DatabaseClient][user]") {
+    DatabaseClient db;
+    auto result = db.authenticate_user("nonexistent_user_xyz_99999", "any_password");
+    REQUIRE(result.has_value());
+    REQUIRE_FALSE(result->has_value());
+}
+
+// ===========================================================================
+//  create_server / get_server / get_active_servers /
+//  get_server_active_symbols / configure_server  (PostgreSQL – servers table)
+// ===========================================================================
+
+// Fixture: seeds a dedicated admin user; each test creates/drops its own server.
+struct ServerManagementFixture {
+    pqxx::connection conn{CORE_DB_CONN_STR};
+
+    ServerManagementFixture() {
+        cleanup_quietly();
+        pqxx::work txn{conn};
+        txn.exec(
+            "INSERT INTO users (user_id, username, password, created_ts, last_modified_ts) "
+            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST2_ADMIN_USER_ID, TEST2_ADMIN_USERNAME, TEST2_ADMIN_PASSWORD});
+        txn.commit();
+    }
+
+    ~ServerManagementFixture() { cleanup_quietly(); }
+
+  private:
+    void cleanup_quietly() {
+        try {
+            pqxx::work txn{conn};
+            delete_server_by_name(txn, TEST2_SERVER_NAME);
+            txn.exec("DELETE FROM users WHERE user_id = $1",
+                     pqxx::params{TEST2_ADMIN_USER_ID});
+            txn.commit();
+        } catch (...) {}
+    }
+};
+
+TEST_CASE_METHOD(ServerManagementFixture,
+                 "create_server returns a valid positive server_id",
+                 "[DatabaseClient][server]") {
+    DatabaseClient db;
+    auto result = db.create_server(
+        TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID, "test description", {"AAPL", "MSFT"}, {});
+    REQUIRE(result.has_value());
+    CHECK(result.value() > 0);
+}
+
+TEST_CASE_METHOD(ServerManagementFixture,
+                 "get_server returns the created server with correct fields",
+                 "[DatabaseClient][server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "test description", {"AAPL"}, {}).has_value());
+
+    auto result = db.get_server(TEST2_SERVER_NAME);
+    REQUIRE(result.has_value());
+    REQUIRE(result->has_value());
+    const auto& srv = result->value();
+    CHECK(srv.server_name         == TEST2_SERVER_NAME);
+    CHECK(srv.admin_id            == TEST2_ADMIN_USER_ID);
+    CHECK(srv.admin_name          == TEST2_ADMIN_USERNAME);
+    CHECK(srv.description         == "test description");
+    REQUIRE(srv.active_tickers.size() == 1);
+    CHECK(srv.active_tickers[0]   == "AAPL");
+}
+
+TEST_CASE("get_server returns nullopt for non-existent server",
+          "[DatabaseClient][server]") {
+    DatabaseClient db;
+    auto result = db.get_server("nonexistent_server_xyz_99999");
+    REQUIRE(result.has_value());
+    REQUIRE_FALSE(result->has_value());
+}
+
+TEST_CASE_METHOD(ServerManagementFixture,
+                 "get_active_servers includes the newly created server",
+                 "[DatabaseClient][server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "active server", {"TSLA"}, {}).has_value());
+
+    auto result = db.get_active_servers();
+    REQUIRE(result.has_value());
+
+    bool found = false;
+    for (const auto& s : result.value()) {
+        if (s.server_name == TEST2_SERVER_NAME) {
+            CHECK(s.admin_id == TEST2_ADMIN_USER_ID);
+            found = true;
+            break;
+        }
+    }
+    REQUIRE(found);
+}
+
+TEST_CASE_METHOD(ServerManagementFixture,
+                 "get_server_active_symbols returns the correct symbols",
+                 "[DatabaseClient][server]") {
+    DatabaseClient db;
+    const std::vector<std::string> symbols{"AAPL", "GOOG", "TSLA"};
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "symbols test", symbols, {}).has_value());
+
+    auto result = db.get_server_active_symbols(TEST2_SERVER_NAME);
+    REQUIRE(result.has_value());
+    CHECK(result->size() == 3);
+
+    for (const auto& expected : symbols) {
+        bool found = std::find(result->begin(), result->end(), expected) != result->end();
+        CHECK(found);
+    }
+}
+
+TEST_CASE("get_server_active_symbols returns empty for non-existent server",
+          "[DatabaseClient][server]") {
+    DatabaseClient db;
+    auto result = db.get_server_active_symbols("nonexistent_server_xyz_99999");
+    REQUIRE(result.has_value());
+    CHECK(result->empty());
+}
+
+TEST_CASE_METHOD(ServerManagementFixture,
+                 "configure_server updates description and active symbols",
+                 "[DatabaseClient][server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "old description", {"AAPL"}, {}).has_value());
+
+    auto result = db.configure_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                                      "new description", {"GOOG", "NVDA"}, {});
+    REQUIRE(result.has_value());
+    CHECK(result.value() == true);
+
+    auto server = db.get_server(TEST2_SERVER_NAME);
+    REQUIRE(server.has_value());
+    REQUIRE(server->has_value());
+    CHECK(server->value().description == "new description");
+    CHECK(server->value().active_tickers.size() == 2);
+}
+
+TEST_CASE_METHOD(ServerManagementFixture,
+                 "configure_server returns false when caller is not the admin",
+                 "[DatabaseClient][server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "desc", {"AAPL"}, {}).has_value());
+
+    auto result = db.configure_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID + 1,
+                                      "changed", {}, {});
+    REQUIRE(result.has_value());
+    CHECK(result.value() == false);
+}
+
+TEST_CASE("configure_server returns false for non-existent server",
+          "[DatabaseClient][server]") {
+    DatabaseClient db;
+    auto result = db.configure_server("nonexistent_server_xyz_99999", 1, "desc", {}, {});
+    REQUIRE(result.has_value());
+    CHECK(result.value() == false);
+}
+
+// ===========================================================================
+//  get_user_servers / get_account_details  (PostgreSQL)
+// ===========================================================================
+
+// Fixture: seeds admin + member users; tests create their own server.
+struct UserServerRelationshipFixture {
+    pqxx::connection conn{CORE_DB_CONN_STR};
+
+    UserServerRelationshipFixture() {
+        cleanup_quietly();
+        pqxx::work txn{conn};
+        txn.exec(
+            "INSERT INTO users (user_id, username, password, created_ts, last_modified_ts) "
+            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST2_ADMIN_USER_ID, TEST2_ADMIN_USERNAME, TEST2_ADMIN_PASSWORD});
+        txn.exec(
+            "INSERT INTO users (user_id, username, password, created_ts, last_modified_ts) "
+            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST2_MEMBER_USER_ID, TEST2_MEMBER_USERNAME, TEST2_MEMBER_PASSWORD});
+        txn.commit();
+    }
+
+    ~UserServerRelationshipFixture() { cleanup_quietly(); }
+
+  private:
+    void cleanup_quietly() {
+        try {
+            pqxx::work txn{conn};
+            delete_server_by_name(txn, TEST2_SERVER_NAME);
+            txn.exec("DELETE FROM users WHERE user_id = $1",
+                     pqxx::params{TEST2_MEMBER_USER_ID});
+            txn.exec("DELETE FROM users WHERE user_id = $1",
+                     pqxx::params{TEST2_ADMIN_USER_ID});
+            txn.commit();
+        } catch (...) {}
+    }
+};
+
+TEST_CASE_METHOD(UserServerRelationshipFixture,
+                 "get_user_servers returns server for admin user",
+                 "[DatabaseClient][user_server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "admin server", {}, {}).has_value());
+
+    auto result = db.get_user_servers(TEST2_ADMIN_USERNAME);
+    REQUIRE(result.has_value());
+
+    bool found = false;
+    for (const auto& s : result.value()) {
+        if (s.server_name == TEST2_SERVER_NAME) {
+            CHECK(s.role == "admin");
+            found = true;
+            break;
+        }
+    }
+    REQUIRE(found);
+}
+
+TEST_CASE_METHOD(UserServerRelationshipFixture,
+                 "get_user_servers returns server for allowlisted member",
+                 "[DatabaseClient][user_server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "member server", {}, {TEST2_MEMBER_USER_ID}).has_value());
+
+    auto result = db.get_user_servers(TEST2_MEMBER_USERNAME);
+    REQUIRE(result.has_value());
+
+    bool found = false;
+    for (const auto& s : result.value()) {
+        if (s.server_name == TEST2_SERVER_NAME) {
+            CHECK(s.role == "member");
+            found = true;
+            break;
+        }
+    }
+    REQUIRE(found);
+}
+
+TEST_CASE("get_user_servers returns empty for non-existent user",
+          "[DatabaseClient][user_server]") {
+    DatabaseClient db;
+    auto result = db.get_user_servers("nonexistent_user_xyz_99999");
+    REQUIRE(result.has_value());
+    CHECK(result->empty());
+}
+
+TEST_CASE_METHOD(UserServerRelationshipFixture,
+                 "get_account_details returns details for admin user on their server",
+                 "[DatabaseClient][user_server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "account details server", {"AAPL"}, {}).has_value());
+
+    auto result = db.get_account_details(TEST2_ADMIN_USERNAME, TEST2_SERVER_NAME);
+    REQUIRE(result.has_value());
+    REQUIRE(result->has_value());
+    const auto& details = result->value();
+    CHECK(details.server_name == TEST2_SERVER_NAME);
+    CHECK(details.admin_name  == TEST2_ADMIN_USERNAME);
+    CHECK(details.description == "account details server");
+    CHECK(details.role        == "admin");
+}
+
+TEST_CASE_METHOD(UserServerRelationshipFixture,
+                 "get_account_details returns details for allowlisted member",
+                 "[DatabaseClient][user_server]") {
+    DatabaseClient db;
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "member access server", {}, {TEST2_MEMBER_USER_ID}).has_value());
+
+    auto result = db.get_account_details(TEST2_MEMBER_USERNAME, TEST2_SERVER_NAME);
+    REQUIRE(result.has_value());
+    REQUIRE(result->has_value());
+    CHECK(result->value().role == "member");
+}
+
+TEST_CASE_METHOD(UserServerRelationshipFixture,
+                 "get_account_details returns nullopt for user without access",
+                 "[DatabaseClient][user_server]") {
+    DatabaseClient db;
+    // Create server with no allowlist — member has no access.
+    REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
+                             "restricted server", {}, {}).has_value());
+
+    auto result = db.get_account_details(TEST2_MEMBER_USERNAME, TEST2_SERVER_NAME);
+    REQUIRE(result.has_value());
+    REQUIRE_FALSE(result->has_value());
+}
+
+TEST_CASE("get_account_details returns nullopt for non-existent server",
+          "[DatabaseClient][user_server]") {
+    DatabaseClient db;
+    auto result = db.get_account_details(TEST_USERNAME, "nonexistent_server_xyz_99999");
+    REQUIRE(result.has_value());
+    REQUIRE_FALSE(result->has_value());
+}
+
+// ===========================================================================
+//  resolve_user_ids  (PostgreSQL – utility)
+// ===========================================================================
+
+// Fixture: seeds the same two named users used throughout the server tests.
+struct ResolveUserFixture {
+    pqxx::connection conn{CORE_DB_CONN_STR};
+
+    ResolveUserFixture() {
+        cleanup_quietly();
+        pqxx::work txn{conn};
+        txn.exec(
+            "INSERT INTO users (user_id, username, password, created_ts, last_modified_ts) "
+            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST2_ADMIN_USER_ID, TEST2_ADMIN_USERNAME, TEST2_ADMIN_PASSWORD});
+        txn.exec(
+            "INSERT INTO users (user_id, username, password, created_ts, last_modified_ts) "
+            "VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            pqxx::params{TEST2_MEMBER_USER_ID, TEST2_MEMBER_USERNAME, TEST2_MEMBER_PASSWORD});
+        txn.commit();
+    }
+
+    ~ResolveUserFixture() { cleanup_quietly(); }
+
+  private:
+    void cleanup_quietly() {
+        try {
+            pqxx::work txn{conn};
+            txn.exec("DELETE FROM users WHERE user_id = $1",
+                     pqxx::params{TEST2_MEMBER_USER_ID});
+            txn.exec("DELETE FROM users WHERE user_id = $1",
+                     pqxx::params{TEST2_ADMIN_USER_ID});
+            txn.commit();
+        } catch (...) {}
+    }
+};
+
+TEST_CASE_METHOD(ResolveUserFixture,
+                 "resolve_user_ids returns correct ids in input order",
+                 "[DatabaseClient][utility]") {
+    DatabaseClient db;
+    auto result = db.resolve_user_ids({TEST2_ADMIN_USERNAME, TEST2_MEMBER_USERNAME});
+    REQUIRE(result.has_value());
+    REQUIRE(result->size() == 2);
+    CHECK(result->at(0) == TEST2_ADMIN_USER_ID);
+    CHECK(result->at(1) == TEST2_MEMBER_USER_ID);
+}
+
+TEST_CASE_METHOD(ResolveUserFixture,
+                 "resolve_user_ids returns error naming the first unknown username",
+                 "[DatabaseClient][utility]") {
+    DatabaseClient db;
+    auto result = db.resolve_user_ids({TEST2_ADMIN_USERNAME, "nonexistent_user_xyz_99999"});
+    REQUIRE_FALSE(result.has_value());
+    CHECK(result.error().find("nonexistent_user_xyz_99999") != std::string::npos);
+}
+
+TEST_CASE("resolve_user_ids returns empty vector for empty input",
+          "[DatabaseClient][utility]") {
+    DatabaseClient db;
+    auto result = db.resolve_user_ids({});
+    REQUIRE(result.has_value());
+    CHECK(result->empty());
 }

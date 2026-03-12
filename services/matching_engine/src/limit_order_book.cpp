@@ -1,3 +1,4 @@
+#include <chrono>
 #include "limit_order_book.h"
 #include "core/constants.h"
 #include <expected>
@@ -170,7 +171,11 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
 }
 
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
-    TopOrderBookLevelAggregates top_aggregate{ticker.data()};
+    uint64_t now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+
+    TopOrderBookLevelAggregates top_aggregate{ticker.data(), now_ts_ms};
 
     for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
         if (const auto level_aggregate = get_level_aggregate(Side::bid, i);
@@ -204,10 +209,14 @@ std::expected<Trade, std::string> LimitOrderBook::create_trade(int taker_order_i
         return std::unexpected("Quantity must be positive integers");
     }
 
+    uint64_t now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+
     // TODO: Add random trade_id generation
     // TODO: add back taker and maker id
     return Trade{ticker.data(),          price, quantity, 100, 1, 1, taker_order_id, maker_order_id,
-                 taker_side == Side::bid};
+                 taker_side == Side::bid, now_ts_ms};
 }
 
 std::expected<int, std::string> LimitOrderBook::get_fill_cost(int quantity, Side side) const {
