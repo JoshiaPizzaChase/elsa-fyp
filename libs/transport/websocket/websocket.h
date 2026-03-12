@@ -56,15 +56,22 @@ struct ConnectionMetadata {
         m_status = ConnectionStatus::open;
 
         typename Endpoint::connection_ptr connection = endpoint->get_con_from_hdl(handle);
-        m_counter_party = connection->get_response_header("Server");
+        if (connection->is_server()) {
+            m_counter_party = connection->get_request_header("client_name");
+        } else {
+            m_counter_party = connection->get_response_header("Server");
+        }
     }
 
     void on_fail(Endpoint* endpoint, websocketpp::connection_hdl handle) {
         m_status = ConnectionStatus::failed;
 
         typename Endpoint::connection_ptr connection = endpoint->get_con_from_hdl(handle);
-        m_counter_party = connection->get_response_header("Server");
-        m_error_reason = connection->get_ec().message();
+        if (connection->is_server()) {
+            m_counter_party = connection->get_request_header("client_name");
+        } else {
+            m_counter_party = connection->get_response_header("Server");
+        }
     }
 
     void on_close(Endpoint* endpoint, websocketpp::connection_hdl handle) {
@@ -89,6 +96,10 @@ struct ConnectionMetadata {
 
     int get_id() const {
         return m_id;
+    }
+
+    std::string get_counter_party() const {
+        return m_counter_party;
     }
 
     ConnectionStatus get_status() const {
