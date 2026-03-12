@@ -982,7 +982,7 @@ class DatabaseClient {
 
   private:
     // Parse a PostgreSQL text-array literal (e.g. "{AAPL,GOOGL}") into a vector.
-    static std::vector<std::string> parse_pg_array(std::string pg_array) {
+    static std::vector<std::string> parse_pg_array(const std::string& pg_array) {
         std::vector<std::string> result;
         if (pg_array.size() < 2 || pg_array.front() != '{') return result;
         const std::string inner = pg_array.substr(1, pg_array.size() - 2);
