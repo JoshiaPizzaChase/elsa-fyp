@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
         std::signal(SIGINT,  signal_handler);
         std::signal(SIGTERM, signal_handler);
 
-        tcp::acceptor acceptor{ioc, {tcp::v4(), backend_config.port}};
+        tcp::acceptor acceptor{ioc, {tcp::v4(), static_cast<unsigned short>(backend_config.port)}};
         g_acceptor_ptr = &acceptor;
         std::println("Server started on port {}", backend_config.port);
         if (backend_config.uat)
