@@ -53,6 +53,7 @@ message NewOrderSingleContainer {
   OrderType ord_type = 7;
   int32 price = 8; // Only for limit orders.
   TimeInForce time_in_force = 9;
+  int32 order_id = 10;
 }
 
 // Order cancel request equivalent
