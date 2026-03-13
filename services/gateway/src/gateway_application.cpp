@@ -91,6 +91,7 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
         core::NewOrderSingleContainer newOrderRequest{
             .sender_comp_id = senderCompId,
             .target_comp_id = targetCompId,
+            .order_id = std::nullopt,
             .cl_ord_id = clOrdId,
             .symbol = symbol,
             .side = core::convert_to_internal(side),

@@ -204,6 +204,9 @@ inline std::string serialize_container(const core::NewOrderSingleContainer& cont
     container_proto.set_cl_ord_id(container.cl_ord_id);
     container_proto.set_sender_comp_id(container.sender_comp_id);
     container_proto.set_target_comp_id(container.target_comp_id);
+    if (container.order_id.has_value()) {
+        container_proto.set_order_id(container.order_id.value());
+    }
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
     container_proto.set_order_qty(container.order_qty);
@@ -278,6 +281,9 @@ inline core::Container deserialize_container(const std::string& data) {
     case transport::ContainerWrapper::kNewOrderSingle: {
         const auto& proto = container_wrapper.new_order_single();
         core::NewOrderSingleContainer container;
+        if (proto.has_order_id()) {
+            container.order_id = proto.order_id();
+        }
         container.cl_ord_id = proto.cl_ord_id();
         container.sender_comp_id = proto.sender_comp_id();
         container.target_comp_id = proto.target_comp_id();

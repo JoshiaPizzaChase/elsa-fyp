@@ -10,6 +10,7 @@ namespace core {
 struct NewOrderSingleContainer {
     std::string sender_comp_id;
     std::string target_comp_id;
+    std::optional<int> order_id;
     std::string cl_ord_id;
     std::string symbol;
     // TODO: add account field to let one "broker" have many "comps"
