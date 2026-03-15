@@ -38,6 +38,7 @@ int main(int argc, char* argv[]) {
 
     acceptor.start();
     while (true) {
+        application.process_report();
     }
     acceptor.stop();
 }

@@ -1,9 +1,22 @@
 #include "balance_checker.h"
 
+#include <boost/contract.hpp>
 #include <cassert>
 #include <format>
 
 namespace om {
+bool BalanceChecker::broker_id_exists(const std::string& broker_id) const {
+    return balance_map.contains(broker_id);
+}
+
+bool BalanceChecker::broker_owns_ticker(const std::string& broker_id,
+                                        const std::string& ticker) const {
+    boost::contract::check c = boost::contract::public_function(this).precondition(
+        [&] { BOOST_CONTRACT_ASSERT(broker_id_exists(broker_id)); });
+
+    return balance_map.at(broker_id).contains(ticker);
+}
+
 void BalanceChecker::update_balance(const std::string& broker_id, const std::string& ticker,
                                     int delta) {
     auto broker_it = balance_map.find(broker_id);
@@ -32,15 +45,15 @@ void BalanceChecker::update_balance(const std::string& broker_id, const std::str
 }
 
 int BalanceChecker::get_balance(const std::string& broker_id, const std::string& ticker) const {
-    assert(balance_map.contains(broker_id) && "Balance record of Broker ID does not exist");
-    assert(balance_map.at(broker_id).contains(ticker) && "Broker does not have record of ticker");
+    assert(broker_id_exists(broker_id) && "Balance record of Broker ID does not exist");
+    assert(broker_owns_ticker(broker_id, ticker) && "Broker does not have record of ticker");
     return balance_map.at(broker_id).at(ticker);
 }
 
 bool BalanceChecker::has_sufficient_balance(const std::string& broker_id, const std::string& ticker,
                                             int delta) const {
-    assert(balance_map.contains(broker_id) && "Balance record of Broker ID does not exist");
-    assert(balance_map.at(broker_id).contains(ticker) && "Broker does not have record of ticker");
+    assert(broker_id_exists(broker_id) && "Balance record of Broker ID does not exist");
+    assert(broker_owns_ticker(broker_id, ticker) && "Broker does not have record of ticker");
     return get_balance(broker_id, ticker) + delta >= 0;
 }
 } // namespace om

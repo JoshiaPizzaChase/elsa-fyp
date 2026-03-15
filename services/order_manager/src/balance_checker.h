@@ -6,6 +6,9 @@
 namespace om {
 class BalanceChecker {
   public:
+    bool broker_id_exists(const std::string& broker_id) const;
+    bool broker_owns_ticker(const std::string& broker_id, const std::string& ticker) const;
+
     void update_balance(const std::string& broker_id, const std::string& ticker, int delta);
     int get_balance(const std::string& broker_id, const std::string& ticker) const;
     bool has_sufficient_balance(const std::string& broker_id, const std::string& ticker,

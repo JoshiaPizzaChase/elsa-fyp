@@ -222,6 +222,7 @@ inline std::string serialize_container(const core::NewOrderSingleContainer& cont
 }
 
 inline std::string serialize_container(const core::CancelOrderRequestContainer& container) {
+    transport::ContainerWrapper container_wrapper;
     transport::CancelOrderRequestContainer container_proto;
 
     container_proto.set_cl_ord_id(container.cl_ord_id);
@@ -235,10 +236,12 @@ inline std::string serialize_container(const core::CancelOrderRequestContainer& 
     container_proto.set_side(convert_to_proto(container.side));
     container_proto.set_order_qty(container.order_qty);
 
-    return container_proto.SerializeAsString();
+    *container_wrapper.mutable_cancel_order_request() = container_proto;
+    return container_wrapper.SerializeAsString();
 }
 
 inline std::string serialize_container(const core::ExecutionReportContainer& container) {
+    transport::ContainerWrapper container_wrapper;
     transport::ExecutionReportContainer container_proto;
 
     container_proto.set_sender_comp_id(container.sender_comp_id);
@@ -267,7 +270,8 @@ inline std::string serialize_container(const core::ExecutionReportContainer& con
     container_proto.set_cum_qty(container.cum_qty);
     container_proto.set_avg_px(container.avg_px);
 
-    return container_proto.SerializeAsString();
+    *container_wrapper.mutable_execution_report() = container_proto;
+    return container_wrapper.SerializeAsString();
 }
 
 inline core::Container deserialize_container(const std::string& data) {
@@ -304,7 +308,7 @@ inline core::Container deserialize_container(const std::string& data) {
         container.sender_comp_id = proto.sender_comp_id();
         container.target_comp_id = proto.target_comp_id();
         if (proto.has_order_id()) {
-             container.order_id = proto.order_id();
+            container.order_id = proto.order_id();
         }
         container.orig_cl_ord_id = proto.orig_cl_ord_id();
         container.symbol = proto.symbol();
