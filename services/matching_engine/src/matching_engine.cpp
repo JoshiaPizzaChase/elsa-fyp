@@ -14,26 +14,50 @@ MatchingEngine::MatchingEngine(std::string_view host, int port)
       inbound_ws_server{port, host, logger},
       shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
           core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
-      limit_order_book{"GME"}, latest_order_id{0} {
+      incoming_request_connection_id{}, order_response_connection_id{}, limit_order_book{"GME"},
+      latest_order_id{0} {
     inbound_ws_server.start();
 
     logger->info("Matching Engine constructed");
     logger->flush();
 }
 
+// Spin locks until matching engine has two connections from OMS
+void MatchingEngine::wait_for_connections() {
+    auto id_to_connection_map = inbound_ws_server.get_id_to_connection_map();
+    while (id_to_connection_map.size() != 2) {
+        id_to_connection_map = inbound_ws_server.get_id_to_connection_map();
+    }
+
+    for (const auto& [id, connection_metadata] : id_to_connection_map) {
+        if (auto counter_party = connection_metadata->get_counter_party();
+            counter_party == "order_request") {
+            incoming_request_connection_id = id;
+            logger->info("Order request connection established, id: {}",
+                         incoming_request_connection_id);
+        } else if (counter_party == "order_response") {
+            order_response_connection_id = id;
+            logger->info("Order response connection established, id: {}",
+                         order_response_connection_id);
+        } else {
+            logger->error("Unexpected connection: {}", counter_party);
+        }
+    }
+}
+
 std::expected<void, std::string> MatchingEngine::start() {
     while (true) {
-        if (auto new_message = inbound_ws_server.dequeue_message(0); new_message.has_value()) {
+        if (auto new_message = inbound_ws_server.dequeue_message(incoming_request_connection_id);
+            new_message.has_value()) {
             const auto container = transport::deserialize_container(new_message.value());
 
             auto new_order_handler{[this](const core::NewOrderSingleContainer& new_order) {
-                limit_order_book.add_order(
-                    latest_order_id++,
-                    new_order.price.value_or((new_order.side == core::Side::bid)
-                                                 ? MARKET_BID_ORDER_PRICE
-                                                 : MARKET_ASK_ORDER_PRICE),
-                    new_order.order_qty,
-                    (new_order.side == core::Side::bid) ? Side::bid : Side::ask);
+                limit_order_book.add_order(latest_order_id++,
+                                           new_order.price.value_or((new_order.side == Side::bid)
+                                                                        ? MARKET_BID_ORDER_PRICE
+                                                                        : MARKET_ASK_ORDER_PRICE),
+                                           new_order.order_qty,
+                                           (new_order.side == Side::bid) ? Side::bid : Side::ask);
 
                 logger->info("New order request received");
                 logger->info("New order quantity: {}", new_order.order_qty);
@@ -48,24 +72,25 @@ std::expected<void, std::string> MatchingEngine::start() {
                     logger->info(transport::serialize_container(cancel_request));
                     logger->flush();
                 }};
-            auto fill_cost_query_handler{[this](
-                                             const core::FillCostQueryContainer& fill_cost_query) {
-                logger->info("Fill cost query received");
-                logger->info("Quantity: {}", fill_cost_query.quantity);
-                logger->flush();
+            auto fill_cost_query_handler{
+                [this](const core::FillCostQueryContainer& fill_cost_query) {
+                    logger->info("Fill cost query received");
+                    logger->info("Quantity: {}", fill_cost_query.quantity);
+                    logger->flush();
 
-                auto total_cost =
-                    limit_order_book.get_fill_cost(fill_cost_query.quantity, fill_cost_query.side);
+                    auto total_cost = limit_order_book.get_fill_cost(fill_cost_query.quantity,
+                                                                     fill_cost_query.side);
 
-                logger->info("Calculated fill cost: {}", total_cost.value_or(-1));
+                    logger->info("Calculated fill cost: {}", total_cost.value_or(-1));
 
-                auto response_container = core::FillCostResponseContainer{
-                    total_cost.transform([](int v) { return std::optional<int>{v}; })
-                        .value_or(std::nullopt)};
+                    const auto response_container = core::FillCostResponseContainer{
+                        total_cost.transform([](int v) { return std::optional{v}; })
+                            .value_or(std::nullopt)};
 
-                inbound_ws_server.send_to_all(transport::serialize_container(response_container),
-                                              transport::MessageFormat::binary);
-            }};
+                    inbound_ws_server.send(incoming_request_connection_id,
+                                           transport::serialize_container(response_container),
+                                           transport::MessageFormat::binary);
+                }};
             auto catch_all_handler{[this](auto&&) {
                 logger->error("Received unexpected request from Order Manager");
                 logger->flush();

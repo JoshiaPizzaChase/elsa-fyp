@@ -22,11 +22,16 @@ class OrderManager {
 
   private:
     WebsocketManagerServer inbound_ws_server;
-    WebsocketManagerClient outbound_ws_client;
+    WebsocketManagerClient order_request_ws_client;
+    WebsocketManagerClient order_response_ws_client;
     BalanceChecker balance_checker;
 
     int gateway_count;
-    int matching_engine_connection_id;
+    int order_request_connection_id;
+    int order_response_connection_id;
+
+    int current_order_id;
+    std::unordered_map<int, int> order_id_map;
 };
 
 bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
