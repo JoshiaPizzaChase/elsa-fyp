@@ -1,3 +1,4 @@
+mkdir deps
 cd deps
 # install Catch2
 git clone https://github.com/catchorg/Catch2.git
