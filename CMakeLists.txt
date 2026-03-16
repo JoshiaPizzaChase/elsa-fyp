@@ -46,10 +46,7 @@ if (BUILD_EXAMPLES)
 endif ()
 
 # JSON
-# find_package(nlohmann_json REQUIRED)
-include(FetchContent)
-FetchContent_Declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
-FetchContent_MakeAvailable(nlohmann_json)
+find_package(nlohmann_json REQUIRED)
 
 # Catch 2
 if (BUILD_TESTS)
@@ -58,6 +55,7 @@ endif ()
 
 # Googletest
 if (BUILD_TESTS)
+    include(FetchContent)
     FetchContent_Declare(
             googletest
             URL https://github.com/google/googletest/archive/52eb8108c5bdec04579160ae17225d66034bd723.zip
