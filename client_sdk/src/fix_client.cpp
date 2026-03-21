@@ -11,7 +11,7 @@ FixClient::FixClient(const std::string& setting_file)
         new FIX::SocketInitiator(*this, _file_store_factory, _settings));
 }
 
-void FixClient::connect(const int& timeout_sec) const {
+void FixClient::connect(int timeout_sec) const {
     logger->info("Connecting to EduX...");
     _initiator->start();
     std::chrono::seconds timeout(timeout_sec);
@@ -42,12 +42,12 @@ bool FixClient::is_connected() const {
 
 bool FixClient::submit_market_order(const std::string& ticker, const double& quantity,
                                     const OrderSide& side,
-                                    const std::string& custom_order_id) const {
+                                    int client_order_id) const {
     if (!is_connected())
         return false;
     try {
         FIX42::NewOrderSingle new_order_fix_message =
-            create_new_order_fix_request(ticker, quantity, side, custom_order_id);
+            create_new_order_fix_request(ticker, quantity, side, client_order_id);
         new_order_fix_message.set(FIX::OrdType(FIX::OrdType_MARKET));
         new_order_fix_message.set(FIX::TimeInForce(FIX::TimeInForce_GOOD_TILL_CANCEL)); // set GTC for market order
         FIX::Session::sendToTarget(new_order_fix_message, get_session_id());
@@ -62,7 +62,7 @@ bool FixClient::submit_market_order(const std::string& ticker, const double& qua
 bool FixClient::submit_limit_order(const std::string& ticker, const double& price,
                                    const double& quantity, const OrderSide& side,
                                    const TimeInForce& time_in_force,
-                                   const std::string& custom_order_id) const {
+                                   int client_order_id) const {
     if (!is_connected())
         return false;
     try {
@@ -70,7 +70,7 @@ bool FixClient::submit_limit_order(const std::string& ticker, const double& pric
                      side == OrderSide::BUY ? "BUY " : "SELL ", quantity, ticker, price);
 
         FIX42::NewOrderSingle new_order_fix_message =
-            create_new_order_fix_request(ticker, quantity, side, custom_order_id);
+            create_new_order_fix_request(ticker, quantity, side, client_order_id);
         char tif;
         if (time_in_force == TimeInForce::GTC) {
             tif = FIX::TimeInForce_GOOD_TILL_CANCEL;
@@ -91,12 +91,12 @@ bool FixClient::submit_limit_order(const std::string& ticker, const double& pric
 }
 
 bool FixClient::cancel_order(const std::string& ticker, const OrderSide& side,
-                             const std::string& custom_order_id) const {
+                             int client_order_id) const {
     if (!is_connected())
         return false;
     try {
         FIX42::OrderCancelRequest cancel_request =
-            create_cancel_order_fix_request(ticker, side, custom_order_id);
+            create_cancel_order_fix_request(ticker, side, client_order_id);
         FIX::Session::sendToTarget(cancel_request, get_session_id());
         logger->info("[FixClient] Cancel order request submitted: {}", cancel_request.toString());
         return true;
@@ -145,7 +145,7 @@ void FixClient::onMessage(const FIX42::ExecutionReport& execution_report,
 
     ExecutionReport exec_report;
     exec_report.order_id = order_id;
-    exec_report.custom_order_id = client_order_id;
+    exec_report.client_order_id = std::stoi(client_order_id.getString());
     exec_report.ticker = symbol;
     exec_report.side = side == FIX::Side_BUY ? OrderSide::BUY : OrderSide::SELL;
     exec_report.filled_qty = order_qty;
@@ -182,8 +182,8 @@ void FixClient::onMessage(const FIX42::OrderCancelReject& order_cancel_reject_re
     FIX::Text reason;
     order_cancel_reject_response.get(client_order_id);
     order_cancel_reject_response.get(reason);
-    logger->info("[FixClient] cancel request custom_order_id={} rejected, reason={}",
+    logger->info("[FixClient] cancel request client_order_id={} rejected, reason={}",
                  client_order_id.getString(), reason.getString());
 
-    on_order_cancel_rejected(client_order_id, reason);
+    on_order_cancel_rejected(std::stoi(client_order_id.getString()), reason.getString());
 }

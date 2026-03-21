@@ -244,9 +244,9 @@ TEST_CASE("Submit order requests", "[integration]") {
 
     // Test Market Order Rejection
     test_client_1.submit_limit_order("GME", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
-                                     "dfjkdfj");
-    test_client_1.submit_market_order("GME", 100.0, OrderSide::BUY, "BLAALAAL");
-    test_client_1.submit_market_order("GME", 100000.0, OrderSide::BUY, "TRALALAL");
+                                     0);
+    test_client_1.submit_market_order("GME", 100.0, OrderSide::BUY, 1);
+    test_client_1.submit_market_order("GME", 100000.0, OrderSide::BUY, 2);
 
     // cleanup
     test_client_1.disconnect();
