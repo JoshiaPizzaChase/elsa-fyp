@@ -242,14 +242,14 @@ TEST_CASE("Submit order requests", "[integration]") {
     //     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     // }
 
+    // Test Market Order Rejection
+    test_client_1.submit_limit_order("GME", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
+                                     0);
+    test_client_1.submit_market_order("GME", 100.0, OrderSide::BUY, 1);
+    test_client_1.submit_market_order("GME", 100000.0, OrderSide::BUY, 2);
+
     // Test reject limit order
     test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC, "1234");
-
-    //// Test Market Order Rejection
-    // test_client_1.submit_limit_order("GME", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
-    //                                  "dfjkdfj");
-    // test_client_1.submit_market_order("GME", 100.0, OrderSide::BUY, "BLAALAAL");
-    // test_client_1.submit_market_order("GME", 100000.0, OrderSide::BUY, "TRALALAL");
 
     sleep(5);
 

@@ -24,7 +24,7 @@ struct Order {
     OrderType order_type;
     double quantity;
     double price;
-    std::string custom_order_id; // custom id for client's reference only
+    int client_order_id; // custom id for client's reference only
     TimeInForce time_in_force;
 
     Order(const std::string& symbol, const double price, const double quantity,
