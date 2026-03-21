@@ -11,7 +11,7 @@ FixClient::FixClient(const std::string& setting_file)
         new FIX::SocketInitiator(*this, _file_store_factory, _settings));
 }
 
-void FixClient::connect(const int& timeout_sec) const {
+void FixClient::connect(int timeout_sec) const {
     logger->info("Connecting to EduX...");
     _initiator->start();
     std::chrono::seconds timeout(timeout_sec);
@@ -42,7 +42,7 @@ bool FixClient::is_connected() const {
 
 bool FixClient::submit_market_order(const std::string& ticker, const double& quantity,
                                     const OrderSide& side,
-                                    const int& client_order_id) const {
+                                    int client_order_id) const {
     if (!is_connected())
         return false;
     try {
@@ -62,7 +62,7 @@ bool FixClient::submit_market_order(const std::string& ticker, const double& qua
 bool FixClient::submit_limit_order(const std::string& ticker, const double& price,
                                    const double& quantity, const OrderSide& side,
                                    const TimeInForce& time_in_force,
-                                   const int& client_order_id) const {
+                                   int client_order_id) const {
     if (!is_connected())
         return false;
     try {
@@ -91,7 +91,7 @@ bool FixClient::submit_limit_order(const std::string& ticker, const double& pric
 }
 
 bool FixClient::cancel_order(const std::string& ticker, const OrderSide& side,
-                             const int& client_order_id) const {
+                             int client_order_id) const {
     if (!is_connected())
         return false;
     try {
