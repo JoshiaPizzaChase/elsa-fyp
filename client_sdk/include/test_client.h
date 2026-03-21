@@ -5,7 +5,7 @@
 class TestClient : public FixClient {
   public:
     TestClient(const std::string& file) : FixClient(file) {};
-    void on_order_cancel_rejected(const int& client_order_id,
+    void on_order_cancel_rejected(int client_order_id,
                                   const std::string& reason) override {
         std::cout << "[Test] Order Cancel Rejected: " << client_order_id << " " << reason << '\n';
     }

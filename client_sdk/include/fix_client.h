@@ -27,20 +27,20 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
 
   public:
     explicit FixClient(const std::string&);
-    void connect(const int&) const;
+    void connect(int) const;
     void disconnect();
     [[nodiscard]] bool is_connected() const;
     [[nodiscard]] FIX::SessionID get_session_id() const;
     // methods to interact with market
     bool submit_market_order(const std::string&, const double&, const OrderSide&,
-                             const int& = 0) const;
+                             int) const;
     bool submit_limit_order(const std::string&, const double&, const double&, const OrderSide&,
-                            const TimeInForce&, const int& = 0) const;
-    bool cancel_order(const std::string&, const OrderSide&, const int&) const;
+                            const TimeInForce&, int) const;
+    bool cancel_order(const std::string&, const OrderSide&, int) const;
 
   protected:
     virtual void on_order_update(const ExecutionReport&) = 0;
-    virtual void on_order_cancel_rejected(const int&, const std::string&) = 0;
+    virtual void on_order_cancel_rejected(int, const std::string&) = 0;
 
   private:
     void onCreate(const FIX::SessionID&) override {};
@@ -78,9 +78,7 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
         new_order_fix_message.set(FIX::TransactTime(FIX::TransactTime(true)));
         new_order_fix_message.set(FIX::Symbol(ticker));
         new_order_fix_message.set(FIX::OrderQty(quantity));
-        if (client_order_id != 0) {
-            new_order_fix_message.set(FIX::ClOrdID(std::to_string(client_order_id)));
-        }
+        new_order_fix_message.set(FIX::ClOrdID(std::to_string(client_order_id)));
 
         return new_order_fix_message;
     }
