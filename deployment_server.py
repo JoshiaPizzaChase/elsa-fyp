@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+import stat
 import shutil
 import subprocess
 import tomllib
@@ -245,7 +246,14 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     executable_dest = install_dir / spec["executable"]
     LOGGER.info("Copying executable: %s -> %s", executable_src, executable_dest)
     shutil.copy2(executable_src, executable_dest)
-    executable_dest.chmod(0o755)
+    current_mode = executable_dest.stat().st_mode
+    executable_dest.chmod(
+        current_mode
+        | stat.S_IXUSR
+        | stat.S_IXGRP
+        | stat.S_IXOTH
+    )
+    LOGGER.info("Set executable bit on binary: %s", executable_dest)
 
     config_dest = install_dir / spec["template_toml"]
     LOGGER.info("Writing rendered TOML config: %s", config_dest)
