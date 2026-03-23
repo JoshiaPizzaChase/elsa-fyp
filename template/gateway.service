@@ -1,0 +1,11 @@
+[Unit]
+Description=EduX Market Data Processor
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/gateway
+ExecStart=/usr/local/bin/gateway/gateway
+Restart=always
+
+[Install]
+Alias=gateway.service

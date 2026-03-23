@@ -1,0 +1,2 @@
+downstream_order_manager_host = "localhost"
+downstream_order_manager_port = 6767

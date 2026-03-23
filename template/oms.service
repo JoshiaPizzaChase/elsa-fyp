@@ -1,0 +1,11 @@
+[Unit]
+Description=EduX Market Data Processor
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/oms
+ExecStart=/usr/local/bin/oms/order_manager
+Restart=always
+
+[Install]
+Alias=oms.service

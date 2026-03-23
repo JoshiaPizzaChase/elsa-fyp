@@ -1,0 +1,11 @@
+[Unit]
+Description=EduX Market Data Processor
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/mdp
+ExecStart=/usr/local/bin/mdp/market_data_processor
+Restart=always
+
+[Install]
+Alias=mdp.service

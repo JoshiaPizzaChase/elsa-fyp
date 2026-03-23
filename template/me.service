@@ -1,0 +1,11 @@
+[Unit]
+Description=EduX Market Data Processor
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/me
+ExecStart=/usr/local/bin/me/matching_engine
+Restart=always
+
+[Install]
+Alias=me.service

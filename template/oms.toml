@@ -1,0 +1,7 @@
+order_manager_host = "localhost"
+order_manager_port = 6767
+
+downstream_matching_engine_host = "localhost"
+downstream_matching_engine_port = 9888
+
+gateway_count = 1
