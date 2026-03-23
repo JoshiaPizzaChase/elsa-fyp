@@ -172,6 +172,26 @@ def _run_cmd(*cmd: str) -> None:
         LOGGER.info("Command output (%s): %s", " ".join(cmd), stdout)
 
 
+def _try_relabel_path(path: Path, recursive: bool = False) -> None:
+    restorecon_bin = shutil.which("restorecon")
+    if restorecon_bin is None:
+        LOGGER.warning("restorecon not found; skipping SELinux relabel for %s", path)
+        return
+
+    cmd: list[str] = [restorecon_bin]
+    if recursive:
+        cmd.append("-R")
+    cmd.append(str(path))
+
+    LOGGER.info("Relabeling path for SELinux: %s", " ".join(cmd))
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "<no stderr>"
+        raise DeploymentError(
+            f"Failed to relabel path '{path}' with restorecon: {stderr}"
+        )
+
+
 def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) -> dict[str, Any]:
     LOGGER.info(
         "Starting deployment: service_name=%s server_name=%s param_keys=%s",
@@ -310,6 +330,11 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     service_dest = SYSTEMD_DIR / f"{instance_name}.service"
     LOGGER.info("Writing systemd unit file: %s", service_dest)
     service_dest.write_text(service_text, encoding="utf-8")
+
+    # On SELinux-enabled systems, copied files can inherit an incorrect context
+    # (e.g., user_home_t), causing systemd EXEC permission failures.
+    _try_relabel_path(install_dir, recursive=True)
+    _try_relabel_path(service_dest, recursive=False)
 
     LOGGER.info("Reloading and starting service: %s.service", instance_name)
     _run_cmd("systemctl", "daemon-reload")
