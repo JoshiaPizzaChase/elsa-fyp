@@ -11,23 +11,14 @@ namespace fs = std::filesystem;
 
 /* Entry point for FIX gateway services */
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::println("argc: {}", argc);
-        std::println("Please pass in program name as arg0");
-        std::println("Please pass in FIX server config path as arg1");
-        std::println("Please pass in gateway config as arg2");
-        return -1;
-    }
-
     // Read FIX config
-    std::cout << "Reading FIX config file at: " << argv[1] << std::endl;
-    auto path_to_config = fs::path(argv[1]);
-    FIX::SessionSettings settings(path_to_config);
+    auto fix_cfg = argc < 2 ? "gateway_server.cfg" : fs::path(argv[1]);
+    FIX::SessionSettings settings(fix_cfg);
 
     // Read Gateway config
-    std::cout << "Reading Gateway config file at: " << argv[2] << std::endl;
+    auto gateway_cfg = argc < 3 ? "gateway.json" : argv[2];
     gateway::GatewayConfig gateway_config =
-        rfl::toml::load<gateway::GatewayConfig>(argv[2]).value();
+        rfl::toml::load<gateway::GatewayConfig>(gateway_cfg).value();
 
     gateway::GatewayApplication application{gateway_config.downstream_order_manager_host,
                                             gateway_config.downstream_order_manager_port};

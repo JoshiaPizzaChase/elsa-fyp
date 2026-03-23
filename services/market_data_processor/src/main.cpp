@@ -4,14 +4,10 @@
 #include <print>
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::println("Usage: market_data_processor <toml config path>");
-        return -1;
-    }
     try {
         // Read Market Data Processor config
-        std::cout << "Reading Market Data Processor config file at: " << argv[1] << std::endl;
-        mdp::MdpConfig mdp_config = rfl::toml::load<mdp::MdpConfig>(argv[1]).value();
+        const auto mdp_cfg = argc == 2 ? argv[1] : "mdp.toml";
+        const mdp::MdpConfig mdp_config = rfl::toml::load<mdp::MdpConfig>(mdp_cfg).value();
         auto mdp = mdp::MarketDataProcessor(mdp_config);
         mdp.start();
     } catch (std::exception& e) {
