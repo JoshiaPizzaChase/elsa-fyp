@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     FIX::SessionSettings settings(fix_cfg);
 
     // Read Gateway config
-    auto gateway_cfg = argc < 3 ? "gateway.json" : argv[2];
+    auto gateway_cfg = argc < 3 ? "gateway.toml" : argv[2];
     gateway::GatewayConfig gateway_config =
         rfl::toml::load<gateway::GatewayConfig>(gateway_cfg).value();
 
