@@ -8,13 +8,15 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 
-MatchingEngine::MatchingEngine(std::string_view host, int port)
+MatchingEngine::MatchingEngine(MatchingEngineConfig config)
     : logger{spdlog::basic_logger_mt<spdlog::async_factory>(
           "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log")},
-      inbound_ws_server{port, host, logger},
+      inbound_ws_server{config.matching_engine_port, config.matching_engine_host, logger},
       shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
-          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
-      limit_order_book{"GME"}, latest_order_id{0} {
+          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + config.server_name)},
+      limit_order_book{"GME", TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE +
+                                                              "_" + config.server_name)},
+      latest_order_id{0} {
     inbound_ws_server.start();
 
     logger->info("Matching Engine constructed");

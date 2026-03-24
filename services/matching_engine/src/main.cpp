@@ -10,8 +10,7 @@ int main(int argc, char* argv[]) {
     engine::MatchingEngineConfig matching_engine_config =
         rfl::toml::load<engine::MatchingEngineConfig>(me_cfg).value();
 
-    engine::MatchingEngine matching_engine{matching_engine_config.matching_engine_host,
-                                           matching_engine_config.matching_engine_port};
+    engine::MatchingEngine matching_engine{matching_engine_config};
 
     matching_engine.start();
 }

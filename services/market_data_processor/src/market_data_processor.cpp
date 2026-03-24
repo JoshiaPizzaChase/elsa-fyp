@@ -2,9 +2,10 @@
 
 namespace mdp {
 MarketDataProcessor::MarketDataProcessor(MdpConfig config)
-    : orderbook_snapshot_ring_buffer(
-          OrderbookSnapshotRingBuffer::create(core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)),
-      trade_ring_buffer(TradeRingBuffer::create(core::constants::TRADE_SHM_FILE)),
+    : orderbook_snapshot_ring_buffer(OrderbookSnapshotRingBuffer::create(
+          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + config.server_name)),
+      trade_ring_buffer(
+          TradeRingBuffer::create(core::constants::TRADE_SHM_FILE + "_" + config.server_name)),
       websocket_server(config.ws_port, config.host, logger) {
 }
 

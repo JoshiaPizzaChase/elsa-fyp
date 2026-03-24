@@ -1,14 +1,16 @@
-#include <chrono>
 #include "limit_order_book.h"
 #include "core/constants.h"
+#include <chrono>
 #include <expected>
 #include <format>
 
 namespace engine {
+LimitOrderBook::LimitOrderBook(std::string_view ticker, TradeRingBuffer shm_trade)
+    : ticker{ticker}, shm_trade{std::move(shm_trade)} {
+}
+
 LimitOrderBook::LimitOrderBook(std::string_view ticker)
-    : ticker{ticker}, shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
-                          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
-      shm_trade{TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE)} {
+    : ticker{ticker}, shm_trade{TradeRingBuffer::create("dummy", true)} {
 }
 
 std::string_view LimitOrderBook::get_ticker() const {
@@ -172,8 +174,8 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
 
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
     uint64_t now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()
-    ).count();
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
 
     TopOrderBookLevelAggregates top_aggregate{ticker.data(), now_ts_ms};
 
@@ -210,13 +212,14 @@ std::expected<Trade, std::string> LimitOrderBook::create_trade(int taker_order_i
     }
 
     uint64_t now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()
-    ).count();
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
 
     // TODO: Add random trade_id generation
     // TODO: add back taker and maker id
-    return Trade{ticker.data(),          price, quantity, 100, 1, 1, taker_order_id, maker_order_id,
-                 taker_side == Side::bid, now_ts_ms};
+    return Trade{
+        ticker.data(),           price,    quantity, 100, 1, 1, taker_order_id, maker_order_id,
+        taker_side == Side::bid, now_ts_ms};
 }
 
 std::expected<int, std::string> LimitOrderBook::get_fill_cost(int quantity, Side side) const {

@@ -1,14 +1,16 @@
 #pragma once
 
+#include "configuration/matching_engine_config.h"
 #include "limit_order_book.h"
 #include "websocket_server.h"
+
 #include <string>
 
 namespace engine {
 using WebsocketManagerServer = transport::WebsocketManagerServer;
 class MatchingEngine {
   public:
-    MatchingEngine(std::string_view host, int port);
+    MatchingEngine(MatchingEngineConfig config);
     std::expected<void, std::string> start();
 
   private:
