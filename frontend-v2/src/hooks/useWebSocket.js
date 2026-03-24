@@ -14,6 +14,10 @@ export default function useWebSocket(url, onMessage) {
     const intentionalCloseRef = useRef(false);
 
     const connect = useCallback(() => {
+        if (!url) {
+            setIsConnected(false);
+            return;
+        }
         const ws = new WebSocket(url);
         wsRef.current = ws;
 

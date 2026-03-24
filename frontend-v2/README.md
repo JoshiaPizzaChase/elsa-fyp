@@ -16,4 +16,4 @@ Real-time trading dashboard with K-line chart, order book, and latest trades.
    REACT_APP_BACKEND_PORT=8080
    ```
 
-   This only affects HTTP API calls. WebSocket (`mdpEndpoint`) remains unchanged.
+   HTTP API calls use this backend target, and WebSocket (`mdpEndpoint`) is now composed in frontend from backend-provided `mdp_ip` + `mdp_port` (`/active_servers` / `/server_mdp_endpoint`) instead of hardcoded frontend values.

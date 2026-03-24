@@ -1,10 +1,16 @@
 import React, {useState, useEffect} from 'react';
 import {useAuth} from '../context/AuthContext';
-import {getUserServers, getAccountDetails, createServer, configureServer} from '../api';
+import {
+    getUserServers,
+    getAccountDetails,
+    createServer,
+    configureServer,
+    removeServer,
+} from '../api';
 import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend} from 'recharts';
 import './AccountPage.css';
 
-const INITIAL_BALANCE = 100000;
+const DEFAULT_INITIAL_USD = 100000;
 
 const PIE_COLORS = [
     '#a29bfe', '#6c5ce7', '#74b9ff', '#0984e3',
@@ -125,6 +131,9 @@ function ServerModal({server, username, onClose, onSaved}) {
     const [symbols, setSymbols] = useState(isNew ? [] : (server.active_symbols ?? []));
     // Allowlist: for editing we'd need to fetch it; pre-fill with empty for now
     const [allowlist, setAllowlist] = useState([]);
+    const [initialUsd, setInitialUsd] = useState(
+        isNew ? DEFAULT_INITIAL_USD : (server.initial_usd ?? DEFAULT_INITIAL_USD)
+    );
 
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState(null); // {type:'success'|'error', msg}
@@ -147,6 +156,7 @@ function ServerModal({server, username, onClose, onSaved}) {
             description: description.trim(),
             active_symbols: symbols,
             allowlist,
+            initial_usd: Number.isFinite(Number(initialUsd)) ? Number(initialUsd) : DEFAULT_INITIAL_USD,
         };
 
         try {
@@ -230,6 +240,22 @@ function ServerModal({server, username, onClose, onSaved}) {
                         />
                     </div>
 
+                    {isNew && (
+                        <div className="sm-field">
+                            <label className="sm-label">Initial USD per Member</label>
+                            <input
+                                className="sm-input"
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={initialUsd}
+                                onChange={e => setInitialUsd(e.target.value)}
+                                placeholder="e.g. 100000"
+                                required
+                            />
+                        </div>
+                    )}
+
                     {/* Active symbols */}
                     <TagInput
                         label="Active Symbols"
@@ -269,8 +295,9 @@ function AccountPage() {
     const [loading, setLoading] = useState(true);
     const [accountDetails, setAccountDetails] = useState(null);
     const [detailsLoading, setDetailsLoading] = useState(false);
+    const [removeLoading, setRemoveLoading] = useState(false);
 
-    useEffect(() => {
+    const refreshServers = () => {
         if (!user?.username) return;
         setLoading(true);
         getUserServers(user.username)
@@ -278,9 +305,14 @@ function AccountPage() {
                 const list = data.servers ?? [];
                 setServers(list);
                 if (list.length > 0) setSelectedId(list[0].server_id);
+                else setSelectedId(null);
             })
             .catch((err) => console.error('Failed to fetch user servers:', err))
             .finally(() => setLoading(false));
+    };
+
+    useEffect(() => {
+        refreshServers();
     }, [user?.username]);
 
     const selectedServer = servers.find((s) => s.server_id === selectedId) ?? null;
@@ -314,9 +346,41 @@ function AccountPage() {
     const balances = accountDetails?.balances ?? selected?.balances ?? [];
     const totalValue = accountDetails?.total_value
         ?? balances.reduce((sum, b) => sum + (b.balance ?? 0), 0);
-    const pnl = accountDetails?.pnl ?? (totalValue - INITIAL_BALANCE);
+    const initialUsd = accountDetails?.initial_usd
+        ?? selected?.initial_usd
+        ?? selected?.server?.initial_usd
+        ?? DEFAULT_INITIAL_USD;
+    const pnl = accountDetails?.pnl ?? (totalValue - initialUsd);
     const pnlPct = accountDetails?.pnl_pct
-        ?? (INITIAL_BALANCE !== 0 ? (pnl / INITIAL_BALANCE) * 100 : 0);
+        ?? (initialUsd !== 0 ? (pnl / initialUsd) * 100 : 0);
+
+    const handleRemoveServer = async () => {
+        if (!selected || selected.role !== 'admin' || !user?.username || removeLoading) return;
+        const confirmed = window.confirm(
+            `Remove server "${selected.server_name}"?\n\nThis will stop and remove all related services.`
+        );
+        if (!confirmed) return;
+
+        setRemoveLoading(true);
+        try {
+            const data = await removeServer(user.username, {server_name: selected.server_name});
+            if (data.auth_error) {
+                window.alert(data.auth_error);
+                return;
+            }
+            if (data.error) {
+                window.alert(data.error);
+                return;
+            }
+            setAccountDetails(null);
+            await refreshServers();
+        } catch (err) {
+            const msg = err?.data?.auth_error ?? err?.data?.error ?? err.message ?? 'Request failed';
+            window.alert(msg);
+        } finally {
+            setRemoveLoading(false);
+        }
+    };
 
     return (
         <div className="account-page">
@@ -398,12 +462,21 @@ function AccountPage() {
                                 <p className="account-detail-description">{selected.description}</p>
                             )}
                             {selected.role === 'admin' && (
-                                <button
-                                    className="account-edit-btn"
-                                    onClick={() => setModalServer(selected)}
-                                >
-                                    Edit Settings
-                                </button>
+                                <div className="account-detail-actions">
+                                    <button
+                                        className="account-edit-btn"
+                                        onClick={() => setModalServer(selected)}
+                                    >
+                                        Edit Settings
+                                    </button>
+                                    <button
+                                        className="account-remove-btn"
+                                        onClick={handleRemoveServer}
+                                        disabled={removeLoading}
+                                    >
+                                        {removeLoading ? 'Removing…' : 'Remove Server'}
+                                    </button>
+                                </div>
                             )}
                         </div>
 
@@ -536,10 +609,7 @@ function AccountPage() {
                     onClose={() => setModalServer(undefined)}
                     onSaved={() => {
                         // Refresh server list after create/edit
-                        if (!user?.username) return;
-                        getUserServers(user.username)
-                            .then(data => setServers(data.servers ?? []))
-                            .catch(console.error);
+                        refreshServers();
                     }}
                 />
             )}

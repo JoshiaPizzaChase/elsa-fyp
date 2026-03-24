@@ -1,3 +1,4 @@
 matching_engine_host = "localhost"
 matching_engine_port = 9888
 active_symbols = []
+server_name = <server name placeholder>

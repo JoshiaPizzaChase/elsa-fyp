@@ -70,7 +70,7 @@ public:
         auto srv_result = m_db.create_server(
             "UAT_Server", admin_id,
             "UAT Test Server — auto-generated for frontend testing",
-            symbols, allowlist);
+            symbols, allowlist, 100000);
 
         int server_id{};
         if (!srv_result.has_value()) {

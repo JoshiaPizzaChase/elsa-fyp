@@ -355,6 +355,59 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     return result
 
 
+def remove_service(service_type: str, server_name: str) -> dict[str, Any]:
+    LOGGER.info(
+        "Starting removal: service_type=%s server_name=%s",
+        service_type,
+        server_name,
+    )
+    if service_type not in SUPPORTED_SERVICES:
+        raise DeploymentError(
+            f"Unsupported service_type '{service_type}'. "
+            f"Supported values: {', '.join(sorted(SUPPORTED_SERVICES))}"
+        )
+
+    _validate_server_name(server_name)
+
+    instance_name = f"{service_type}-{server_name}"
+    service_unit = f"{instance_name}.service"
+    service_dest = SYSTEMD_DIR / service_unit
+    install_dir = INSTALL_BASE_DIR / instance_name
+
+    service_file_existed = service_dest.is_file()
+    install_dir_existed = install_dir.exists()
+
+    if service_file_existed:
+        LOGGER.info("Stopping and disabling service unit: %s", service_unit)
+        _run_cmd("systemctl", "stop", service_unit)
+        _run_cmd("systemctl", "disable", service_unit)
+        LOGGER.info("Removing unit file: %s", service_dest)
+        service_dest.unlink()
+    else:
+        LOGGER.info("Unit file not found, skipping service stop/remove: %s", service_dest)
+
+    if install_dir_existed:
+        LOGGER.info("Removing install directory: %s", install_dir)
+        shutil.rmtree(install_dir)
+    else:
+        LOGGER.info("Install directory not found, skipping: %s", install_dir)
+
+    LOGGER.info("Reloading systemd daemon after removal")
+    _run_cmd("systemctl", "daemon-reload")
+
+    result = {
+        "service_type": service_type,
+        "server_name": server_name,
+        "instance_name": instance_name,
+        "unit_file": str(service_dest),
+        "install_dir": str(install_dir),
+        "removed_unit_file": service_file_existed,
+        "removed_install_dir": install_dir_existed,
+    }
+    LOGGER.info("Removal completed: %s", result)
+    return result
+
+
 class DeployRequestHandler(BaseHTTPRequestHandler):
     def _write_json(self, status: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=True).encode("utf-8")
@@ -373,7 +426,7 @@ class DeployRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         LOGGER.info("Received POST request: path=%s client=%s", self.path, self.client_address)
-        if self.path != "/deploy":
+        if self.path not in {"/deploy", "/remove_server"}:
             self._write_json(404, {"error": "Not found"})
             return
 
@@ -398,43 +451,70 @@ class DeployRequestHandler(BaseHTTPRequestHandler):
         if not isinstance(payload, dict):
             self._write_json(400, {"error": "JSON body must be an object"})
             return
-        LOGGER.info("Deploy request payload keys: %s", sorted(payload.keys()))
-
-        service_name = payload.get("service_name") or payload.get("service")
-        server_name = payload.get("server_name")
-        config_params = payload.get("params")
-
-        if not isinstance(service_name, str) or not service_name.strip():
-            self._write_json(
-                400,
-                {
-                    "error": "service_name (or service) is required",
-                    "supported_services": sorted(SUPPORTED_SERVICES.keys()),
-                },
-            )
-            return
-
-        if not isinstance(server_name, str) or not server_name.strip():
-            self._write_json(400, {"error": "server_name is required"})
-            return
-
-        if config_params is None:
-            config_params = {
-                k: v
-                for k, v in payload.items()
-                if k not in {"service_name", "service", "server_name", "params"}
-            }
-
-        if not isinstance(config_params, dict):
-            self._write_json(400, {"error": "params must be a JSON object"})
-            return
+        LOGGER.info("POST request payload keys: %s", sorted(payload.keys()))
 
         try:
-            result = deploy_service(
-                service_name=service_name.strip(),
+            if self.path == "/deploy":
+                service_name = payload.get("service_name") or payload.get("service")
+                server_name = payload.get("server_name")
+                config_params = payload.get("params")
+
+                if not isinstance(service_name, str) or not service_name.strip():
+                    self._write_json(
+                        400,
+                        {
+                            "error": "service_name (or service) is required",
+                            "supported_services": sorted(SUPPORTED_SERVICES.keys()),
+                        },
+                    )
+                    return
+
+                if not isinstance(server_name, str) or not server_name.strip():
+                    self._write_json(400, {"error": "server_name is required"})
+                    return
+
+                if config_params is None:
+                    config_params = {
+                        k: v
+                        for k, v in payload.items()
+                        if k not in {"service_name", "service", "server_name", "params"}
+                    }
+
+                if not isinstance(config_params, dict):
+                    self._write_json(400, {"error": "params must be a JSON object"})
+                    return
+
+                result = deploy_service(
+                    service_name=service_name.strip(),
+                    server_name=server_name.strip(),
+                    params=config_params,
+                )
+                self._write_json(200, {"status": "deployed", "result": result})
+                return
+
+            server_name = payload.get("server_name")
+            service_type = payload.get("service_type")
+
+            if not isinstance(server_name, str) or not server_name.strip():
+                self._write_json(400, {"error": "server_name is required"})
+                return
+
+            if not isinstance(service_type, str) or not service_type.strip():
+                self._write_json(
+                    400,
+                    {
+                        "error": "service_type is required",
+                        "supported_services": sorted(SUPPORTED_SERVICES.keys()),
+                    },
+                )
+                return
+
+            result = remove_service(
+                service_type=service_type.strip(),
                 server_name=server_name.strip(),
-                params=config_params,
             )
+            self._write_json(200, {"status": "removed", "result": result})
+            return
         except DeploymentError as exc:
             LOGGER.exception("Deployment error")
             self._write_json(400, {"error": str(exc)})
@@ -447,8 +527,6 @@ class DeployRequestHandler(BaseHTTPRequestHandler):
             LOGGER.exception("OS error")
             self._write_json(500, {"error": f"OS error: {exc}"})
             return
-
-        self._write_json(200, {"status": "deployed", "result": result})
 
     def log_message(self, fmt: str, *args: Any) -> None:
         return

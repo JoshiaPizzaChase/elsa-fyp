@@ -408,6 +408,7 @@ TEST_F(BackendServiceTest, AccountDetailsMemberAccess) {
     // USD=100000 + AAPL=50
     EXPECT_EQ(obj.at("balances").as_array().size(), 2u);
     EXPECT_EQ(obj.at("total_value").as_int64(), 100050);
+    EXPECT_EQ(obj.at("initial_usd").as_int64(), 100000);
     EXPECT_EQ(obj.at("pnl").as_int64(),         50);
 }
 
@@ -466,6 +467,7 @@ TEST_F(BackendServiceTest, CreateServerSuccess) {
     body["description"]    = "Created in test";
     body["active_symbols"] = json::array{"TSLA"};
     body["allowlist"]      = json::array{"test_member"};
+    body["initial_usd"]    = 250000;
 
     auto r = do_post("/create_server", body, "test_admin");
     EXPECT_EQ(r.status, http::status::ok);
@@ -474,10 +476,27 @@ TEST_F(BackendServiceTest, CreateServerSuccess) {
     EXPECT_TRUE(obj.at("success").as_bool());
     EXPECT_EQ(obj.at("server_name").as_string(),  "test_new_server");
     EXPECT_EQ(obj.at("description").as_string(),  "Created in test");
+    EXPECT_EQ(obj.at("initial_usd").as_int64(), 250000);
     ASSERT_EQ(obj.at("active_symbols").as_array().size(), 1u);
     EXPECT_EQ(obj.at("active_symbols").as_array()[0].as_string(), "TSLA");
     ASSERT_EQ(obj.at("allowlist").as_array().size(), 1u);
     EXPECT_EQ(obj.at("allowlist").as_array()[0].as_string(), "test_member");
+
+    pqxx::connection conn{DB_CONN};
+    pqxx::work txn{conn};
+    auto srv = txn.exec(
+        "SELECT server_id FROM servers WHERE server_name = 'test_new_server'");
+    ASSERT_EQ(srv.size(), 1u);
+    const int created_server_id = srv[0]["server_id"].as<int>();
+
+    auto bal = txn.exec(
+        "SELECT user_id, balance FROM balances WHERE server_id = $1 AND symbol = 'USD' ORDER BY user_id",
+        pqxx::params{created_server_id});
+    ASSERT_EQ(bal.size(), 2u);
+    EXPECT_EQ(bal[0]["user_id"].as<int>(), m_admin_id);
+    EXPECT_EQ(bal[0]["balance"].as<int>(), 250000);
+    EXPECT_EQ(bal[1]["user_id"].as<int>(), m_member_id);
+    EXPECT_EQ(bal[1]["balance"].as<int>(), 250000);
 }
 
 TEST_F(BackendServiceTest, CreateServerNoAuth) {

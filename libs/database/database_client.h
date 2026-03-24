@@ -428,6 +428,7 @@ class DatabaseClient {
         std::string admin_name;
         std::vector<std::string> active_tickers;
         std::string description;
+        int initial_usd{100000};
     };
 
     struct UserServerRow {
@@ -436,6 +437,7 @@ class DatabaseClient {
         std::string role;
         std::vector<std::string> active_tickers;
         std::string description;
+        int initial_usd{100000};
         std::vector<BalanceRow> balances;
     };
 
@@ -446,6 +448,7 @@ class DatabaseClient {
         std::string description;
         std::vector<std::string> active_tickers;
         std::string role;
+        int initial_usd{100000};
         std::vector<BalanceRow> balances;
     };
 
@@ -509,10 +512,16 @@ class DatabaseClient {
     auto get_active_servers() -> std::expected<std::vector<ServerRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
-            auto res =
-                txn.exec("SELECT s.server_id, s.admin_id, s.server_name, u.username AS admin_name, "
-                         "s.active_tickers, s.description "
-                         "FROM servers s JOIN users u ON s.admin_id = u.user_id");
+            const bool has_initial_usd = servers_has_initial_usd_column(txn);
+            auto res = has_initial_usd
+                           ? txn.exec("SELECT s.server_id, s.admin_id, s.server_name, "
+                                      "u.username AS admin_name, "
+                                      "s.active_tickers, s.description, s.initial_usd "
+                                      "FROM servers s JOIN users u ON s.admin_id = u.user_id")
+                           : txn.exec("SELECT s.server_id, s.admin_id, s.server_name, "
+                                      "u.username AS admin_name, "
+                                      "s.active_tickers, s.description "
+                                      "FROM servers s JOIN users u ON s.admin_id = u.user_id");
             txn.commit();
             std::vector<ServerRow> result;
             result.reserve(res.size());
@@ -524,6 +533,7 @@ class DatabaseClient {
                 srv.admin_name = row["admin_name"].as<std::string>();
                 srv.description = row["description"].as<std::string>("");
                 srv.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+                srv.initial_usd = has_initial_usd ? row["initial_usd"].as<int>(100000) : 100000;
                 result.push_back(std::move(srv));
             }
             return result;
@@ -536,12 +546,20 @@ class DatabaseClient {
         -> std::expected<std::optional<ServerRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
-            auto res =
-                txn.exec("SELECT s.server_id, s.admin_id, s.server_name, u.username AS admin_name, "
-                         "s.active_tickers, s.description "
-                         "FROM servers s JOIN users u ON s.admin_id = u.user_id "
-                         "WHERE s.server_name = $1",
-                         pqxx::params{server_name});
+            const bool has_initial_usd = servers_has_initial_usd_column(txn);
+            auto res = has_initial_usd
+                           ? txn.exec("SELECT s.server_id, s.admin_id, s.server_name, "
+                                      "u.username AS admin_name, s.active_tickers, "
+                                      "s.description, s.initial_usd "
+                                      "FROM servers s JOIN users u ON s.admin_id = u.user_id "
+                                      "WHERE s.server_name = $1",
+                                      pqxx::params{server_name})
+                           : txn.exec("SELECT s.server_id, s.admin_id, s.server_name, "
+                                      "u.username AS admin_name, s.active_tickers, "
+                                      "s.description "
+                                      "FROM servers s JOIN users u ON s.admin_id = u.user_id "
+                                      "WHERE s.server_name = $1",
+                                      pqxx::params{server_name});
             txn.commit();
             if (res.empty())
                 return std::nullopt;
@@ -553,6 +571,7 @@ class DatabaseClient {
             srv.admin_name = row["admin_name"].as<std::string>();
             srv.description = row["description"].as<std::string>("");
             srv.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+            srv.initial_usd = has_initial_usd ? row["initial_usd"].as<int>(100000) : 100000;
             return srv;
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error getting server: {}", e.what())};
@@ -588,14 +607,28 @@ class DatabaseClient {
                 return std::vector<UserServerRow>{};
             const int user_id = user_res[0]["user_id"].as<int>();
 
-            auto srv_res =
-                txn.exec("SELECT s.server_id, s.server_name, s.active_tickers, s.description, "
-                         "CASE WHEN s.admin_id = $1 THEN 'admin' ELSE 'member' END AS role "
-                         "FROM servers s "
-                         "WHERE s.admin_id = $1 "
-                         "OR EXISTS (SELECT 1 FROM allowlist a WHERE a.server_id = s.server_id AND "
-                         "a.user_id = $1)",
-                         pqxx::params{user_id});
+            const bool has_initial_usd = servers_has_initial_usd_column(txn);
+            auto srv_res = has_initial_usd
+                               ? txn.exec("SELECT s.server_id, s.server_name, s.active_tickers, "
+                                          "s.description, s.initial_usd, "
+                                          "CASE WHEN s.admin_id = $1 THEN 'admin' ELSE 'member' "
+                                          "END AS role "
+                                          "FROM servers s "
+                                          "WHERE s.admin_id = $1 "
+                                          "OR EXISTS (SELECT 1 FROM allowlist a WHERE "
+                                          "a.server_id = s.server_id AND "
+                                          "a.user_id = $1)",
+                                          pqxx::params{user_id})
+                               : txn.exec("SELECT s.server_id, s.server_name, s.active_tickers, "
+                                          "s.description, "
+                                          "CASE WHEN s.admin_id = $1 THEN 'admin' ELSE 'member' "
+                                          "END AS role "
+                                          "FROM servers s "
+                                          "WHERE s.admin_id = $1 "
+                                          "OR EXISTS (SELECT 1 FROM allowlist a WHERE "
+                                          "a.server_id = s.server_id AND "
+                                          "a.user_id = $1)",
+                                          pqxx::params{user_id});
 
             auto bal_res = txn.exec("SELECT symbol, balance FROM balances WHERE user_id = $1",
                                     pqxx::params{user_id});
@@ -615,6 +648,7 @@ class DatabaseClient {
                 usr.role = row["role"].as<std::string>();
                 usr.description = row["description"].as<std::string>("");
                 usr.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+                usr.initial_usd = has_initial_usd ? row["initial_usd"].as<int>(100000) : 100000;
                 usr.balances = balances;
                 result.push_back(std::move(usr));
             }
@@ -629,18 +663,38 @@ class DatabaseClient {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
 
-            auto res = txn.exec(
-                "SELECT s.server_id, s.server_name, s.description, s.active_tickers, "
-                "u_admin.username AS admin_name, u.user_id, "
-                "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' END AS role "
-                "FROM users u "
-                "JOIN servers s ON s.server_name = $2 "
-                "JOIN users u_admin ON u_admin.user_id = s.admin_id "
-                "WHERE u.username = $1 "
-                "AND (s.admin_id = u.user_id "
-                "     OR EXISTS (SELECT 1 FROM allowlist a "
-                "                WHERE a.server_id = s.server_id AND a.user_id = u.user_id))",
-                pqxx::params{username, server_name});
+            const bool has_initial_usd = servers_has_initial_usd_column(txn);
+            auto res = has_initial_usd
+                           ? txn.exec(
+                                 "SELECT s.server_id, s.server_name, s.description, "
+                                 "s.active_tickers, s.initial_usd, "
+                                 "u_admin.username AS admin_name, u.user_id, "
+                                 "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' "
+                                 "END AS role "
+                                 "FROM users u "
+                                 "JOIN servers s ON s.server_name = $2 "
+                                 "JOIN users u_admin ON u_admin.user_id = s.admin_id "
+                                 "WHERE u.username = $1 "
+                                 "AND (s.admin_id = u.user_id "
+                                 "     OR EXISTS (SELECT 1 FROM allowlist a "
+                                 "                WHERE a.server_id = s.server_id AND "
+                                 "a.user_id = u.user_id))",
+                                 pqxx::params{username, server_name})
+                           : txn.exec(
+                                 "SELECT s.server_id, s.server_name, s.description, "
+                                 "s.active_tickers, "
+                                 "u_admin.username AS admin_name, u.user_id, "
+                                 "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' "
+                                 "END AS role "
+                                 "FROM users u "
+                                 "JOIN servers s ON s.server_name = $2 "
+                                 "JOIN users u_admin ON u_admin.user_id = s.admin_id "
+                                 "WHERE u.username = $1 "
+                                 "AND (s.admin_id = u.user_id "
+                                 "     OR EXISTS (SELECT 1 FROM allowlist a "
+                                 "                WHERE a.server_id = s.server_id AND "
+                                 "a.user_id = u.user_id))",
+                                 pqxx::params{username, server_name});
             if (res.empty())
                 return std::nullopt;
 
@@ -654,6 +708,7 @@ class DatabaseClient {
             details.description = row["description"].as<std::string>("");
             details.role = row["role"].as<std::string>();
             details.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
+            details.initial_usd = has_initial_usd ? row["initial_usd"].as<int>(100000) : 100000;
 
             // Build the PostgreSQL array literal for active tickers
             const std::string arr_lit = build_pg_array(details.active_tickers);
@@ -712,10 +767,10 @@ class DatabaseClient {
     // Returns the newly created server_id.
     auto create_server(std::string_view server_name, int admin_id, std::string_view description,
                        const std::vector<std::string>& symbols,
-                       const std::vector<int>& allowlist_user_ids)
+                       const std::vector<int>& allowlist_user_ids, int initial_usd = 100000)
         -> std::expected<int, std::string> {
         return create_server_with_services(server_name, admin_id, description, symbols,
-                                           allowlist_user_ids, {});
+                                           allowlist_user_ids, {}, initial_usd);
     }
 
     // Insert a new server, allowlist, and service endpoints in one transaction.
@@ -724,15 +779,23 @@ class DatabaseClient {
                                      std::string_view description,
                                      const std::vector<std::string>& symbols,
                                      const std::vector<int>& allowlist_user_ids,
-                                     const std::vector<ServiceInsertRow>& services)
+                                     const std::vector<ServiceInsertRow>& services,
+                                     int initial_usd = 100000)
         -> std::expected<int, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
             const std::string arr = build_pg_array(symbols);
-            auto res =
-                txn.exec("INSERT INTO servers (server_name, admin_id, description, active_tickers) "
-                         "VALUES ($1, $2, $3, $4::varchar[]) RETURNING server_id",
-                         pqxx::params{server_name, admin_id, description, arr});
+            const bool has_initial_usd = servers_has_initial_usd_column(txn);
+            auto res = has_initial_usd
+                           ? txn.exec("INSERT INTO servers (server_name, admin_id, description, "
+                                      "active_tickers, initial_usd) "
+                                      "VALUES ($1, $2, $3, $4::varchar[], $5) RETURNING server_id",
+                                      pqxx::params{server_name, admin_id, description, arr,
+                                                   initial_usd})
+                           : txn.exec("INSERT INTO servers (server_name, admin_id, description, "
+                                      "active_tickers) "
+                                      "VALUES ($1, $2, $3, $4::varchar[]) RETURNING server_id",
+                                      pqxx::params{server_name, admin_id, description, arr});
             if (res.empty())
                 return std::unexpected{std::string{"Failed to create server"}};
             const int server_id = res[0]["server_id"].as<int>();
@@ -784,6 +847,27 @@ class DatabaseClient {
             return true;
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error configuring server: {}", e.what())};
+        }
+    }
+
+    auto delete_server(std::string_view server_name) -> std::expected<bool, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto srv_res =
+                txn.exec("SELECT server_id FROM servers WHERE server_name = $1",
+                         pqxx::params{server_name});
+            if (srv_res.empty())
+                return false;
+            const int server_id = srv_res[0]["server_id"].as<int>();
+
+            txn.exec("DELETE FROM allowlist WHERE server_id = $1", pqxx::params{server_id});
+            txn.exec("DELETE FROM balances WHERE server_id = $1", pqxx::params{server_id});
+            txn.exec("DELETE FROM services WHERE server_id = $1", pqxx::params{server_id});
+            txn.exec("DELETE FROM servers WHERE server_id = $1", pqxx::params{server_id});
+            txn.commit();
+            return true;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error deleting server: {}", e.what())};
         }
     }
 
@@ -893,6 +977,11 @@ class DatabaseClient {
         int port{};
     };
 
+    struct ServiceEndpoint {
+        std::string ip;
+        int port{};
+    };
+
     struct ServiceInsertRow {
         int machine_id{};
         Service service_type{};
@@ -954,6 +1043,30 @@ class DatabaseClient {
             return result;
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error getting services of machine {}: {}", machine_name, e.what())};
+        }
+    }
+
+    auto get_service_endpoint(const std::string_view server_name, Service service_type) const
+        -> std::expected<std::optional<ServiceEndpoint>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec("SELECT m.ip, s.port::VARCHAR AS port "
+                                "FROM services s "
+                                "INNER JOIN servers sv ON s.server_id = sv.server_id "
+                                "INNER JOIN machines m ON s.machine_id = m.machine_id "
+                                "WHERE sv.server_name = $1 AND s.service_type = $2 "
+                                "LIMIT 1;",
+                                pqxx::params{server_name, service_enum_to_str(service_type)});
+            txn.commit();
+            if (res.empty())
+                return std::nullopt;
+            ServiceEndpoint endpoint;
+            endpoint.ip = res[0]["ip"].as<std::string>();
+            endpoint.port = res[0]["port"].as<int>();
+            return endpoint;
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error getting service endpoint for {}: {}", server_name, e.what())};
         }
     }
 
@@ -1115,6 +1228,18 @@ class DatabaseClient {
     }
 
   private:
+    bool servers_has_initial_usd_column(pqxx::transaction_base& txn) const {
+        if (m_has_servers_initial_usd_column.has_value()) {
+            return m_has_servers_initial_usd_column.value();
+        }
+        auto res = txn.exec(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = 'servers' "
+            "AND column_name = 'initial_usd'");
+        m_has_servers_initial_usd_column = !res.empty();
+        return m_has_servers_initial_usd_column.value();
+    }
+
     // Parse a PostgreSQL text-array literal (e.g. "{AAPL,GOOGL}") into a vector.
     static std::vector<std::string> parse_pg_array(const std::string& pg_array) {
         std::vector<std::string> result;
@@ -1166,6 +1291,7 @@ class DatabaseClient {
 
     // Opus suggestion: ILP async writer for QuestDB — lazily initialized on first ILP insert.
     std::optional<AsyncWriter> m_async_writer;
+    mutable std::optional<bool> m_has_servers_initial_usd_column;
 };
 
 } // namespace database

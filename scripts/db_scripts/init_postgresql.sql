@@ -28,8 +28,12 @@ CREATE TABLE IF NOT EXISTS servers
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     active_tickers VARCHAR(10)[],
-    description VARCHAR(255)
+    description VARCHAR(255),
+    initial_usd INT NOT NULL DEFAULT 100000
 );
+
+ALTER TABLE servers
+    ADD COLUMN IF NOT EXISTS initial_usd INT NOT NULL DEFAULT 100000;
 -- 3. whitelist
 CREATE TABLE IF NOT EXISTS allowlist
 (

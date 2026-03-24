@@ -85,10 +85,14 @@ export async function getHistoricalTrades(server, symbol, after_ts_ms) {
     return fetchJSON('/get_historical_trades', {server, symbol, after_ts_ms});
 }
 
+export async function getServerMdpEndpoint(server_name) {
+    return fetchJSON('/server_mdp_endpoint', {server_name});
+}
+
 /**
  * Create a new trading server.
  * @param {string} username - the logged-in admin's username (used for auth token)
- * @param {{ server_name, description, mdp_endpoint, active_symbols: string[], allowlist: string[] }} payload
+ * @param {{ server_name, description, active_symbols: string[], allowlist: string[], initial_usd: number }} payload
  */
 export async function createServer(username, payload) {
     return postJSON('/create_server', payload, username);
@@ -98,8 +102,18 @@ export async function createServer(username, payload) {
  * Update settings of an existing server.
  * Only the server's admin may call this successfully.
  * @param {string} username - the logged-in admin's username (used for auth token)
- * @param {{ server_name, description, mdp_endpoint, active_symbols: string[], allowlist: string[] }} payload
+ * @param {{ server_name, description, active_symbols: string[], allowlist: string[] }} payload
  */
 export async function configureServer(username, payload) {
     return postJSON('/configure_server', payload, username);
+}
+
+/**
+ * Remove an existing server and all of its deployed services.
+ * Only the server's admin may call this successfully.
+ * @param {string} username - the logged-in admin's username (used for auth token)
+ * @param {{ server_name: string }} payload
+ */
+export async function removeServer(username, payload) {
+    return postJSON('/remove_server', payload, username);
 }

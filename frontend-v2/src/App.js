@@ -5,7 +5,7 @@ import useWebSocket from './hooks/useWebSocket';
 import OrderBook from './components/OrderBook';
 import RecentTrades from './components/RecentTrades';
 import TickerSelector, {DEFAULT_TICKERS} from './components/TickerSelector';
-import {getActiveSymbols, getHistoricalTrades} from './api';
+import {getActiveSymbols, getHistoricalTrades, getServerMdpEndpoint} from './api';
 import './App.css';
 
 const TIMEFRAMES = [
@@ -22,9 +22,28 @@ function App() {
     const {serverName, ticker} = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const mdpEndpoint = location.state?.mdpEndpoint ?? 'ws://localhost:9001';
+    const [mdpEndpoint, setMdpEndpoint] = useState(location.state?.mdpEndpoint ?? '');
 
     const [activeTickers, setActiveTickers] = useState(DEFAULT_TICKERS);
+
+    useEffect(() => {
+        if (!serverName) return;
+        if (location.state?.mdpEndpoint) {
+            setMdpEndpoint(location.state.mdpEndpoint);
+            return;
+        }
+        getServerMdpEndpoint(serverName)
+            .then((data) => {
+                const endpoint = (data.mdp_ip && data.mdp_port)
+                    ? `ws://${data.mdp_ip}:${data.mdp_port}`
+                    : '';
+                setMdpEndpoint(endpoint);
+            })
+            .catch((err) => {
+                console.error('Failed to fetch MDP endpoint:', err);
+                setMdpEndpoint('');
+            });
+    }, [serverName, location.state]);
 
     // Fetch active symbols for this server
     useEffect(() => {
@@ -322,7 +341,7 @@ function App() {
                 <RecentTrades trades={recentTrades}/>
             </div>
 
-            {!isConnected && (
+            {(!mdpEndpoint || !isConnected) && (
                 <div style={{
                     position: 'fixed',
                     bottom: 16,
@@ -332,7 +351,7 @@ function App() {
                     padding: '8px 16px',
                     borderRadius: 4,
                 }}>
-                    Disconnected from WebSocket
+                    {mdpEndpoint ? 'Disconnected from WebSocket' : 'Unable to resolve WebSocket endpoint'}
                 </div>
             )}
         </div>

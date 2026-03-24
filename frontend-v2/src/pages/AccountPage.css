@@ -481,6 +481,39 @@
     border-color: #a29bfe;
 }
 
+.account-detail-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.account-remove-btn {
+    align-self: flex-start;
+    margin-top: 4px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    color: #ef5350;
+    background: transparent;
+    border: 1px solid rgba(239, 83, 80, 0.55);
+    border-radius: 20px;
+    padding: 5px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.account-remove-btn:hover:not(:disabled) {
+    color: #ff867c;
+    border-color: #ff867c;
+}
+
+.account-remove-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* Modal */
 .modal-overlay {
     position: fixed;
@@ -817,4 +850,3 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
-
