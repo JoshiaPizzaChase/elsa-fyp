@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 WorkingDirectory=/usr/local/bin/deployment-server
-ExecStart=python3 /usr/local/bin/deployment-server/deployment_server.py 10000
+ExecStart=/usr/bin/python3 /usr/local/bin/deployment-server/deployment_server.py --port 10000
 Restart=always
 
 [Install]
