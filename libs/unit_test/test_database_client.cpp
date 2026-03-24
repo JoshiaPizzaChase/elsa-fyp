@@ -17,6 +17,8 @@
 using namespace database;
 using namespace core;
 
+using Trade = core::TradeContainer;
+
 // ---------------------------------------------------------------------------
 // Helper: small sleep so QuestDB has time to ingest rows via ILP before we
 // query them back through the PG wire protocol.
@@ -1504,7 +1506,7 @@ TEST_CASE("insert_trade succeeds and row is queryable via query_trades",
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
-    Trade trade{"AAPL", 15000, 10, 12345, 101, 102, 1001, 1002, true, 0};
+    Trade trade{"AAPL", 15000, 10, 12345, 101, 102, 1001, 1002, true};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
@@ -1540,7 +1542,7 @@ TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
-    Trade trade{"MSFT", 30000, 5, 99991, 200, 201, 2001, 2002, false, 0};
+    Trade trade{"MSFT", 30000, 5, 99991, 200, 201, 2001, 2002, false};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
@@ -1563,7 +1565,7 @@ TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
 TEST_CASE("truncate_trades clears all trade rows", "[DatabaseClient][trades]") {
     DatabaseClient db;
 
-    Trade trade{"GOOG", 28000, 3, 77771, 300, 301, 3001, 3002, true, 0};
+    Trade trade{"GOOG", 28000, 3, 77771, 300, 301, 3001, 3002, true};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
@@ -1597,8 +1599,8 @@ TEST_CASE("query_trades returns inserted trades for symbol",
     REQUIRE(db.truncate_trades().has_value());
     wait_for_questdb_ingestion();
 
-    Trade t1{"NVDA", 40000, 8,  77771, 300, 301, 3001, 3002, true,  0};
-    Trade t2{"NVDA", 40100, 12, 77772, 302, 303, 3003, 3004, false, 0};
+    Trade t1{"NVDA", 40000, 8,  77771, 300, 301, 3001, 3002, true};
+    Trade t2{"NVDA", 40100, 12, 77772, 302, 303, 3003, 3004, false};
     REQUIRE(db.insert_trade(t1).has_value());
     REQUIRE(db.insert_trade(t2).has_value());
     wait_for_questdb_ingestion();
@@ -1624,7 +1626,7 @@ TEST_CASE("query_trades does not return rows for a different symbol",
     REQUIRE(db.truncate_trades().has_value());
     wait_for_questdb_ingestion();
 
-    Trade trade{"AAPL", 15000, 10, 12399, 101, 102, 1001, 1002, true, 0};
+    Trade trade{"AAPL", 15000, 10, 12399, 101, 102, 1001, 1002, true};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
