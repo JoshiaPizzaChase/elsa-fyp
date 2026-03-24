@@ -64,6 +64,7 @@ EXECUTABLE_DEST="${INSTALL_DIR}/backend"
 CONFIG_DEST="${INSTALL_DIR}/backend.toml"
 
 mkdir -p "${INSTALL_DIR}"
+rm -f "${SERVICE_DEST}" "${EXECUTABLE_DEST}" "${CONFIG_DEST}"
 install -m 0644 "${SERVICE_TEMPLATE}" "${SERVICE_DEST}"
 install -m 0755 "${EXECUTABLE_SRC}" "${EXECUTABLE_DEST}"
 
@@ -78,3 +79,5 @@ echo "Deployment completed."
 echo "Service file: ${SERVICE_DEST}"
 echo "Executable: ${EXECUTABLE_DEST}"
 echo "Config: ${CONFIG_DEST}"
+
+systemctl status backend

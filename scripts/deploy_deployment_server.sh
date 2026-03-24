@@ -49,6 +49,7 @@ SERVICE_DEST="${SYSTEMD_DIR}/deployment-server.service"
 TEMPLATE_DEST_DIR="${INSTALL_DIR}/template"
 
 mkdir -p "${INSTALL_DIR}"
+rm -f "${SERVICE_DEST}"
 install -m 0644 "${SERVICE_TEMPLATE}" "${SERVICE_DEST}"
 
 rm -rf "${TEMPLATE_DEST_DIR}"
@@ -61,3 +62,5 @@ systemctl start deployment-server.service
 echo "Deployment completed."
 echo "Service file: ${SERVICE_DEST}"
 echo "Template directory: ${TEMPLATE_DEST_DIR}"
+
+systemctl status deployment-server
