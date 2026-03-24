@@ -12,14 +12,37 @@ function buildApiUrl(path, params = null) {
     return url.toString();
 }
 
+function logApiRequest(method, url, details = undefined) {
+    if (details !== undefined) {
+        console.log(`[API] ${method} ${url}`, details);
+        return;
+    }
+    console.log(`[API] ${method} ${url}`);
+}
+
+function logApiResponse(method, url, res, data = undefined) {
+    if (data !== undefined) {
+        console.log(`[API] ${method} ${url} -> ${res.status}`, data);
+        return;
+    }
+    console.log(`[API] ${method} ${url} -> ${res.status}`);
+}
+
 async function fetchJSON(path, params = {}) {
-    const res = await fetch(buildApiUrl(path, params));
+    const url = buildApiUrl(path, params);
+    logApiRequest('GET', url, Object.keys(params).length > 0 ? {params} : undefined);
+    const res = await fetch(url);
+    logApiResponse('GET', url, res);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    const data = await res.json();
+    logApiResponse('GET', url, res, data);
+    return data;
 }
 
 async function postJSON(path, body, username) {
-    const res = await fetch(buildApiUrl(path), {
+    const url = buildApiUrl(path);
+    logApiRequest('POST', url, {body});
+    const res = await fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -27,7 +50,9 @@ async function postJSON(path, body, username) {
         },
         body: JSON.stringify(body),
     });
+    logApiResponse('POST', url, res);
     const data = await res.json();
+    logApiResponse('POST', url, res, data);
     if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), {data});
     return data;
 }
