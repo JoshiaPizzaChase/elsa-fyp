@@ -466,26 +466,6 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         used_ports.insert(service.port);
     }
 
-    const auto deployment_it = std::find_if(
-        services.begin(), services.end(),
-        [](const database::DatabaseClient::ServiceRow& row) {
-            return row.service_type == Service::deployment_server;
-        });
-    if (deployment_it == services.end()) {
-        res["error"] = "No deployment_server service found for machine: " + machine_name;
-        return res;
-    }
-    if (std::count_if(
-            services.begin(), services.end(),
-            [](const database::DatabaseClient::ServiceRow& row) {
-                return row.service_type == Service::deployment_server;
-            }) != 1) {
-        res["error"] = "Expected exactly one deployment_server per machine";
-        return res;
-    }
-    const std::string deployment_ip = deployment_it->ip;
-    const int deployment_port = deployment_it->port;
-
     int next_port_candidate = kMinUnreservedPort;
     auto take_next_available_port = [&]() {
         while (used_ports.contains(next_port_candidate)) {
@@ -511,13 +491,14 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         return out;
     };
 
+    int deployment_port = 10000; // assuming all deployment servers use port 10000
     auto deploy_service = [&](const std::string& service_name, const bj::object& params)
         -> std::expected<void, std::string> {
         try {
             net::io_context ioc;
             tcp::resolver resolver{ioc};
             beast::tcp_stream stream{ioc};
-            stream.connect(resolver.resolve(deployment_ip, std::to_string(deployment_port)));
+            stream.connect(resolver.resolve(machine_ip, std::to_string(deployment_port)));
 
             bj::object payload;
             payload["service_name"] = service_name;
@@ -525,7 +506,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             payload["params"] = params;
 
             http::request<http::string_body> deploy_req{http::verb::post, "/deploy", 11};
-            deploy_req.set(http::field::host, deployment_ip);
+            deploy_req.set(http::field::host, machine_ip);
             deploy_req.set(http::field::content_type, "application/json");
             deploy_req.set(http::field::connection, "close");
             deploy_req.body() = bj::serialize(payload);
@@ -543,7 +524,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             if (deploy_res.result() != http::status::ok) {
                 return std::unexpected{
                     std::format("deployment_server {}:{} returned status {} for {}: {}",
-                        deployment_ip, deployment_port, static_cast<unsigned>(deploy_res.result_int()),
+                        machine_ip, deployment_port, static_cast<unsigned>(deploy_res.result_int()),
                         service_name, deploy_res.body())
                 };
             }
@@ -563,7 +544,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         } catch (const std::exception& e) {
             return std::unexpected{
                 std::format("Error calling deployment_server {}:{} for {}: {}",
-                    deployment_ip, deployment_port, service_name, e.what())};
+                    machine_ip, deployment_port, service_name, e.what())};
         }
     };
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=EduX Market Data Processor
+Description=EduX Matching Engine
 After=network.target
 
 [Service]

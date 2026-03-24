@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS machines
 INSERT INTO machines (machine_name, ip)
 SELECT 'localhost', '127.0.0.1'
     WHERE NOT EXISTS (
-    SELECT 1 FROM machines WHERE machine_name = 'local' OR ip = '127.0.0.1'
+    SELECT 1 FROM machines WHERE machine_name = 'localhost' OR ip = '127.0.0.1'
 );
 
 -- 6. services

@@ -1,5 +1,5 @@
 [Unit]
-Description=EduX Market Data Processor
+Description=EduX Gateway
 After=network.target
 
 [Service]

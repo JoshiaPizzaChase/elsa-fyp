@@ -39,12 +39,9 @@ void handle_session(tcp::socket socket, backend::RequestHandler& handler) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::println("Usage: backend_service <toml config path>");
-        return -1;
-    }
+    auto backend_cfg = argc == 2 ? argv[1] : "backend.toml";
     try {
-        backend::BackendConfig backend_config = rfl::toml::load<backend::BackendConfig>(argv[1]).value();
+        backend::BackendConfig backend_config = rfl::toml::load<backend::BackendConfig>(backend_cfg).value();
         backend::RequestHandler handler;
 
         std::unique_ptr<backend::UatSeeder> uat_seeder;
