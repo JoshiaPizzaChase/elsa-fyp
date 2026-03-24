@@ -396,7 +396,7 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
         session_blocks = [
             "[SESSION]\n"
             "BeginString=FIX.4.2\n"
-            f"SenderCompID={server_name}\n"
+            f"SenderCompID=Edux-{server_name}\n"
             f"TargetCompID={target_comp_id}"
             for target_comp_id in whitelist
         ]
