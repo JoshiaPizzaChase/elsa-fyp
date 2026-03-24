@@ -6,6 +6,8 @@ After=network.target
 WorkingDirectory=/usr/local/bin/deployment-server
 ExecStart=/usr/bin/python3 /usr/local/bin/deployment-server/deployment_server.py --port 10000
 Restart=always
+StandardOutput=append:/var/log/deployment-server.log
+StandardError=append:/var/log/deployment-server.log
 
 [Install]
 Alias=deployment-server.service
