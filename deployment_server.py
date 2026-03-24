@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
+import errno
 import json
 import logging
+import socket
 import stat
 import shutil
 import subprocess
+import time
 import tomllib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,6 +21,7 @@ BUILD_SERVICES_DIR = REPO_ROOT / "build" / "services"
 INSTALL_BASE_DIR = Path("/usr/local/bin")
 SYSTEMD_DIR = Path("/etc/systemd/system")
 LOGGER = logging.getLogger("deployment_server")
+PORT_RELEASE_TIMEOUT_SECONDS = 20.0
 
 SUPPORTED_SERVICES = {
     "mdp": {
@@ -44,6 +48,13 @@ SUPPORTED_SERVICES = {
         "template_toml": "gateway.toml",
         "template_service": "gateway.service",
     },
+}
+
+LISTEN_PORT_KEY_BY_SERVICE = {
+    "mdp": "ws_port",
+    "me": "matching_engine_port",
+    "oms": "order_manager_port",
+    "gateway": "fix_server_port",
 }
 
 
@@ -170,6 +181,70 @@ def _run_cmd(*cmd: str) -> None:
     stdout = result.stdout.strip()
     if stdout:
         LOGGER.info("Command output (%s): %s", " ".join(cmd), stdout)
+
+
+def _is_service_active(service_unit: str) -> bool:
+    result = subprocess.run(
+        ("systemctl", "is-active", "--quiet", service_unit),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _parse_port(value: Any, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise DeploymentError(f"'{field_name}' must be a valid TCP port")
+
+    if isinstance(value, int):
+        port = value
+    elif isinstance(value, str):
+        try:
+            port = int(value.strip())
+        except ValueError as exc:
+            raise DeploymentError(f"'{field_name}' must be a valid TCP port") from exc
+    else:
+        raise DeploymentError(f"'{field_name}' must be a valid TCP port")
+
+    if not (1 <= port <= 65535):
+        raise DeploymentError(f"'{field_name}' must be in range 1..65535")
+    return port
+
+
+def _resolve_listen_port(
+    service_name: str, params: dict[str, Any], final_config: dict[str, Any]
+) -> int | None:
+    key = LISTEN_PORT_KEY_BY_SERVICE.get(service_name)
+    if key is None:
+        return None
+
+    if key in params:
+        return _parse_port(params[key], key)
+    if key in final_config:
+        return _parse_port(final_config[key], key)
+    return None
+
+
+def _wait_until_port_released(port: int, timeout_seconds: float) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind(("0.0.0.0", port))
+            return
+        except OSError as exc:
+            if exc.errno != errno.EADDRINUSE:
+                raise DeploymentError(
+                    f"Failed to probe port {port} availability: {exc}"
+                ) from exc
+            if time.monotonic() >= deadline:
+                raise DeploymentError(
+                    f"Port {port} is still in use after waiting {timeout_seconds:.1f}s"
+                ) from exc
+            time.sleep(0.2)
+        finally:
+            sock.close()
 
 
 def _try_relabel_path(path: Path, recursive: bool = False) -> None:
@@ -343,6 +418,7 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     service_dest = SYSTEMD_DIR / f"{instance_name}.service"
     LOGGER.info("Writing systemd unit file: %s", service_dest)
     service_dest.write_text(service_text, encoding="utf-8")
+    listen_port = _resolve_listen_port(service_name, params, final_config)
 
     # On SELinux-enabled systems, copied files can inherit an incorrect context
     # (e.g., user_home_t), causing systemd EXEC permission failures.
@@ -352,7 +428,18 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     LOGGER.info("Reloading and starting service: %s.service", instance_name)
     _run_cmd("systemctl", "daemon-reload")
     _run_cmd("systemctl", "enable", f"{instance_name}.service")
-    _run_cmd("systemctl", "restart", f"{instance_name}.service")
+    service_unit = f"{instance_name}.service"
+    if _is_service_active(service_unit):
+        LOGGER.info("Stopping active service before start: %s", service_unit)
+        _run_cmd("systemctl", "stop", service_unit)
+    if listen_port is not None:
+        LOGGER.info(
+            "Waiting up to %.1fs for port %d to be released",
+            PORT_RELEASE_TIMEOUT_SECONDS,
+            listen_port,
+        )
+        _wait_until_port_released(listen_port, PORT_RELEASE_TIMEOUT_SECONDS)
+    _run_cmd("systemctl", "start", service_unit)
 
     result = {
         "service_name": service_name,
