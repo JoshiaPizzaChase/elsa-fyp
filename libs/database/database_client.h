@@ -94,7 +94,7 @@ struct ExecutionInsertionTask {
 };
 
 struct TradeInsertionTask {
-    Trade trade;
+    core::TradeContainer trade;
 };
 
 using WriteTask = std::variant<OrderInsertionTask, CancelInsertionTask, ExecutionInsertionTask,
@@ -804,7 +804,7 @@ class DatabaseClient {
         return {};
     }
 
-    auto insert_trade(const Trade& trade) -> std::expected<void, std::string> {
+    auto insert_trade(core::TradeContainer trade) -> std::expected<void, std::string> {
         ensure_async_writer();
         m_write_queue.enqueue(TradeInsertionTask{trade});
         return {};
