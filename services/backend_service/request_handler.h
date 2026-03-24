@@ -21,7 +21,6 @@ public:
     database::DatabaseClient& get_db_client() { return m_db_client; }
 
 private:
-
     // Individual endpoint handlers
     bj::object handle_login(const boost::urls::params_view& params);
     bj::object handle_signup(const boost::urls::params_view& params);

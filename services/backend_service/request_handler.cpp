@@ -1,7 +1,18 @@
 #include "request_handler.h"
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <algorithm>
+#include <format>
 #include <iostream>
+#include <ranges>
+#include <unordered_set>
 
 namespace backend {
+
+namespace net = boost::asio;
+using tcp = net::ip::tcp;
 
 http::response<http::string_body> RequestHandler::handle(const http::request<http::string_body>& req) {
     // Handle CORS preflight
@@ -336,9 +347,6 @@ bj::object RequestHandler::handle_account_details(const boost::urls::params_view
     return res;
 }
 
-// ---------------------------------------------------------------------------
-// Auth helper
-// ---------------------------------------------------------------------------
 // Simple scheme: the frontend sends  "Authorization: Bearer <username>"
 // This lets us identify who is making the request without a real JWT stack.
 int RequestHandler::authenticate_admin(const http::request<http::string_body>& req) {
@@ -355,9 +363,6 @@ int RequestHandler::authenticate_admin(const http::request<http::string_body>& r
     return result.value()->user_id;
 }
 
-// ---------------------------------------------------------------------------
-// POST /create_server
-// ---------------------------------------------------------------------------
 bj::object RequestHandler::handle_create_server(const http::request<http::string_body>& req) {
     bj::object res;
 
@@ -402,6 +407,14 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         for (const auto& s : it->value().as_array())
             if (s.is_string()) allowlist_names.emplace_back(std::string(s.as_string()));
     }
+    if (symbols.empty()) {
+        res["error"] = "active_symbols must contain at least one symbol";
+        return res;
+    }
+    if (allowlist_names.empty()) {
+        res["error"] = "allowlist must contain at least one user";
+        return res;
+    }
 
     // Resolve allowlist usernames to user IDs
     auto ids_result = m_db_client.resolve_user_ids(allowlist_names);
@@ -416,9 +429,202 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         res["error"] = create_result.error();
         return res;
     }
+    int server_id = create_result.value();
+
+    // TODO: implement machine selection when scaling to multiple machines.
+    std::string machine_name = "localhost";
+    int machine_id = -1;
+    std::string machine_ip = "127.0.0.1";
+
+    auto machines_res = m_db_client.query_machines();
+    if (!machines_res.has_value()) {
+        res["error"] = machines_res.error();
+        return res;
+    }
+    for (const auto& machine : machines_res.value()) {
+        if (machine.machine_name == machine_name) {
+            machine_id = machine.machine_id;
+            machine_ip = machine.ip;
+            break;
+        }
+    }
+    if (machine_id < 0) {
+        res["error"] = "No machine found with name: " + machine_name;
+        return res;
+    }
+
+    constexpr int kMinUnreservedPort = 10001;
+    auto services_res = m_db_client.query_services(machine_name);
+    if (!services_res.has_value()) {
+        res["error"] = services_res.error();
+        return res;
+    }
+    const auto services = services_res.value();
+    std::unordered_set<int> used_ports;
+    used_ports.reserve(services.size());
+    for (const auto& service : services) {
+        used_ports.insert(service.port);
+    }
+
+    const auto deployment_it = std::find_if(
+        services.begin(), services.end(),
+        [](const database::DatabaseClient::ServiceRow& row) {
+            return row.service_type == Service::deployment_server;
+        });
+    if (deployment_it == services.end()) {
+        res["error"] = "No deployment_server service found for machine: " + machine_name;
+        return res;
+    }
+    if (std::count_if(
+            services.begin(), services.end(),
+            [](const database::DatabaseClient::ServiceRow& row) {
+                return row.service_type == Service::deployment_server;
+            }) != 1) {
+        res["error"] = "Expected exactly one deployment_server per machine";
+        return res;
+    }
+    const std::string deployment_ip = deployment_it->ip;
+    const int deployment_port = deployment_it->port;
+
+    int next_port_candidate = kMinUnreservedPort;
+    auto take_next_available_port = [&]() {
+        while (used_ports.contains(next_port_candidate)) {
+            ++next_port_candidate;
+        }
+        const int assigned_port = next_port_candidate;
+        used_ports.insert(assigned_port);
+        ++next_port_candidate;
+        return assigned_port;
+    };
+
+    int mdp_port = take_next_available_port();
+    int me_port = take_next_available_port();
+    int oms_port = take_next_available_port();
+    int gateway_port = take_next_available_port();
+
+    auto join_csv = [](const std::vector<std::string>& values) {
+        std::string out;
+        for (size_t i = 0; i < values.size(); ++i) {
+            if (i > 0) out += ",";
+            out += values[i];
+        }
+        return out;
+    };
+
+    auto deploy_service = [&](const std::string& service_name, const bj::object& params)
+        -> std::expected<void, std::string> {
+        try {
+            net::io_context ioc;
+            tcp::resolver resolver{ioc};
+            beast::tcp_stream stream{ioc};
+            stream.connect(resolver.resolve(deployment_ip, std::to_string(deployment_port)));
+
+            bj::object payload;
+            payload["service_name"] = service_name;
+            payload["server_name"] = server_name;
+            payload["params"] = params;
+
+            http::request<http::string_body> deploy_req{http::verb::post, "/deploy", 11};
+            deploy_req.set(http::field::host, deployment_ip);
+            deploy_req.set(http::field::content_type, "application/json");
+            deploy_req.set(http::field::connection, "close");
+            deploy_req.body() = bj::serialize(payload);
+            deploy_req.prepare_payload();
+
+            http::write(stream, deploy_req);
+
+            beast::flat_buffer buffer;
+            http::response<http::string_body> deploy_res;
+            http::read(stream, buffer, deploy_res);
+
+            beast::error_code ec;
+            stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            if (deploy_res.result() != http::status::ok) {
+                return std::unexpected{
+                    std::format("deployment_server {}:{} returned status {} for {}: {}",
+                        deployment_ip, deployment_port, static_cast<unsigned>(deploy_res.result_int()),
+                        service_name, deploy_res.body())
+                };
+            }
+
+            bj::value parsed = bj::parse(deploy_res.body());
+            if (!parsed.is_object()) {
+                return std::unexpected{std::format(
+                    "Invalid response body from deployment_server for {}: {}", service_name, deploy_res.body())};
+            }
+            const auto& obj = parsed.as_object();
+            if (!obj.contains("status") || !obj.at("status").is_string() ||
+                obj.at("status").as_string() != "deployed") {
+                return std::unexpected{std::format(
+                    "Deployment failed for {}: {}", service_name, deploy_res.body())};
+            }
+            return {};
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error calling deployment_server {}:{} for {}: {}",
+                    deployment_ip, deployment_port, service_name, e.what())};
+        }
+    };
+
+    bj::object mdp_params;
+    mdp_params["host"] = machine_ip;
+    mdp_params["ws_port"] = mdp_port;
+    auto mdp_deploy_result = deploy_service("mdp", mdp_params);
+    if (!mdp_deploy_result.has_value()) {
+        res["error"] = mdp_deploy_result.error();
+        return res;
+    }
+
+    bj::object me_params;
+    me_params["matching_engine_host"] = machine_ip;
+    me_params["matching_engine_port"] = me_port;
+    auto me_deploy_result = deploy_service("me", me_params);
+    if (!me_deploy_result.has_value()) {
+        res["error"] = me_deploy_result.error();
+        return res;
+    }
+
+    bj::object oms_params;
+    oms_params["order_manager_host"] = machine_ip;
+    oms_params["order_manager_port"] = oms_port;
+    oms_params["downstream_matching_engine_host"] = machine_ip;
+    oms_params["downstream_matching_engine_port"] = me_port;
+    oms_params["gateway_count"] = 1;
+    auto oms_deploy_result = deploy_service("oms", oms_params);
+    if (!oms_deploy_result.has_value()) {
+        res["error"] = oms_deploy_result.error();
+        return res;
+    }
+
+    bj::object gateway_params;
+    gateway_params["downstream_order_manager_host"] = machine_ip;
+    gateway_params["downstream_order_manager_port"] = oms_port;
+    gateway_params["active_symbols"] = join_csv(symbols);
+    gateway_params["fix_server_port"] = gateway_port;
+    gateway_params["whitelist"] = join_csv(allowlist_names);
+    auto gateway_deploy_result = deploy_service("gateway", gateway_params);
+    if (!gateway_deploy_result.has_value()) {
+        res["error"] = gateway_deploy_result.error();
+        return res;
+    }
+
+    auto insert_or_fail = [&](Service service_type, int service_port) -> bool {
+        auto insert_result = m_db_client.insert_service(machine_id, server_id, service_type, service_port);
+        if (!insert_result.has_value()) {
+            res["error"] = insert_result.error();
+            return false;
+        }
+        return true;
+    };
+
+    if (!insert_or_fail(Service::mdp, mdp_port)) return res;
+    if (!insert_or_fail(Service::me, me_port)) return res;
+    if (!insert_or_fail(Service::oms, oms_port)) return res;
+    if (!insert_or_fail(Service::gateway, gateway_port)) return res;
 
     res["success"]    = true;
-    res["server_id"]  = create_result.value();
+    res["server_id"]  = server_id;
     res["server_name"] = server_name;
     res["admin_id"]   = caller_id;
     res["description"] = description;
