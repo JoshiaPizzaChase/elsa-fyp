@@ -73,11 +73,11 @@ chmod 0644 "${CONFIG_DEST}"
 
 systemctl daemon-reload
 systemctl enable backend.service
-systemctl start backend.service
+systemctl restart backend.service
 
 echo "Deployment completed."
 echo "Service file: ${SERVICE_DEST}"
 echo "Executable: ${EXECUTABLE_DEST}"
 echo "Config: ${CONFIG_DEST}"
 
-systemctl status backend
+systemctl status backend.service

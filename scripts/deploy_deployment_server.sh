@@ -66,11 +66,11 @@ cp -a "${TEMPLATE_SRC_DIR}" "${TEMPLATE_DEST_DIR}"
 
 systemctl daemon-reload
 systemctl enable deployment-server.service
-systemctl start deployment-server.service
+systemctl restart deployment-server.service
 
 echo "Deployment completed."
 echo "Service file: ${SERVICE_DEST}"
 echo "Deployment server script: ${DEPLOYMENT_SERVER_DEST}"
 echo "Template directory: ${TEMPLATE_DEST_DIR}"
 
-systemctl status deployment-server
+systemctl status deployment-server.service
