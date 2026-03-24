@@ -246,6 +246,19 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
         )
 
     final_config = dict(template_data)
+    server_name_placeholder = "<server name placeholder>"
+    if (
+        "server_name" in final_config
+        and isinstance(final_config["server_name"], str)
+        and final_config["server_name"] == server_name_placeholder
+    ):
+        final_config["server_name"] = server_name
+        LOGGER.info(
+            "Resolved template server_name placeholder for %s: %s",
+            service_name,
+            server_name,
+        )
+
     for key, value in params.items():
         if service_name == "gateway" and key == "active_symbols":
             final_config["active_symbols"] = _parse_csv_string(value, "active_symbols")
