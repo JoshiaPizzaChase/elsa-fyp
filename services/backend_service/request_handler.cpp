@@ -423,14 +423,6 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         return res;
     }
 
-    auto create_result = m_db_client.create_server(
-        server_name, caller_id, description, symbols, ids_result.value());
-    if (!create_result.has_value()) {
-        res["error"] = create_result.error();
-        return res;
-    }
-    int server_id = create_result.value();
-
     // TODO: implement machine selection when scaling to multiple machines.
     std::string machine_name = "localhost";
     int machine_id = -1;
@@ -590,19 +582,19 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         return res;
     }
 
-    auto insert_or_fail = [&](Service service_type, int service_port) -> bool {
-        auto insert_result = m_db_client.insert_service(machine_id, server_id, service_type, service_port);
-        if (!insert_result.has_value()) {
-            res["error"] = insert_result.error();
-            return false;
-        }
-        return true;
-    };
+    std::vector<database::DatabaseClient::ServiceInsertRow> service_rows;
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::mdp, mdp_port});
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::me, me_port});
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::oms, oms_port});
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::gateway, gateway_port});
 
-    if (!insert_or_fail(Service::mdp, mdp_port)) return res;
-    if (!insert_or_fail(Service::me, me_port)) return res;
-    if (!insert_or_fail(Service::oms, oms_port)) return res;
-    if (!insert_or_fail(Service::gateway, gateway_port)) return res;
+    auto create_result = m_db_client.create_server_with_services(
+        server_name, caller_id, description, symbols, ids_result.value(), service_rows);
+    if (!create_result.has_value()) {
+        res["error"] = create_result.error();
+        return res;
+    }
+    int server_id = create_result.value();
 
     res["success"]    = true;
     res["server_id"]  = server_id;

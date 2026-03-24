@@ -329,6 +329,8 @@ class AsyncWriter {
 
 class DatabaseClient {
   public:
+    struct ServiceInsertRow;
+
     /*
      * @param ensure_init Whether to ensure the timeseries connection and async writer on
      * construction. It seems like too many concurrent connections cause a seg fault, especially for
@@ -712,6 +714,18 @@ class DatabaseClient {
                        const std::vector<std::string>& symbols,
                        const std::vector<int>& allowlist_user_ids)
         -> std::expected<int, std::string> {
+        return create_server_with_services(server_name, admin_id, description, symbols,
+                                           allowlist_user_ids, {});
+    }
+
+    // Insert a new server, allowlist, and service endpoints in one transaction.
+    // Returns the newly created server_id.
+    auto create_server_with_services(std::string_view server_name, int admin_id,
+                                     std::string_view description,
+                                     const std::vector<std::string>& symbols,
+                                     const std::vector<int>& allowlist_user_ids,
+                                     const std::vector<ServiceInsertRow>& services)
+        -> std::expected<int, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
             const std::string arr = build_pg_array(symbols);
@@ -725,6 +739,12 @@ class DatabaseClient {
             for (int uid : allowlist_user_ids) {
                 txn.exec("INSERT INTO allowlist (server_id, user_id) VALUES ($1, $2)",
                          pqxx::params{server_id, uid});
+            }
+            for (const auto& service : services) {
+                txn.exec("INSERT INTO services (machine_id, server_id, service_type, port) "
+                         "VALUES ($1, $2, $3, $4)",
+                         pqxx::params{service.machine_id, server_id,
+                                      service_enum_to_str(service.service_type), service.port});
             }
             txn.commit();
             return server_id;
@@ -872,6 +892,13 @@ class DatabaseClient {
         std::string ip;
         int port{};
     };
+
+    struct ServiceInsertRow {
+        int machine_id{};
+        Service service_type{};
+        int port{};
+    };
+
 
     auto query_services() const -> std::expected<std::vector<ServiceRow>, std::string> {
         try {
