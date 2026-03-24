@@ -1,20 +1,25 @@
-const API_BASE = process.env.REACT_APP_API_BASE ?? '';
+const BACKEND_IP = process.env.REACT_APP_BACKEND_IP ?? '';
+const BACKEND_PORT = process.env.REACT_APP_BACKEND_PORT ?? '';
+const API_BASE = process.env.REACT_APP_API_BASE ??
+    (BACKEND_IP && BACKEND_PORT ? `http://${BACKEND_IP}:${BACKEND_PORT}` : '');
+
+function buildApiUrl(path, params = null) {
+    const base = API_BASE || window.location.origin;
+    const url = new URL(path, base);
+    if (params) {
+        url.search = new URLSearchParams(params).toString();
+    }
+    return url.toString();
+}
 
 async function fetchJSON(path, params = {}) {
-    const url = new URL(path, window.location.origin);
-    url.search = new URLSearchParams(params).toString();
-    if (API_BASE) {
-        url.href = `${API_BASE}${url.pathname}${url.search}`;
-    }
-    const res = await fetch(url.toString());
+    const res = await fetch(buildApiUrl(path, params));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
 }
 
 async function postJSON(path, body, username) {
-    let url = path;
-    if (API_BASE) url = `${API_BASE}${path}`;
-    const res = await fetch(url, {
+    const res = await fetch(buildApiUrl(path), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -73,4 +78,3 @@ export async function createServer(username, payload) {
 export async function configureServer(username, payload) {
     return postJSON('/configure_server', payload, username);
 }
-
