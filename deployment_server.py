@@ -22,6 +22,7 @@ INSTALL_BASE_DIR = Path("/usr/local/bin")
 SYSTEMD_DIR = Path("/etc/systemd/system")
 LOGGER = logging.getLogger("deployment_server")
 PORT_RELEASE_TIMEOUT_SECONDS = 20.0
+SERVICE_READINESS_TIMEOUT_SECONDS = 30.0
 
 SUPPORTED_SERVICES = {
     "mdp": {
@@ -247,6 +248,34 @@ def _wait_until_port_released(port: int, timeout_seconds: float) -> None:
             sock.close()
 
 
+def _wait_until_service_ready(port: int, timeout_seconds: float) -> None:
+    """
+    Poll the given port until a connection can be established (service is listening)
+    or timeout is reached.
+    
+    Raises:
+        DeploymentError: If the service doesn't become ready within the timeout.
+    """
+    start = time.monotonic()
+    last_error = None
+    
+    while time.monotonic() - start < timeout_seconds:
+        try:
+            # Try to connect to the service
+            with socket.create_connection(("127.0.0.1", port), timeout=1.0):
+                LOGGER.info("Service is ready on port %d", port)
+                return  # Connection successful, service is ready!
+        except (socket.error, OSError) as exc:
+            last_error = exc
+            time.sleep(0.5)  # Wait 500ms before retry
+    
+    # Timeout reached
+    raise DeploymentError(
+        f"Service did not become ready on port {port} within {timeout_seconds}s. "
+        f"Last error: {last_error}"
+    )
+
+
 def _try_relabel_path(path: Path, recursive: bool = False) -> None:
     restorecon_bin = shutil.which("restorecon")
     if restorecon_bin is None:
@@ -440,6 +469,15 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
         )
         _wait_until_port_released(listen_port, PORT_RELEASE_TIMEOUT_SECONDS)
     _run_cmd("systemctl", "start", service_unit)
+
+    # Wait for service to be ready to accept connections
+    if listen_port is not None:
+        LOGGER.info(
+            "Waiting up to %.1fs for service to be ready on port %d",
+            SERVICE_READINESS_TIMEOUT_SECONDS,
+            listen_port,
+        )
+        _wait_until_service_ready(listen_port, SERVICE_READINESS_TIMEOUT_SECONDS)
 
     result = {
         "service_name": service_name,
