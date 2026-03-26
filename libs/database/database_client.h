@@ -18,7 +18,7 @@
 #include <thread>
 #include <vector>
 #include <cstdlib>
-#include <config.h>
+#include "config.h"
 
 // These macros are only used for those server-specific services, e.g. OMS
 #define ORDERS_TABLE (std::string("orders_") + SERVER_NAME)
