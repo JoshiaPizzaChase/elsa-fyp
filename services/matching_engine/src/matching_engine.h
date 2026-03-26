@@ -10,6 +10,7 @@ class MatchingEngine {
   public:
     MatchingEngine(std::string_view host, int port);
     std::expected<void, std::string> start();
+    void wait_for_connections();
 
   private:
     std::shared_ptr<spdlog::logger> logger;
@@ -18,10 +19,13 @@ class MatchingEngine {
 
     OrderbookSnapshotRingBuffer shm_orderbook_snapshot;
 
+    int incoming_request_connection_id;
+    int order_response_connection_id;
+
+    std::queue<Trade> trade_events;
+
     // TODO: Support multiple tickers
     LimitOrderBook limit_order_book;
-    // TODO: Order ID generation
-    int latest_order_id;
 };
 
 } // namespace engine

@@ -21,6 +21,7 @@ int main(int argc, char* argv[]) {
     engine::MatchingEngine matching_engine{matching_engine_config.matching_engine_host,
                                            matching_engine_config.matching_engine_port};
 
+    matching_engine.wait_for_connections();
     matching_engine.start();
 
     // auto ring_buffer =

@@ -4,6 +4,8 @@
 
 namespace core::constants {
 inline constexpr int MAX_TICKER_LENGTH = 5;
+inline constexpr int MAX_USERNAME_LENGTH = 16;
+inline constexpr int UUID_LENGTH = 37;
 inline constexpr int ORDER_BOOK_AGGREGATE_LEVELS = 50;
 inline constexpr int OrderbookSnapshotRingBufferCapacity = 1024;
 inline constexpr int TradeRingBufferCapacity = 1024;
