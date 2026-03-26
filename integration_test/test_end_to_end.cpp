@@ -266,8 +266,6 @@ TEST_CASE("Submit order requests", "[integration]") {
     test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::BUY, TimeInForce::GTC, 1234);
     test_client_1.cancel_order("TSLA", OrderSide::BUY, 1234, 666);
 
-    sleep(5);
-
     // Test reject limit order
     test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC, 1234);
 
