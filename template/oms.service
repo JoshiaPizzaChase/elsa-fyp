@@ -6,6 +6,7 @@ After=network.target
 WorkingDirectory=/usr/local/bin/oms
 ExecStart=/usr/local/bin/oms/order_manager
 Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
 
 [Install]
 Alias=oms.service

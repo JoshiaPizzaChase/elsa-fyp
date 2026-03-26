@@ -1173,7 +1173,7 @@ class DatabaseClient {
     }
 
     // Remove UAT-generated rows from PostgreSQL.
-    // Deletes in dependency order: allowlist → balances → servers → users.
+    // Deletes in dependency order: allowlist -> balances -> servers -> users.
     auto delete_uat_data(const std::vector<int>& user_ids, const std::vector<int>& server_ids)
         -> std::expected<void, std::string> {
         if (user_ids.empty() && server_ids.empty())

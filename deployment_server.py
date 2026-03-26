@@ -351,17 +351,6 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
 
     final_config = dict(template_data)
     server_name_placeholder = "<server name placeholder>"
-    if (
-        "server_name" in final_config
-        and isinstance(final_config["server_name"], str)
-        and final_config["server_name"] == server_name_placeholder
-    ):
-        final_config["server_name"] = server_name
-        LOGGER.info(
-            "Resolved template server_name placeholder for %s: %s",
-            service_name,
-            server_name,
-        )
 
     for key, value in params.items():
         if service_name == "gateway" and key == "active_symbols":
@@ -438,7 +427,7 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     service_template_text = service_template_path.read_text(encoding="utf-8")
     service_text = service_template_text
     service_text = service_text.replace("<service name>", service_name)
-    service_text = service_text.replace("<server name>", instance_name)
+    service_text = service_text.replace(server_name_placeholder, server_name)
     service_text = service_text.replace(f"/usr/local/bin/{service_name}", str(install_dir))
     service_text = service_text.replace(
         f"Alias={service_name}.service", f"Alias={instance_name}.service"

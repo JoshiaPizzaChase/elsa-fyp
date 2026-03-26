@@ -6,6 +6,7 @@ After=network.target
 WorkingDirectory=/usr/local/bin/me
 ExecStart=/usr/local/bin/me/matching_engine
 Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
 
 [Install]
 Alias=me.service
