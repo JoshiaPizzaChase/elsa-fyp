@@ -678,6 +678,11 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             return res;
         }
     }
+    auto res = m_db_client.create_quest_tables(server_name);
+    if (!res.has_value()) {
+        res["error"] = res.error();
+        return res;
+    }
 
     res["success"]    = true;
     res["server_id"]  = server_id;
@@ -901,6 +906,7 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
                 return std::unexpected{std::format(
                     "Remove failed for {}: {}", service_type, remove_res.body())};
             }
+            m_db_client.drop_quest_tables(server_name);
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{
