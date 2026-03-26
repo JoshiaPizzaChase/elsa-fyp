@@ -24,8 +24,8 @@
 #define ORDERS_TABLE (std::string("orders_") + SERVER_NAME)
 #define TRADES_TABLE (std::string("trades_") + SERVER_NAME)
 
-questdb::ingress::table_name_view TRADES_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};
-questdb::ingress::table_name_view ORDERS_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};
+inline questdb::ingress::table_name_view TRADES_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};
+inline questdb::ingress::table_name_view ORDERS_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), ORDERS_TABLE.length()};
 
 namespace database {
 
