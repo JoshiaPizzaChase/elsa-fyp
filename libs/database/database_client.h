@@ -23,6 +23,9 @@
 #define ORDERS_TABLE (std::string("orders_") + (std::getenv("SERVER_NAME") ? std::getenv("SERVER_NAME") : ""))
 #define TRADES_TABLE (std::string("trades_") + (std::getenv("SERVER_NAME") ? std::getenv("SERVER_NAME") : ""))
 
+questdb::ingress::table_name_view TRADES_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};
+questdb::ingress::table_name_view ORDERS_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};
+
 namespace database {
 
 using namespace std::literals::string_view_literals;
@@ -159,7 +162,7 @@ class AsyncWriter {
         const auto new_order_request = order.new_order_request;
 
         try {
-            const auto orders_table = ORDERS_TABLE_tn;
+            const auto orders_table = ORDERS_TABLE_NAME_VIEW;
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -205,7 +208,7 @@ class AsyncWriter {
         const auto cancel_order_request{cancel.cancel_order_request};
 
         try {
-            const auto orders_table = ORDERS_TABLE_tn;
+            const auto orders_table = ORDERS_TABLE_NAME_VIEW;
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -241,7 +244,7 @@ class AsyncWriter {
     void append(const ExecutionInsertionTask& exec_report) {
         const auto execution_report = exec_report.execution_report;
         try {
-            const auto orders_table = ORDERS_TABLE_tn;
+            const auto orders_table = ORDERS_TABLE_NAME_VIEW;
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -284,8 +287,9 @@ class AsyncWriter {
 
     void append(const TradeInsertionTask& trade_task) {
         const auto trade{trade_task.trade};
+        
         try {
-            const auto trades_table = TRADES_TABLE_tn;
+            const auto trades_table = TRADES_TABLE_NAME_VIEW;
             const auto symbol = "symbol"_cn;
             const auto price = "price"_cn;
             const auto quantity_cn = "quantity"_cn;
@@ -1192,41 +1196,38 @@ class DatabaseClient {
     }
 
     auto create_quest_tables(const std::string_view& server_name)
-        -> std::expected<{}, std::string> {
+        -> std::expected<void, std::string> {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
-            auto trades_create_sql = std::format("CREATE TABLE IF NOT EXISTS trades_{}
-                        (
-                            ts TIMESTAMP,
-                            price INT,
-                            quantity INT,
-                            symbol SYMBOL,
-                            trade_id INT,
-                            taker_id INT,
-                            maker_id INT,
-                            taker_order_id INT,
-                            maker_order_id INT,
-                            is_taker_buyer BOOLEAN
-                        ) TIMESTAMP(ts) PARTITION BY DAY
-                        DEDUP UPSERT KEYS(ts, trade_id);", server_name);
+            auto trades_create_sql = std::format("CREATE TABLE IF NOT EXISTS trades_{} "
+                        "(ts TIMESTAMP,"
+                        "price INT,"
+                        "quantity INT,"
+                        "symbol SYMBOL,"
+                        "trade_id INT,"
+                        "taker_id INT,"
+                        "maker_id INT,"
+                        "taker_order_id INT,"
+                        "maker_order_id INT,"
+                        "is_taker_buyer BOOLEAN ) TIMESTAMP(ts) PARTITION BY DAY "
+                        "DEDUP UPSERT KEYS(ts, trade_id);", server_name);
             txn.exec(trades_create_sql);
-            auto orders_create_sql = std::format("CREATE TABLE IF NOT EXISTS orders_{}
-                        (
-                            ts TIMESTAMP,
-                            order_id INT,
-                            cl_order_id INT,
-                            sender_comp_id VARCHAR,
-                            symbol SYMBOL,
-                            side SYMBOL,
-                            order_qty INT,
-                            filled_qty INT,
-                            ord_type SYMBOL,
-                            price INT,
-                            time_in_force SYMBOL,
-                            order_status SYMBOL
-                        ) TIMESTAMP(ts) PARTITION BY DAY
-                        DEDUP UPSERT KEYS(ts, order_id);", server_name);
+            auto orders_create_sql = std::format("CREATE TABLE IF NOT EXISTS orders_{} "
+                        "(ts TIMESTAMP,"
+                        "order_id INT,"
+                        "cl_order_id INT,"
+                        "sender_comp_id VARCHAR,"
+                        "symbol SYMBOL,"
+                        "side SYMBOL,"
+                        "order_qty INT,"
+                        "filled_qty INT,"
+                        "ord_type SYMBOL,"
+                        "price INT,"
+                        "time_in_force SYMBOL,"
+                        "order_status SYMBOL"
+                        ") TIMESTAMP(ts) PARTITION BY DAY "
+                        "DEDUP UPSERT KEYS(ts, order_id);", server_name);
             txn.exec(orders_create_sql);
             txn.commit();
             return {};
@@ -1236,7 +1237,7 @@ class DatabaseClient {
     }
 
     auto drop_quest_tables(const std::string_view& server_name)
-        -> std::expected<{}, std::string> {
+        -> std::expected<void, std::string> {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};

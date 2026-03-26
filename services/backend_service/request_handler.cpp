@@ -678,9 +678,9 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             return res;
         }
     }
-    auto res = m_db_client.create_quest_tables(server_name);
-    if (!res.has_value()) {
-        res["error"] = res.error();
+    auto create_table_res = m_db_client.create_quest_tables(server_name);
+    if (!create_table_res.has_value()) {
+        res["error"] = create_table_res.error();
         return res;
     }
 
