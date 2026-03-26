@@ -9,14 +9,21 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 
-MatchingEngine::MatchingEngine(std::string_view host, int port)
+MatchingEngine::MatchingEngine(std::string_view host, int port,
+                               const std::vector<std::string>& active_symbols,
+                               std::chrono::milliseconds flush_interval)
     : logger{spdlog::basic_logger_mt<spdlog::async_factory>(
           "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log")},
       inbound_ws_server{port, host, logger},
       shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
           core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
-      incoming_request_connection_id{}, order_response_connection_id{},
-      limit_order_book{"GME", this->trade_events} {
+      flush_interval{flush_interval}, incoming_request_connection_id{},
+      order_response_connection_id{} {
+
+    for (const auto& symbol : active_symbols) {
+        limit_order_books.emplace(symbol, LimitOrderBook{symbol, this->trade_events});
+    }
+
     inbound_ws_server.start();
 
     logger->info("Matching Engine constructed");
@@ -47,6 +54,8 @@ void MatchingEngine::wait_for_connections() {
 }
 
 std::expected<void, std::string> MatchingEngine::start() {
+    auto last_flush = std::chrono::steady_clock::now();
+
     while (true) {
         if (auto new_message = inbound_ws_server.dequeue_message(incoming_request_connection_id);
             new_message.has_value()) {
@@ -54,6 +63,9 @@ std::expected<void, std::string> MatchingEngine::start() {
 
             auto new_order_handler{[this](const core::NewOrderSingleContainer& new_order) {
                 assert(new_order.order_id.has_value());
+
+                auto& limit_order_book = limit_order_books.at(new_order.symbol);
+
                 limit_order_book.add_order(new_order.order_id.value(),
                                            new_order.price.value_or((new_order.side == Side::bid)
                                                                         ? MARKET_BID_ORDER_PRICE
@@ -93,6 +105,8 @@ std::expected<void, std::string> MatchingEngine::start() {
                 logger->info(transport::serialize_container(cancel_request));
                 logger->flush();
 
+                auto& limit_order_book = limit_order_books.at(cancel_request.symbol);
+
                 bool cancel_success = true;
                 if (limit_order_book.has_order_id(cancel_request.order_id.value())) {
                     limit_order_book.cancel_order(cancel_request.order_id.value());
@@ -114,6 +128,7 @@ std::expected<void, std::string> MatchingEngine::start() {
                     logger->info("Quantity: {}", fill_cost_query.quantity);
                     logger->flush();
 
+                    auto& limit_order_book = limit_order_books.at(fill_cost_query.symbol);
                     auto total_cost = limit_order_book.get_fill_cost(fill_cost_query.quantity,
                                                                      fill_cost_query.side);
 
@@ -136,9 +151,15 @@ std::expected<void, std::string> MatchingEngine::start() {
                                   catch_all_handler},
                        container);
 
-            auto snapshot = limit_order_book.get_top_order_book_level_aggregate();
-            if (!shm_orderbook_snapshot.try_push(snapshot)) {
-                std::cerr << "Failed to push snapshot " << "\n";
+            if (const auto now{std::chrono::steady_clock::now()};
+                now - last_flush > flush_interval) {
+                for (const auto& lob : limit_order_books) {
+                    auto snapshot{lob.second.get_top_order_book_level_aggregate()};
+                    if (!shm_orderbook_snapshot.try_push(snapshot)) {
+                        std::cerr << "Failed to push snapshot " << "\n";
+                    }
+                }
+                last_flush = now;
             }
         }
     }

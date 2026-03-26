@@ -8,10 +8,10 @@
 
 namespace engine {
 LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container)
-    : ticker{ticker}, shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
-                          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
+    : shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
+          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
       shm_trade{TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE)},
-      trade_container{trade_container} {
+      trade_container{trade_container}, ticker{ticker} {
 }
 
 std::string_view LimitOrderBook::get_ticker() const {
