@@ -14,15 +14,17 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
                                std::chrono::milliseconds flush_interval)
     : logger{spdlog::basic_logger_mt<spdlog::async_factory>(
           "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log")},
-      inbound_ws_server{config.matching_engine_port, config.matching_engine_host, logger},
+      inbound_ws_server{port, host, logger},
       shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
           core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME)},
       flush_interval{flush_interval}, incoming_request_connection_id{},
       order_response_connection_id{} {
 
     for (const auto& symbol : active_symbols) {
-        limit_order_books.emplace(symbol, LimitOrderBook{symbol, this->trade_events, TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE +
-                                                              "_" + SERVER_NAME)});
+        limit_order_books.emplace(
+            symbol, LimitOrderBook{symbol, this->trade_events,
+                                   TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE +
+                                                                   "_" + SERVER_NAME)});
     }
 
     inbound_ws_server.start();

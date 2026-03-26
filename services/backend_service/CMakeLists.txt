@@ -10,8 +10,9 @@ target_include_directories(backend_service_lib
         ${CMAKE_SOURCE_DIR}/deps/c-questdb-client/include
 )
 target_link_libraries(backend_service_lib PUBLIC
-        Boost::thread Boost::json Boost::url
+        Boost::thread Boost::json
         reflectcpp questdb_client pqxx::pqxx
+        boost_url
 )
 
 add_executable(backend_service main.cpp)

@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <queue>
 
 namespace engine {
 
@@ -17,7 +18,8 @@ constexpr int MARKET_ASK_ORDER_PRICE = std::numeric_limits<int>::min();
 
 class LimitOrderBook {
   public:
-    LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container, TradeRingBuffer shm_trade);
+    LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
+                   TradeRingBuffer shm_trade);
     explicit LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container);
 
     [[nodiscard]] std::string_view get_ticker() const;
