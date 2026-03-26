@@ -5,6 +5,7 @@ add_library(order_manager_lib
 target_include_directories(order_manager_lib
         PUBLIC
         ${CMAKE_SOURCE_DIR}/libs
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
         /opt/homebrew/include
 )
 target_link_libraries(order_manager_lib PUBLIC websocket_lib reflectcpp proto-objects)
