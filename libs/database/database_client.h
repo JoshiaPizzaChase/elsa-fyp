@@ -20,8 +20,8 @@
 #include <cstdlib>
 
 // These macros are only used for those server-specific services, e.g. OMS
-#define ORDERS_TABLE (std::string("orders_") + (std::getenv("SERVER_NAME") ? std::getenv("SERVER_NAME") : ""))
-#define TRADES_TABLE (std::string("trades_") + (std::getenv("SERVER_NAME") ? std::getenv("SERVER_NAME") : ""))
+#define ORDERS_TABLE (std::string("orders_") + SERVER_NAME)
+#define TRADES_TABLE (std::string("trades_") + SERVER_NAME)
 
 questdb::ingress::table_name_view TRADES_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};
 questdb::ingress::table_name_view ORDERS_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};

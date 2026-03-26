@@ -13,9 +13,9 @@ MatchingEngine::MatchingEngine(MatchingEngineConfig config)
           "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log")},
       inbound_ws_server{config.matching_engine_port, config.matching_engine_host, logger},
       shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
-          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + config.server_name)},
+          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME)},
       limit_order_book{"GME", TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE +
-                                                              "_" + config.server_name)},
+                                                              "_" + SERVER_NAME)},
       latest_order_id{0} {
     inbound_ws_server.start();
 
