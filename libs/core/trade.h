@@ -12,23 +12,39 @@ struct Trade {
     int price{0};
     int quantity{0};
 
-    int trade_id{0};
-    int taker_id{0};
-    int maker_id{0};
+    char trade_id[core::constants::UUID_LENGTH];
+    char taker_id[core::constants::MAX_USERNAME_LENGTH];
+    char maker_id[core::constants::MAX_USERNAME_LENGTH];
     int taker_order_id{0};
     int maker_order_id{0};
     bool is_taker_buyer{false};
     uint64_t create_timestamp;
 
-    Trade(const char* ticker_str, int price, int quantity, int trade_id, int taker_id, int maker_id,
-          int taker_order_id, int maker_order_id, bool is_taker_buyer, uint64_t create_timestamp)
-        : price{price}, quantity{quantity}, trade_id{trade_id}, taker_id{taker_id},
-          maker_id{maker_id}, taker_order_id{taker_order_id}, maker_order_id{maker_order_id},
-          is_taker_buyer{is_taker_buyer}, create_timestamp(create_timestamp) {
+    Trade(const char* ticker_str, int price, int quantity, const char* trade_id,
+          const char* taker_id, const char* maker_id, int taker_order_id, int maker_order_id,
+          bool is_taker_buyer, uint64_t create_timestamp)
+        : price{price}, quantity{quantity}, taker_order_id{taker_order_id},
+          maker_order_id{maker_order_id}, is_taker_buyer{is_taker_buyer},
+          create_timestamp(create_timestamp) {
         size_t len = strlen(ticker_str);
         assert(len > 0 && len < sizeof(ticker));
         memcpy(ticker, ticker_str, len);
         ticker[len + 1] = '\0';
+
+        len = strlen(trade_id);
+        assert(len > 0 && len < sizeof(this->trade_id));
+        memcpy(this->trade_id, trade_id, len);
+        this->trade_id[len + 1] = '\0';
+
+        len = strlen(taker_id);
+        assert(len > 0 && len < sizeof(this->taker_id));
+        memcpy(this->taker_id, taker_id, len);
+        this->taker_id[len + 1] = '\0';
+
+        len = strlen(maker_id);
+        assert(len > 0 && len < sizeof(this->maker_id));
+        memcpy(this->maker_id, maker_id, len);
+        this->maker_id[len + 1] = '\0';
     }
 
     friend std::ostream& operator<<(std::ostream& os, const Trade& trade) {
@@ -64,15 +80,15 @@ struct Trade {
         bool is_taker_buy = j.at("taker_side").get<std::string>().compare(core::constants::BUY_STR);
         int price = j.at("price").get<double>() * core::constants::decimal_to_int_multiplier;
         int quantity = j.at("quantity").get<double>() * core::constants::decimal_to_int_multiplier;
-        int trade_id = j.at("trade_id").get<int>();
-        int taker_id = j.at("taker_id").get<int>();
-        int maker_id = j.at("maker_id").get<int>();
+        std::string trade_id = j.at("trade_id").get<std::string>();
+        std::string taker_id = j.at("taker_id").get<std::string>();
+        std::string maker_id = j.at("maker_id").get<std::string>();
         int taker_order_id = j.at("taker_order_id").get<int>();
         int maker_order_id = j.at("maker_order_id").get<int>();
         uint64_t create_timestamp = static_cast<uint64_t>(j.at("create_timestamp").get<int>());
-        return Trade{ticker_str.c_str(), price,           quantity,       trade_id,
-                     taker_id,           maker_id,        taker_order_id, maker_order_id,
-                     is_taker_buy,       create_timestamp};
+        return Trade{
+            ticker_str.c_str(), price,          quantity,       trade_id.c_str(), taker_id.c_str(),
+            maker_id.c_str(),   taker_order_id, maker_order_id, is_taker_buy,     create_timestamp};
     }
 };
 
