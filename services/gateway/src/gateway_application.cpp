@@ -93,7 +93,7 @@ void GatewayApplication::onMessage(const FIX42::NewOrderSingle& message,
             .sender_comp_id = senderCompId,
             .target_comp_id = targetCompId,
             .order_id = std::nullopt,
-            .cl_ord_id = clOrdId,
+            .cl_ord_id = std::stoi(clOrdId.getString()),
             .symbol = symbol,
             .side = core::convert_to_internal(side),
             .order_qty = core::convert_to_internal_quantity(orderQty),
@@ -130,7 +130,9 @@ void GatewayApplication::onMessage(const FIX42::OrderCancelRequest& message,
     try {
         message.getHeader().get(senderCompId);
         message.getHeader().get(targetCompId);
-        message.get(orderId);
+        if (message.isSetField(FIX::FIELD::OrderID)) {
+            message.get(orderId);
+        }
         message.get(origClOrdId);
         message.get(clOrdId);
         message.get(orderQty);
@@ -140,15 +142,17 @@ void GatewayApplication::onMessage(const FIX42::OrderCancelRequest& message,
         core::CancelOrderRequestContainer cancelOrderRequest{
             .sender_comp_id = senderCompId,
             .target_comp_id = targetCompId,
-            .order_id = orderId,
-            .orig_cl_ord_id = origClOrdId,
-            .cl_ord_id = clOrdId,
+            .order_id = message.isSetField(FIX::FIELD::OrderID)
+                            ? std::make_optional(std::stoi(orderId.getString()))
+                            : std::nullopt,
+            .orig_cl_ord_id = std::stoi(origClOrdId.getString()),
+            .cl_ord_id = std::stoi(clOrdId.getString()),
             .symbol = symbol,
             .side = core::convert_to_internal(side),
             .order_qty = core::convert_to_internal_quantity(orderQty),
         };
 
-        // sendContainer(cancelOrderRequest);
+        sendContainer(cancelOrderRequest);
 
     } catch (const std::exception& e) {
         logger->error("[Gateway] Error: {}", e.what());
@@ -247,7 +251,7 @@ void GatewayApplication::process_report() {
         logger->info("[ExecutionReport] target_comp_id: {}", r.target_comp_id);
         logger->info("[ExecutionReport] order_id: {}", r.order_id);
         logger->info("[ExecutionReport] cl_order_id: {}", r.cl_order_id);
-        logger->info("[ExecutionReport] orig_cl_ord_id: {}", r.orig_cl_ord_id.value_or("N/A"));
+        logger->info("[ExecutionReport] orig_cl_ord_id: {}", r.orig_cl_ord_id.value_or(-1));
         logger->info("[ExecutionReport] exec_id: {}", r.exec_id);
         logger->info("[ExecutionReport] exec_trans_type: {}",
                      exec_trans_type_str(r.exec_trans_type));

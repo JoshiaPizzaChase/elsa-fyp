@@ -152,8 +152,9 @@ inline std::string serialize_container(const core::TradeContainer& container) {
     container_proto.set_ticker(container.ticker);
     container_proto.set_price(container.price);
     container_proto.set_quantity(container.quantity);
-    container_proto.set_taker_id(container.taker_id);
     container_proto.set_trade_id(container.trade_id);
+    container_proto.set_taker_id(container.taker_id);
+    container_proto.set_maker_id(container.maker_id);
     container_proto.set_taker_order_id(container.taker_order_id);
     container_proto.set_maker_order_id(container.maker_order_id);
     container_proto.set_is_taker_buyer(container.is_taker_buyer);
@@ -167,6 +168,7 @@ inline std::string serialize_container(const core::CancelOrderResponseContainer&
     transport::CancelOrderResponseContainer container_proto;
 
     container_proto.set_order_id(container.order_id);
+    container_proto.set_cl_ord_id(container.cl_ord_id);
     container_proto.set_success(container.success);
 
     *container_wrapper.mutable_cancel_order_response() = container_proto;
@@ -364,6 +366,9 @@ inline core::Container deserialize_container(const std::string& data) {
     case transport::ContainerWrapper::kTrade: {
         const auto& proto = container_wrapper.trade();
         core::TradeContainer container;
+        container.ticker = proto.ticker();
+        container.price = proto.price();
+        container.quantity = proto.quantity();
         container.trade_id = proto.trade_id();
         container.taker_id = proto.taker_id();
         container.maker_id = proto.maker_id();
@@ -376,6 +381,7 @@ inline core::Container deserialize_container(const std::string& data) {
         const auto& proto = container_wrapper.cancel_order_response();
         core::CancelOrderResponseContainer container;
         container.order_id = proto.order_id();
+        container.cl_ord_id = proto.cl_ord_id();
         container.success = proto.success();
         return container;
     }

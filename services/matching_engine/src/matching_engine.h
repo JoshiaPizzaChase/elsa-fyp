@@ -22,10 +22,10 @@ class MatchingEngine {
     int incoming_request_connection_id;
     int order_response_connection_id;
 
+    std::queue<Trade> trade_events;
+
     // TODO: Support multiple tickers
     LimitOrderBook limit_order_book;
-    // TODO: Order ID generation
-    int latest_order_id;
 };
 
 } // namespace engine
