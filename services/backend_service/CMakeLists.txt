@@ -5,6 +5,7 @@ target_compile_options(backend_service_lib PRIVATE -Wall -Wextra -Wpedantic)
 target_include_directories(backend_service_lib
         PUBLIC
         ${CMAKE_SOURCE_DIR}/libs
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
         /opt/homebrew/include
         ${CMAKE_SOURCE_DIR}/deps/c-questdb-client/include
 )
