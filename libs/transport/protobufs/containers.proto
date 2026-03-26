@@ -46,7 +46,7 @@ enum ExecTypeOrOrderStatus {
 message NewOrderSingleContainer {
   string sender_comp_id = 1;
   string target_comp_id = 2;
-  string cl_ord_id = 3;
+  int32 cl_ord_id = 3;
   string symbol = 4;
   Side side = 5;
   int32 order_qty = 6;
@@ -60,9 +60,9 @@ message NewOrderSingleContainer {
 message CancelOrderRequestContainer {
   string sender_comp_id = 1;
   string target_comp_id = 2;
-  string order_id = 3;
-  string orig_cl_ord_id = 4; // Original ClOrdID.
-  string cl_ord_id = 5;
+  int32 order_id = 3;
+  int32 orig_cl_ord_id = 4; // Original ClOrdID.
+  int32 cl_ord_id = 5;
   string symbol = 6;
   Side side = 7;
   int32 order_qty = 8;
@@ -72,9 +72,9 @@ message CancelOrderRequestContainer {
 message ExecutionReportContainer {
   string sender_comp_id = 1;
   string target_comp_id = 2;
-  string order_id = 3; // Internal order ID.
-  string cl_order_id = 4; // Client-defined.
-  string orig_cl_ord_id = 5; // For cancel responses.
+  int32 order_id = 3; // Internal order ID.
+  int32 cl_order_id = 4; // Client-defined.
+  int32 orig_cl_ord_id = 5; // For cancel responses.
   string exec_id = 6; // Unique report ID.
   ExecTransType exec_trans_type = 7; // Category of report.
   ExecTypeOrOrderStatus exec_type = 8; // Event causing report.
@@ -104,9 +104,9 @@ message TradeContainer {
   string ticker = 1;
   int32 price = 2;
   int32 quantity = 3;
-  int32 trade_id = 4;
-  int32 taker_id = 5;
-  int32 maker_id = 6;
+  string trade_id = 4;
+  string taker_id = 5;
+  string maker_id = 6;
   int32 taker_order_id = 7;
   int32 maker_order_id = 8;
   bool is_taker_buyer = 9;
@@ -114,7 +114,8 @@ message TradeContainer {
 
 message CancelOrderResponseContainer {
   int32 order_id = 1;
-  bool success = 2;
+  int32 cl_ord_id = 2;
+  bool success = 3;
 }
 
 // This is intended to switching upon deserialization to determine which container type is being sent.

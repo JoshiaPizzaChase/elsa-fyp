@@ -16,6 +16,7 @@
 
 using namespace database;
 using namespace core;
+using Trade = core::TradeContainer;
 
 // ---------------------------------------------------------------------------
 // Helper: small sleep so QuestDB has time to ingest rows via ILP before we
@@ -140,7 +141,7 @@ TEST_CASE("insert_order succeeds and row is queryable", "[DatabaseClient][orders
     NewOrderSingleContainer order{
         .sender_comp_id = "TEST_CLIENT",
         .target_comp_id = "EXCHANGE",
-        .cl_ord_id      = "1001",
+        .cl_ord_id      = 1001,
         .symbol         = "AAPL",
         .side           = Side::bid,
         .order_qty      = 50,
@@ -194,9 +195,9 @@ TEST_CASE("insert_cancel succeeds and row is queryable", "[DatabaseClient][order
     CancelOrderRequestContainer cancel{
         .sender_comp_id = "TEST_CLIENT",
         .target_comp_id = "EXCHANGE",
-        .order_id       = "42",
-        .orig_cl_ord_id = "1001",
-        .cl_ord_id      = "1002",
+        .order_id       = 42,
+        .orig_cl_ord_id = 1001,
+        .cl_ord_id      = 1002,
         .symbol         = "AAPL",
         .side           = Side::ask,
         .order_qty      = 25,
@@ -434,7 +435,7 @@ TEST_CASE("insert_order market order stores price as 0",
     NewOrderSingleContainer market_order{
         .sender_comp_id = "MARKET_CLIENT",
         .target_comp_id = "EXCHANGE",
-        .cl_ord_id      = "5001",
+        .cl_ord_id      = 5001,
         .symbol         = "TSLA",
         .side           = Side::ask,
         .order_qty      = 10,
@@ -481,19 +482,19 @@ TEST_CASE("insert_order multiple orders are all queryable",
     // Insert three distinct orders.
     NewOrderSingleContainer order_a{
         .sender_comp_id = "CLIENT_A",  .target_comp_id = "EXCHANGE",
-        .cl_ord_id = "3001", .symbol = "AAPL", .side = Side::bid,
+        .cl_ord_id = 3001, .symbol = "AAPL", .side = Side::bid,
         .order_qty = 10, .ord_type = OrderType::limit,
         .price = 15000, .time_in_force = TimeInForce::day,
     };
     NewOrderSingleContainer order_b{
         .sender_comp_id = "CLIENT_B",  .target_comp_id = "EXCHANGE",
-        .cl_ord_id = "3002", .symbol = "GOOG", .side = Side::ask,
+        .cl_ord_id = 3002, .symbol = "GOOG", .side = Side::ask,
         .order_qty = 20, .ord_type = OrderType::limit,
         .price = 28000, .time_in_force = TimeInForce::gtc,
     };
     NewOrderSingleContainer order_c{
         .sender_comp_id = "CLIENT_A",  .target_comp_id = "EXCHANGE",
-        .cl_ord_id = "3003", .symbol = "AAPL", .side = Side::ask,
+        .cl_ord_id = 3003, .symbol = "AAPL", .side = Side::ask,
         .order_qty = 5,  .ord_type = OrderType::market,
         .price = std::nullopt, .time_in_force = TimeInForce::day,
     };
@@ -548,7 +549,7 @@ TEST_CASE("order lifecycle: insert_order followed by insert_cancel produces two 
     // 1. Place order.
     NewOrderSingleContainer order{
         .sender_comp_id = "LIFECYCLE_CLIENT", .target_comp_id = "EXCHANGE",
-        .cl_ord_id = "6001", .symbol = "AMZN", .side = Side::bid,
+        .cl_ord_id = 6001, .symbol = "AMZN", .side = Side::bid,
         .order_qty = 100, .ord_type = OrderType::limit,
         .price = 18500, .time_in_force = TimeInForce::day,
     };
@@ -557,8 +558,8 @@ TEST_CASE("order lifecycle: insert_order followed by insert_cancel produces two 
     // 2. Cancel it.
     CancelOrderRequestContainer cancel{
         .sender_comp_id = "LIFECYCLE_CLIENT", .target_comp_id = "EXCHANGE",
-        .order_id = "600", .orig_cl_ord_id = "6001",
-        .cl_ord_id = "6002", .symbol = "AMZN",
+        .order_id = 600, .orig_cl_ord_id = 6001,
+        .cl_ord_id = 6002, .symbol = "AMZN",
         .side = Side::bid, .order_qty = 100,
     };
     REQUIRE(db.insert_cancel(cancel).has_value());
@@ -603,8 +604,8 @@ TEST_CASE("insert_execution fully filled order",
     ExecutionReportContainer exec{
         .sender_comp_id    = "FILL_CLIENT",
         .target_comp_id    = "EXCHANGE",
-        .order_id          = "800",
-        .cl_order_id       = "8001",
+        .order_id          = 800,
+        .cl_order_id       = 8001,
         .orig_cl_ord_id    = std::nullopt,
         .exec_id           = "E800",
         .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -656,8 +657,8 @@ TEST_CASE("insert_execution with no time_in_force stores UNKNOWN",
     ExecutionReportContainer exec{
         .sender_comp_id    = "TIF_CLIENT",
         .target_comp_id    = "EXCHANGE",
-        .order_id          = "900",
-        .cl_order_id       = "9001",
+        .order_id          = 900,
+        .cl_order_id       = 9001,
         .orig_cl_ord_id    = std::nullopt,
         .exec_id           = "E900",
         .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -704,8 +705,8 @@ TEST_CASE("insert_execution with no price stores 0",
     ExecutionReportContainer exec{
         .sender_comp_id    = "NOPRICE_CLIENT",
         .target_comp_id    = "EXCHANGE",
-        .order_id          = "950",
-        .cl_order_id       = "9501",
+        .order_id          = 950,
+        .cl_order_id       = 9501,
         .orig_cl_ord_id    = std::nullopt,
         .exec_id           = "E950",
         .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -752,8 +753,8 @@ TEST_CASE("insert_execution progression: partial fill then full fill produces tw
     ExecutionReportContainer partial{
         .sender_comp_id    = "PROG_CLIENT",
         .target_comp_id    = "EXCHANGE",
-        .order_id          = "700",
-        .cl_order_id       = "7001",
+        .order_id          = 700,
+        .cl_order_id       = 7001,
         .orig_cl_ord_id    = std::nullopt,
         .exec_id           = "E701",
         .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -774,8 +775,8 @@ TEST_CASE("insert_execution progression: partial fill then full fill produces tw
     ExecutionReportContainer full{
         .sender_comp_id    = "PROG_CLIENT",
         .target_comp_id    = "EXCHANGE",
-        .order_id          = "700",
-        .cl_order_id       = "7001",
+        .order_id          = 700,
+        .cl_order_id       = 7001,
         .orig_cl_ord_id    = std::nullopt,
         .exec_id           = "E702",
         .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -829,8 +830,8 @@ TEST_CASE("insert_execution succeeds and row is queryable", "[DatabaseClient][or
     ExecutionReportContainer exec{
         .sender_comp_id    = "TEST_CLIENT",
         .target_comp_id    = "EXCHANGE",
-        .order_id          = "7",
-        .cl_order_id       = "2001",
+        .order_id          = 7,
+        .cl_order_id       = 2001,
         .orig_cl_ord_id    = std::nullopt,
         .exec_id           = "E001",
         .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -1119,7 +1120,7 @@ TEST_CASE("concurrent insert_order from multiple clients",
                 NewOrderSingleContainer order{
                     .sender_comp_id = "CONC_CLIENT_" + std::to_string(t),
                     .target_comp_id = "EXCHANGE",
-                    .cl_ord_id      = std::to_string(oid + 10000),
+                    .cl_ord_id      = oid + 10000,
                     .symbol         = "AAPL",
                     .side           = (o % 2 == 0) ? Side::bid : Side::ask,
                     .order_qty      = 10 + o,
@@ -1182,9 +1183,9 @@ TEST_CASE("concurrent insert_cancel from multiple clients",
                 CancelOrderRequestContainer cancel{
                     .sender_comp_id = "CONC_CANCEL_" + std::to_string(t),
                     .target_comp_id = "EXCHANGE",
-                    .order_id       = std::to_string(oid),
-                    .orig_cl_ord_id = std::to_string(oid + 10000),
-                    .cl_ord_id      = std::to_string(oid + 20000),
+                    .order_id       = oid,
+                    .orig_cl_ord_id = oid + 10000,
+                    .cl_ord_id      = oid + 20000,
                     .symbol         = "GOOG",
                     .side           = Side::bid,
                     .order_qty      = 15,
@@ -1238,8 +1239,8 @@ TEST_CASE("concurrent insert_execution from multiple clients",
                 ExecutionReportContainer exec{
                     .sender_comp_id    = "CONC_EXEC_" + std::to_string(t),
                     .target_comp_id    = "EXCHANGE",
-                    .order_id          = std::to_string(oid),
-                    .cl_order_id       = std::to_string(oid + 10000),
+                    .order_id          = oid,
+                    .cl_order_id       = oid + 10000,
                     .orig_cl_ord_id    = std::nullopt,
                     .exec_id           = "CE_" + std::to_string(oid),
                     .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -1309,7 +1310,7 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel, insert_execution",
                 NewOrderSingleContainer order{
                     .sender_comp_id = "MIX_ORD_" + std::to_string(t),
                     .target_comp_id = "EXCHANGE",
-                    .cl_ord_id      = std::to_string(oid + 50000),
+                    .cl_ord_id      = oid + 50000,
                     .symbol         = "AAPL",
                     .side           = Side::bid,
                     .order_qty      = 10,
@@ -1331,9 +1332,9 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel, insert_execution",
                 CancelOrderRequestContainer cancel{
                     .sender_comp_id = "MIX_CXL_" + std::to_string(t),
                     .target_comp_id = "EXCHANGE",
-                    .order_id       = std::to_string(oid),
-                    .orig_cl_ord_id = std::to_string(oid + 50000),
-                    .cl_ord_id      = std::to_string(oid + 60000),
+                    .order_id       = oid,
+                    .orig_cl_ord_id = oid + 50000,
+                    .cl_ord_id      = oid + 60000,
                     .symbol         = "AAPL",
                     .side           = Side::ask,
                     .order_qty      = 10,
@@ -1352,8 +1353,8 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel, insert_execution",
                 ExecutionReportContainer exec{
                     .sender_comp_id    = "MIX_EXEC_" + std::to_string(t),
                     .target_comp_id    = "EXCHANGE",
-                    .order_id          = std::to_string(oid),
-                    .cl_order_id       = std::to_string(oid + 50000),
+                    .order_id          = oid,
+                    .cl_order_id       = oid + 50000,
                     .orig_cl_ord_id    = std::nullopt,
                     .exec_id           = "ME_" + std::to_string(oid),
                     .exec_trans_type   = ExecTransType::exec_trans_new,
@@ -1420,7 +1421,7 @@ TEST_CASE("concurrent query_orders reads while inserting",
             NewOrderSingleContainer order{
                 .sender_comp_id = "WRITER",
                 .target_comp_id = "EXCHANGE",
-                .cl_ord_id      = std::to_string(40000 + o),
+                .cl_ord_id      = 40000 + o,
                 .symbol         = "TSLA",
                 .side           = Side::bid,
                 .order_qty      = 1,
@@ -1504,7 +1505,7 @@ TEST_CASE("insert_trade succeeds and row is queryable via query_trades",
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
-    Trade trade{"AAPL", 15000, 10, 12345, 101, 102, 1001, 1002, true, 0};
+    Trade trade{"AAPL", 15000, 10, "12345", "101", "102", 1001, 1002, true};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
@@ -1514,12 +1515,12 @@ TEST_CASE("insert_trade succeeds and row is queryable via query_trades",
 
     bool found = false;
     for (const auto& r : rows.value()) {
-        if (r.trade_id == 12345) {
+        if (r.trade_id == "12345") {
             CHECK(r.symbol         == "AAPL");
             CHECK(r.price          == 15000);
             CHECK(r.quantity       == 10);
-            CHECK(r.taker_id       == 101);
-            CHECK(r.maker_id       == 102);
+            CHECK(r.taker_id       == "101");
+            CHECK(r.maker_id       == "102");
             CHECK(r.taker_order_id == 1001);
             CHECK(r.maker_order_id == 1002);
             CHECK(r.is_taker_buyer == true);
@@ -1540,7 +1541,7 @@ TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
-    Trade trade{"MSFT", 30000, 5, 99991, 200, 201, 2001, 2002, false, 0};
+    Trade trade{"MSFT", 30000, 5, "99991", "200", "201", 2001, 2002, false};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
@@ -1549,7 +1550,7 @@ TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
 
     bool found = false;
     for (const auto& r : rows.value()) {
-        if (r.trade_id == 99991) {
+        if (r.trade_id == "99991") {
             CHECK(r.is_taker_buyer == false);
             found = true;
             break;
@@ -1563,7 +1564,7 @@ TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
 TEST_CASE("truncate_trades clears all trade rows", "[DatabaseClient][trades]") {
     DatabaseClient db;
 
-    Trade trade{"GOOG", 28000, 3, 77771, 300, 301, 3001, 3002, true, 0};
+    Trade trade{"GOOG", 28000, 3, "77771", "300", "301", 3001, 3002, true};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
@@ -1597,8 +1598,8 @@ TEST_CASE("query_trades returns inserted trades for symbol",
     REQUIRE(db.truncate_trades().has_value());
     wait_for_questdb_ingestion();
 
-    Trade t1{"NVDA", 40000, 8,  77771, 300, 301, 3001, 3002, true,  0};
-    Trade t2{"NVDA", 40100, 12, 77772, 302, 303, 3003, 3004, false, 0};
+    Trade t1{"NVDA", 40000, 8,  "77771", "300", "301", 3001, 3002, true};
+    Trade t2{"NVDA", 40100, 12, "77772", "302", "303", 3003, 3004, false};
     REQUIRE(db.insert_trade(t1).has_value());
     REQUIRE(db.insert_trade(t2).has_value());
     wait_for_questdb_ingestion();
@@ -1624,7 +1625,7 @@ TEST_CASE("query_trades does not return rows for a different symbol",
     REQUIRE(db.truncate_trades().has_value());
     wait_for_questdb_ingestion();
 
-    Trade trade{"AAPL", 15000, 10, 12399, 101, 102, 1001, 1002, true, 0};
+    Trade trade{"AAPL", 15000, 10, "12399", "101", "102", 1001, 1002, true};
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 

@@ -41,15 +41,15 @@ bool FixClient::is_connected() const {
 }
 
 bool FixClient::submit_market_order(const std::string& ticker, const double& quantity,
-                                    const OrderSide& side,
-                                    int client_order_id) const {
+                                    const OrderSide& side, int client_order_id) const {
     if (!is_connected())
         return false;
     try {
         FIX42::NewOrderSingle new_order_fix_message =
             create_new_order_fix_request(ticker, quantity, side, client_order_id);
         new_order_fix_message.set(FIX::OrdType(FIX::OrdType_MARKET));
-        new_order_fix_message.set(FIX::TimeInForce(FIX::TimeInForce_GOOD_TILL_CANCEL)); // set GTC for market order
+        new_order_fix_message.set(
+            FIX::TimeInForce(FIX::TimeInForce_GOOD_TILL_CANCEL)); // set GTC for market order
         FIX::Session::sendToTarget(new_order_fix_message, get_session_id());
         logger->info("[FixClient] Market Order submitted: {}", new_order_fix_message.toString());
         return true;
@@ -61,8 +61,7 @@ bool FixClient::submit_market_order(const std::string& ticker, const double& qua
 
 bool FixClient::submit_limit_order(const std::string& ticker, const double& price,
                                    const double& quantity, const OrderSide& side,
-                                   const TimeInForce& time_in_force,
-                                   int client_order_id) const {
+                                   const TimeInForce& time_in_force, int client_order_id) const {
     if (!is_connected())
         return false;
     try {
@@ -91,12 +90,12 @@ bool FixClient::submit_limit_order(const std::string& ticker, const double& pric
 }
 
 bool FixClient::cancel_order(const std::string& ticker, const OrderSide& side,
-                             int client_order_id) const {
+                             int orig_client_order_id, int client_order_id) const {
     if (!is_connected())
         return false;
     try {
         FIX42::OrderCancelRequest cancel_request =
-            create_cancel_order_fix_request(ticker, side, client_order_id);
+            create_cancel_order_fix_request(ticker, side, orig_client_order_id, client_order_id);
         FIX::Session::sendToTarget(cancel_request, get_session_id());
         logger->info("[FixClient] Cancel order request submitted: {}", cancel_request.toString());
         return true;

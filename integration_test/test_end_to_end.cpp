@@ -182,6 +182,8 @@ TEST_CASE("Submit order requests", "[integration]") {
         FAIL(std::string("Failed to start order manager: ") + e.what());
     }
 
+    sleep(5);
+
     // Setup Gateway
     pid_t gateway_pid = -1;
     try {
@@ -242,11 +244,32 @@ TEST_CASE("Submit order requests", "[integration]") {
     //     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     // }
 
-    // Test Market Order Rejection
-    test_client_1.submit_limit_order("GME", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
-                                     0);
-    test_client_1.submit_market_order("GME", 100.0, OrderSide::BUY, 1);
-    test_client_1.submit_market_order("GME", 100000.0, OrderSide::BUY, 2);
+    // Test successful limit order
+    // test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::BUY, TimeInForce::GTC, 1234);
+    // test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
+    // 1235);
+
+    // Test reject limit order
+    // test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
+    // 1234);
+
+    //// Test Market Order Rejection
+    // test_client_1.submit_limit_order("GME", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC,
+    //                                  0);
+    // test_client_1.submit_market_order("GME", 100.0, OrderSide::BUY, 1);
+    // test_client_1.submit_market_order("GME", 100000.0, OrderSide::BUY, 2);
+
+    // Test rejected cancel order
+    // test_client_1.cancel_order("TSLA", OrderSide::BUY, 123, 666);
+
+    // Test successful cancel order
+    test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::BUY, TimeInForce::GTC, 1234);
+    test_client_1.cancel_order("TSLA", OrderSide::BUY, 1234, 666);
+
+    // Test reject limit order
+    test_client_1.submit_limit_order("TSLA", 1.0, 100.0, OrderSide::SELL, TimeInForce::GTC, 1234);
+
+    sleep(5);
 
     // cleanup
     test_client_1.disconnect();

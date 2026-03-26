@@ -6,7 +6,7 @@
 #include <core/orders.h>
 #include <core/service.h>
 #include <core/thread_safe_queue.h>
-#include <core/trade.h>
+// #include <core/trade.h>
 #include <expected>
 #include <format>
 #include <memory>
@@ -92,10 +92,12 @@ inline std::string_view to_string(ExecTypeOrOrderStatus s) {
 struct OrderInsertionTask {
     int internal_order_id;
     core::NewOrderSingleContainer new_order_request;
+    bool is_order_valid;
 };
 
-struct CancelInsertionTask {
+struct CancelRequestInsertionTask {
     core::CancelOrderRequestContainer cancel_order_request;
+    bool is_request_valid;
 };
 
 struct ExecutionInsertionTask {
@@ -103,11 +105,16 @@ struct ExecutionInsertionTask {
 };
 
 struct TradeInsertionTask {
-    Trade trade;
+    core::TradeContainer trade;
 };
 
-using WriteTask = std::variant<OrderInsertionTask, CancelInsertionTask, ExecutionInsertionTask,
-                               TradeInsertionTask>;
+struct CancelResponseInsertionTask {
+    core::CancelOrderResponseContainer cancel_order_response;
+};
+
+using WriteTask =
+    std::variant<OrderInsertionTask, CancelRequestInsertionTask, ExecutionInsertionTask,
+                 TradeInsertionTask, CancelResponseInsertionTask>;
 
 // Async writer for QuestDB ILP protocol.
 class AsyncWriter {
@@ -181,11 +188,11 @@ class AsyncWriter {
                 .symbol(side, to_string(new_order_request.side))
                 .symbol(ord_type, to_string(new_order_request.ord_type))
                 .symbol(time_in_force, to_string(new_order_request.time_in_force))
-                .symbol(order_status, std::string_view{"NEW"})
+                .symbol(order_status, order.is_order_valid ? std::string_view("NEW")
+                                                           : std::string_view("REJECTED"))
                 .column(sender_comp_id, new_order_request.sender_comp_id)
                 .column(order_id, static_cast<std::int64_t>(order.internal_order_id))
-                .column(cl_order_id,
-                        static_cast<std::int64_t>(std::stoll(new_order_request.cl_ord_id)))
+                .column(cl_order_id, static_cast<std::int64_t>(new_order_request.cl_ord_id))
                 .column(order_qty, static_cast<std::int64_t>(new_order_request.order_qty))
                 .column(filled_qty, static_cast<std::int64_t>(0))
                 // price is optional for market orders; store 0 if not present
@@ -205,8 +212,8 @@ class AsyncWriter {
     }
 
     // append methods for adding to line sender buffer
-    void append(const CancelInsertionTask& cancel) {
-        const auto cancel_order_request{cancel.cancel_order_request};
+    void append(const CancelRequestInsertionTask& cancel_request) {
+        const auto cancel_order_request{cancel_request.cancel_order_request};
 
         try {
             const auto orders_table = ORDERS_TABLE_NAME_VIEW;
@@ -219,16 +226,15 @@ class AsyncWriter {
             const auto filled_qty = "filled_qty"_cn;
             const auto order_status = "order_status"_cn;
 
-            // Represent cancel as an order row with status CANCELED and filled_qty = 0.
             m_buffer.table(orders_table)
                 .symbol(symbol, cancel_order_request.symbol)
                 .symbol(side, to_string(cancel_order_request.side))
-                .symbol(order_status, std::string_view{"CANCELED"})
+                .symbol(order_status, cancel_request.is_request_valid
+                                          ? std::string_view("PENDING_CANCEL")
+                                          : std::string_view("REJECTED_CANCEL"))
                 .column(sender_comp_id, cancel_order_request.sender_comp_id)
-                .column(order_id,
-                        static_cast<int64_t>(std::stoll(cancel_order_request.order_id.value())))
-                .column(cl_order_id,
-                        static_cast<int64_t>(std::stoll(cancel_order_request.cl_ord_id)))
+                .column(order_id, static_cast<int64_t>(cancel_order_request.order_id.value_or(-1)))
+                .column(cl_order_id, static_cast<int64_t>(cancel_order_request.orig_cl_ord_id))
                 .column(order_qty, static_cast<std::int64_t>(cancel_order_request.order_qty))
                 .column(filled_qty, static_cast<std::int64_t>(0))
                 .at(questdb::ingress::timestamp_micros::now());
@@ -267,9 +273,8 @@ class AsyncWriter {
                                            ? to_string(*execution_report.time_in_force)
                                            : std::string_view{"UNKNOWN"})
                 .column(sender_comp_id, execution_report.sender_comp_id)
-                .column(order_id, static_cast<std::int64_t>(std::stoll(execution_report.order_id)))
-                .column(cl_order_id,
-                        static_cast<std::int64_t>(std::stoll(execution_report.cl_order_id)))
+                .column(order_id, static_cast<std::int64_t>(execution_report.order_id))
+                .column(cl_order_id, static_cast<std::int64_t>(execution_report.cl_order_id))
                 .column(order_qty, static_cast<std::int64_t>(execution_report.leaves_qty +
                                                              execution_report.cum_qty))
                 .column(filled_qty, static_cast<std::int64_t>(execution_report.cum_qty))
@@ -308,9 +313,9 @@ class AsyncWriter {
                 // columns
                 .column(price, static_cast<std::int64_t>(trade.price))
                 .column(quantity_cn, static_cast<std::int64_t>(trade.quantity))
-                .column(trade_id_cn, static_cast<std::int64_t>(trade.trade_id))
-                .column(taker_id_cn, static_cast<std::int64_t>(trade.taker_id))
-                .column(maker_id_cn, static_cast<std::int64_t>(trade.maker_id))
+                .column(trade_id_cn, trade.trade_id)
+                .column(taker_id_cn, trade.taker_id)
+                .column(maker_id_cn, trade.maker_id)
                 .column(taker_order_id_cn, static_cast<std::int64_t>(trade.taker_order_id))
                 .column(maker_order_id_cn, static_cast<std::int64_t>(trade.maker_order_id))
                 .column(is_taker_buyer_cn, trade.is_taker_buyer)
@@ -319,9 +324,34 @@ class AsyncWriter {
             return;
         } catch (const std::exception& e) {
             // TODO: logger
-
+            std::cout << "Exception: " << e.what() << std::endl;
             // return std::unexpected{
             //     std::format("Error faced when inserting trade: {}", e.what())};
+        }
+    }
+
+    void append(const CancelResponseInsertionTask& cancel_response) {
+        const auto cancel_order_response{cancel_response.cancel_order_response};
+
+        try {
+            const auto orders_table = "orders"_tn;
+            const auto order_id = "order_id"_cn;
+            const auto order_status = "order_status"_cn;
+
+            // Represent cancel as an order row with status CANCELED and filled_qty = 0.
+            m_buffer.table(orders_table)
+                .symbol(order_status, cancel_order_response.success
+                                          ? std::string_view("CANCELLED")
+                                          : std::string_view("REJECTED_CANCEL"))
+                .column(order_id, static_cast<int64_t>(cancel_order_response.order_id))
+                .at(questdb::ingress::timestamp_micros::now());
+
+            return;
+        } catch (const std::exception& e) {
+            // TODO: logger
+
+            // return std::unexpected{
+            //     std::format("Error faced when inserting cancel: {}", e.what())};
         }
     }
 
@@ -900,31 +930,38 @@ class DatabaseClient {
 
     // -----------------------------------------------------------------------
     // Insert-based functions for questdb should also be asynchronous.
-    auto insert_order(int internal_order_id, const core::NewOrderSingleContainer& new_order_request)
-        -> std::expected<void, std::string> {
+    auto insert_order(int internal_order_id, core::NewOrderSingleContainer new_order_request,
+                      bool is_order_valid) -> std::expected<void, std::string> {
         ensure_async_writer();
-        m_write_queue.enqueue(OrderInsertionTask{internal_order_id, new_order_request});
+        m_write_queue.enqueue(
+            OrderInsertionTask{internal_order_id, new_order_request, is_order_valid});
         return {};
     }
 
-    auto insert_cancel(const core::CancelOrderRequestContainer& cancel_order_request)
-        -> std::expected<void, std::string> {
-        assert(cancel_order_request.order_id.has_value());
+    auto insert_cancel_request(core::CancelOrderRequestContainer cancel_order_request,
+                               bool is_request_valid) -> std::expected<void, std::string> {
         ensure_async_writer();
-        m_write_queue.enqueue(CancelInsertionTask{cancel_order_request});
+        m_write_queue.enqueue(CancelRequestInsertionTask{cancel_order_request, is_request_valid});
         return {};
     }
 
-    auto insert_execution(const core::ExecutionReportContainer& execution_report)
+    auto insert_execution(core::ExecutionReportContainer execution_report)
         -> std::expected<void, std::string> {
         ensure_async_writer();
         m_write_queue.enqueue(ExecutionInsertionTask{execution_report});
         return {};
     }
 
-    auto insert_trade(const Trade& trade) -> std::expected<void, std::string> {
+    auto insert_trade(core::TradeContainer trade) -> std::expected<void, std::string> {
         ensure_async_writer();
         m_write_queue.enqueue(TradeInsertionTask{trade});
+        return {};
+    }
+
+    auto insert_cancel_response(core::CancelOrderResponseContainer cancel_order_response)
+        -> std::expected<void, std::string> {
+        ensure_async_writer();
+        m_write_queue.enqueue(CancelResponseInsertionTask{cancel_order_response});
         return {};
     }
 
@@ -947,9 +984,9 @@ class DatabaseClient {
         int price{};
         int quantity{};
         std::string symbol;
-        int trade_id{};
-        int taker_id{};
-        int maker_id{};
+        std::string trade_id{};
+        std::string taker_id{};
+        std::string maker_id{};
         int taker_order_id{};
         int maker_order_id{};
         bool is_taker_buyer{};
@@ -1145,9 +1182,9 @@ class DatabaseClient {
                 row.price = r["price"].as<int>(0);
                 row.quantity = r["quantity"].as<int>(0);
                 row.symbol = r["symbol"].as<std::string>("");
-                row.trade_id = r["trade_id"].as<int>(0);
-                row.taker_id = r["taker_id"].as<int>(0);
-                row.maker_id = r["maker_id"].as<int>(0);
+                row.trade_id = r["trade_id"].as<std::string>("");
+                row.taker_id = r["taker_id"].as<std::string>("");
+                row.maker_id = r["maker_id"].as<std::string>("");
                 row.taker_order_id = r["taker_order_id"].as<int>(0);
                 row.maker_order_id = r["maker_order_id"].as<int>(0);
                 row.is_taker_buyer = r["is_taker_buyer"].as<bool>(false);

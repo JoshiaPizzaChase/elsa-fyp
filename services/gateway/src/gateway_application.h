@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/containers.h"
-#include "id_generator.h"
 #include "websocket_client.h"
 #include <quickfix/Application.h>
 #include <quickfix/Except.h>
@@ -45,10 +44,11 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
                        const FIX::ClOrdID& clOrdId, const FIX::Symbol& symbol,
                        const FIX::Side& side, const std::string& rejectReason);
 
+    void process_report();
+
   private:
     std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
         "gateway_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/gateway.log");
-    IDGenerator m_idGenerator;
     transport::WebsocketManagerClient m_websocketClient{logger};
     int gateway_connection_id{};
 

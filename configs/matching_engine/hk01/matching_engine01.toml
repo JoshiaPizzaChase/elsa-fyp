@@ -1,0 +1,4 @@
+matching_engine_host = "localhost"
+matching_engine_port = 9888
+active_symbols = ["AAPL", "GME", "TSLA"]
+snapshot_flush_interval = 500
