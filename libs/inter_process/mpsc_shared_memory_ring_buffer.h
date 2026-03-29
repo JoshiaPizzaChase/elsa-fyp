@@ -140,6 +140,12 @@ class MpscSharedMemoryRingBuffer {
     bool use_shm_open_ = true;
 
   public:
+    MpscSharedMemoryRingBuffer(MpscSharedMemoryRingBuffer&& other) noexcept
+        : buffer_{other.buffer_}, is_owner_(other.is_owner_), shm_file_path_{other.shm_file_path_},
+          use_shm_open_{other.use_shm_open_} {
+        other.buffer_ = nullptr;
+    }
+
     static std::string get_shm_file_full_name(const std::string& shm_file_name_prefix) {
         return shm_file_name_prefix + "_" + std::to_string(Buffer::shm_size()) + "_" +
                std::to_string(POWER_OF_2_CAPACITY);
@@ -251,12 +257,6 @@ class MpscSharedMemoryRingBuffer {
                 }
             }
         }
-    }
-
-    // move constructor
-    MpscSharedMemoryRingBuffer(MpscSharedMemoryRingBuffer&& other) noexcept
-        : buffer_(other.buffer_), is_owner_(other.is_owner_), shm_file_path_(other.shm_file_path_) {
-        other.buffer_ = nullptr;
     }
 
     MpscSharedMemoryRingBuffer& operator=(MpscSharedMemoryRingBuffer&& other) noexcept {

@@ -1,8 +1,10 @@
 #pragma once
 
+#include "configuration/matching_engine_config.h"
 #include "limit_order_book.h"
 #include <queue>
 #include "websocket_server.h"
+
 #include <string>
 #include <vector>
 

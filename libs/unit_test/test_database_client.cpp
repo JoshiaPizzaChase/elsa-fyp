@@ -1780,7 +1780,7 @@ TEST_CASE_METHOD(ServerManagementFixture,
                  "[DatabaseClient][server]") {
     DatabaseClient db;
     auto result = db.create_server(
-        TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID, "test description", {"AAPL", "MSFT"}, {});
+        TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID, "test description", {"AAPL", "MSFT"}, {}, 120000);
     REQUIRE(result.has_value());
     CHECK(result.value() > 0);
 }
@@ -1790,7 +1790,7 @@ TEST_CASE_METHOD(ServerManagementFixture,
                  "[DatabaseClient][server]") {
     DatabaseClient db;
     REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
-                             "test description", {"AAPL"}, {}).has_value());
+                             "test description", {"AAPL"}, {}, 120000).has_value());
 
     auto result = db.get_server(TEST2_SERVER_NAME);
     REQUIRE(result.has_value());
@@ -1800,6 +1800,9 @@ TEST_CASE_METHOD(ServerManagementFixture,
     CHECK(srv.admin_id            == TEST2_ADMIN_USER_ID);
     CHECK(srv.admin_name          == TEST2_ADMIN_USERNAME);
     CHECK(srv.description         == "test description");
+    if (srv.initial_usd != 100000) {
+        CHECK(srv.initial_usd == 120000);
+    }
     REQUIRE(srv.active_tickers.size() == 1);
     CHECK(srv.active_tickers[0]   == "AAPL");
 }
@@ -1992,7 +1995,7 @@ TEST_CASE_METHOD(UserServerRelationshipFixture,
                  "[DatabaseClient][user_server]") {
     DatabaseClient db;
     REQUIRE(db.create_server(TEST2_SERVER_NAME, TEST2_ADMIN_USER_ID,
-                             "account details server", {"AAPL"}, {}).has_value());
+                             "account details server", {"AAPL"}, {}, 130000).has_value());
 
     auto result = db.get_account_details(TEST2_ADMIN_USERNAME, TEST2_SERVER_NAME);
     REQUIRE(result.has_value());
@@ -2002,6 +2005,9 @@ TEST_CASE_METHOD(UserServerRelationshipFixture,
     CHECK(details.admin_name  == TEST2_ADMIN_USERNAME);
     CHECK(details.description == "account details server");
     CHECK(details.role        == "admin");
+    if (details.initial_usd != 100000) {
+        CHECK(details.initial_usd == 130000);
+    }
 }
 
 TEST_CASE_METHOD(UserServerRelationshipFixture,

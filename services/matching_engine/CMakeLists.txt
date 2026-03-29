@@ -6,6 +6,7 @@ add_library(matching_engine_lib
 target_include_directories(matching_engine_lib
         PUBLIC
         ${CMAKE_SOURCE_DIR}/libs
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
         /opt/homebrew/include
 )
 target_link_libraries(matching_engine_lib PUBLIC websocket_lib proto-objects reflectcpp)

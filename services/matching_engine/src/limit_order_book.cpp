@@ -7,11 +7,12 @@
 #include <queue>
 
 namespace engine {
+LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container, TradeRingBuffer shm_trade)
+    : ticker{ticker}, shm_trade{std::move(shm_trade)}, trade_container{trade_container} {
+}
+
 LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container)
-    : shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
-          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE)},
-      shm_trade{TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE)},
-      trade_container{trade_container}, ticker{ticker} {
+    : ticker{ticker}, shm_trade{TradeRingBuffer::create("dummy", true)}, trade_container{trade_container} {
 }
 
 std::string_view LimitOrderBook::get_ticker() const {

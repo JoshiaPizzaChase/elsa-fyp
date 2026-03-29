@@ -1,0 +1,11 @@
+[Unit]
+Description=EduX Backend
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/backend
+ExecStart=/usr/local/bin/backend/backend
+Restart=always
+
+[Install]
+Alias=backend.service

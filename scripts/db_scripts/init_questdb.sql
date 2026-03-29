@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS orders
+CREATE TABLE IF NOT EXISTS orders_test
 (
     ts
     TIMESTAMP,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS orders
     order_id
 );
 
-CREATE TABLE IF NOT EXISTS trades
+CREATE TABLE IF NOT EXISTS trades_test
 (
     ts
     TIMESTAMP,

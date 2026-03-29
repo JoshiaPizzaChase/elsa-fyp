@@ -21,7 +21,6 @@ public:
     database::DatabaseClient& get_db_client() { return m_db_client; }
 
 private:
-
     // Individual endpoint handlers
     bj::object handle_login(const boost::urls::params_view& params);
     bj::object handle_signup(const boost::urls::params_view& params);
@@ -30,8 +29,10 @@ private:
     bj::object handle_user_servers(const boost::urls::params_view& params);
     bj::object handle_account_details(const boost::urls::params_view& params);
     bj::object handle_historical_trades(const boost::urls::params_view& params);
+    bj::object handle_server_mdp_endpoint(const boost::urls::params_view& params);
     bj::object handle_create_server(const http::request<http::string_body>& req);
     bj::object handle_configure_server(const http::request<http::string_body>& req);
+    bj::object handle_remove_server(const http::request<http::string_body>& req);
 
     // Auth helper: returns the user_id of the requester if the
     // Authorization header carries a valid "Bearer <username>" token,

@@ -28,9 +28,10 @@ function LobbyPage() {
 
     const handleJoin = (e, server) => {
         e.stopPropagation();
-        navigate(`/${server.server_name}/trading/AAPL`, {
-            state: {mdpEndpoint: server.mdp_endpoint ?? 'ws://localhost:9001'},
-        });
+        const mdpEndpoint = (server.mdp_ip && server.mdp_port)
+            ? `ws://${server.mdp_ip}:${server.mdp_port}`
+            : '';
+        navigate(`/${server.server_name}/trading/AAPL`, {state: {mdpEndpoint}});
     };
 
     return (

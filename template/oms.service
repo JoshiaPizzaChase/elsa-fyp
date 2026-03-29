@@ -1,0 +1,12 @@
+[Unit]
+Description=EduX Order Manager
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/oms
+ExecStart=/usr/local/bin/oms/order_manager
+Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
+
+[Install]
+Alias=oms.service

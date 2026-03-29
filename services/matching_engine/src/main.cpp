@@ -5,19 +5,9 @@
 #include <print>
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::println("argc: {}", argc);
-        std::println("Please pass in program name as arg0");
-        std::println("Please pass in Matching Engine config path as arg1");
-        std::println("Please pass in list of active symbols as arg2");
-        std::println("Please pass in order book snapshot flush interval as arg3");
-        return -1;
-    }
-
-    // Read Order Manager config
-    std::cout << "Reading Matching Engine config file at: " << argv[1] << std::endl;
+    auto me_cfg = argc < 2 ? "me.toml" : argv[1];
     engine::MatchingEngineConfig matching_engine_config =
-        rfl::toml::load<engine::MatchingEngineConfig>(argv[1]).value();
+        rfl::toml::load<engine::MatchingEngineConfig>(me_cfg).value();
 
     engine::MatchingEngine matching_engine{
         matching_engine_config.matching_engine_host, matching_engine_config.matching_engine_port,

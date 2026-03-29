@@ -13,6 +13,10 @@ configure_file(
 )
 
 # External Dependencies
+
+# Boost
+find_package(Boost REQUIRED COMPONENTS thread json url)
+
 # QuickFIX
 find_package(Threads REQUIRED)
 find_package(LibXml2 REQUIRED)

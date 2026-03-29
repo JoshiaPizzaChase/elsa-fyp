@@ -6,6 +6,8 @@ FIX Version: FIX4.2
 
 # Setup
 
+Note: Please make sure the boost version >= 1.86.0
+
 ## Dependencies Installation
 ```
 ./scripts/setup.sh
