@@ -44,7 +44,7 @@ struct ExecutionReportContainer {
     ExecTransType exec_trans_type;     // Describes the type of execution report.
     ExecType exec_type;                // Order event that caused the issuance of this report.
     OrderStatus ord_status;            // Always the order status.
-    std::optional<std::string> ord_reject_reason;
+    std::optional<std::string> text; // Instead of using ord_reject_reason, which does not have the vals we want (e.g. insufficient balance), we went with text instead.
     std::string symbol;
     Side side;
     std::optional<std::int32_t> price; // Only required in response to limit orders.

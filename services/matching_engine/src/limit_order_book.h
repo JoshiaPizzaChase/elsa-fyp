@@ -3,6 +3,7 @@
 #include "core/orderbook_snapshot.h"
 #include "core/trade.h"
 #include "order.h"
+#include <queue>
 #include <expected>
 #include <limits>
 #include <list>

@@ -6,6 +6,7 @@
 #include <core/trade.h>
 #include <iostream>
 #include <random>
+#include <string>
 #include <thread>
 #include <chrono>
 #include <deque>
@@ -217,9 +218,9 @@ Trade generateRandomTrade(const TopOrderBookLevelAggregates& snapshot, std::mt19
 
     price = std::max(1, price);
 
-    int trade_id = trade_id_counter++;
-    int taker_id = participant_dist(gen);
-    int maker_id = participant_dist(gen);
+    std::string trade_id = std::to_string(trade_id_counter++);
+    std::string taker_id = std::to_string(participant_dist(gen));
+    std::string maker_id = std::to_string(participant_dist(gen));
     int taker_order_id = order_id_dist(gen);
     int maker_order_id = order_id_dist(gen);
     auto now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -227,7 +228,7 @@ Trade generateRandomTrade(const TopOrderBookLevelAggregates& snapshot, std::mt19
     ).count();
 
     // Use the Trade constructor
-    return Trade(snapshot.ticker, price, quantity, trade_id, taker_id, maker_id,
+    return Trade(snapshot.ticker, price, quantity, trade_id.c_str(), taker_id.c_str(), maker_id.c_str(),
                  taker_order_id, maker_order_id, is_taker_buyer, now_ts_ms);
 }
 

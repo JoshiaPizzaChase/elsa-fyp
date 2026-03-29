@@ -7,24 +7,24 @@ using namespace engine;
 constexpr std::string_view TEST_TICKER{"GME"};
 
 TEST_CASE("Adding order to limit order book", "[lob]") {
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trades {}; LimitOrderBook limit_order_book{TEST_TICKER, trades};
 
     SECTION("Adding invalid orders") {
         // Order ID collision
-        limit_order_book.add_order(67, 100, 10, Side::bid);
-        REQUIRE(limit_order_book.add_order(67, 100, 10, Side::bid).has_value() == false);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
+        REQUIRE(limit_order_book.add_order(67, 100, 10, Side::bid, "gor").has_value() == false);
 
         // Non-positive price
-        REQUIRE(limit_order_book.add_order(68, 0, 10, Side::ask).has_value() == false);
-        REQUIRE(limit_order_book.add_order(69, -100, 10, Side::ask).has_value() == false);
+        REQUIRE(limit_order_book.add_order(68, 0, 10, Side::ask, "gor").has_value() == false);
+        REQUIRE(limit_order_book.add_order(69, -100, 10, Side::ask, "gor").has_value() == false);
 
         // Non-positive quantity
-        REQUIRE(limit_order_book.add_order(70, 100, 0, Side::bid).has_value() == false);
-        REQUIRE(limit_order_book.add_order(71, 100, -10, Side::bid).has_value() == false);
+        REQUIRE(limit_order_book.add_order(70, 100, 0, Side::bid, "gor").has_value() == false);
+        REQUIRE(limit_order_book.add_order(71, 100, -10, Side::bid, "gor").has_value() == false);
     }
 
     SECTION("Adding order without matching") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value());
         const Order& best_bid = limit_order_book.get_best_order(Side::bid).value();
         REQUIRE(best_bid.get_order_id() == 67);
@@ -32,7 +32,7 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
         REQUIRE(best_bid.get_quantity() == 10);
         REQUIRE(best_bid.get_side() == Side::bid);
 
-        limit_order_book.add_order(68, 101, 10, Side::ask);
+        limit_order_book.add_order(68, 101, 10, Side::ask, "gor");
         REQUIRE(limit_order_book.get_best_order(Side::ask).has_value());
         const Order& best_ask = limit_order_book.get_best_order(Side::ask).value();
         REQUIRE(best_ask.get_order_id() == 68);
@@ -42,8 +42,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Matching existing bid order completely") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
-        limit_order_book.add_order(68, 100, 10, Side::ask);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
+        limit_order_book.add_order(68, 100, 10, Side::ask, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value() == false);
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
@@ -53,8 +53,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Matching existing ask order completely") {
-        limit_order_book.add_order(67, 100, 10, Side::ask);
-        limit_order_book.add_order(68, 100, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::ask, "gor");
+        limit_order_book.add_order(68, 100, 10, Side::bid, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value() == false);
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
@@ -64,8 +64,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Partially filling a standing bid order and completely filling a new ask order") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
-        limit_order_book.add_order(68, 100, 5, Side::ask);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
+        limit_order_book.add_order(68, 100, 5, Side::ask, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value() == true);
         const Order& best_bid = limit_order_book.get_best_order(Side::bid).value();
@@ -79,8 +79,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Partially filling a standing ask order and completely filling a new bid order") {
-        limit_order_book.add_order(67, 100, 10, Side::ask);
-        limit_order_book.add_order(68, 100, 5, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::ask, "gor");
+        limit_order_book.add_order(68, 100, 5, Side::bid, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::ask).has_value() == true);
         const Order& best_ask = limit_order_book.get_best_order(Side::ask).value();
@@ -94,8 +94,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Completely filling a standing bid order and partially filling a new ask order") {
-        limit_order_book.add_order(67, 100, 5, Side::bid);
-        limit_order_book.add_order(68, 100, 10, Side::ask);
+        limit_order_book.add_order(67, 100, 5, Side::bid, "gor");
+        limit_order_book.add_order(68, 100, 10, Side::ask, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value() == false);
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
@@ -109,8 +109,8 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Completely filling a standing ask order and partially filling a new bid order") {
-        limit_order_book.add_order(67, 100, 5, Side::ask);
-        limit_order_book.add_order(68, 100, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 5, Side::ask, "gor");
+        limit_order_book.add_order(68, 100, 10, Side::bid, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::ask).has_value() == false);
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
@@ -124,10 +124,10 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Matching multiple standing bid orders") {
-        limit_order_book.add_order(67, 100, 5, Side::bid);
-        limit_order_book.add_order(68, 99, 5, Side::bid);
-        limit_order_book.add_order(69, 98, 5, Side::bid);
-        limit_order_book.add_order(70, 98, 20, Side::ask);
+        limit_order_book.add_order(67, 100, 5, Side::bid, "gor");
+        limit_order_book.add_order(68, 99, 5, Side::bid, "gor");
+        limit_order_book.add_order(69, 98, 5, Side::bid, "gor");
+        limit_order_book.add_order(70, 98, 20, Side::ask, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value() == false);
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
@@ -143,10 +143,10 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Matching multiple standing ask orders") {
-        limit_order_book.add_order(67, 100, 5, Side::ask);
-        limit_order_book.add_order(68, 101, 5, Side::ask);
-        limit_order_book.add_order(69, 102, 5, Side::ask);
-        limit_order_book.add_order(70, 102, 20, Side::bid);
+        limit_order_book.add_order(67, 100, 5, Side::ask, "gor");
+        limit_order_book.add_order(68, 101, 5, Side::ask, "gor");
+        limit_order_book.add_order(69, 102, 5, Side::ask, "gor");
+        limit_order_book.add_order(70, 102, 20, Side::bid, "gor");
 
         REQUIRE(limit_order_book.get_best_order(Side::ask).has_value() == false);
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
@@ -162,11 +162,11 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Adding a partially filled market bid order") {
-        limit_order_book.add_order(67, 100, 10, Side::ask);
-        limit_order_book.add_order(68, 101, 10, Side::ask);
-        limit_order_book.add_order(69, 99, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::ask, "gor");
+        limit_order_book.add_order(68, 101, 10, Side::ask, "gor");
+        limit_order_book.add_order(69, 99, 10, Side::bid, "gor");
         limit_order_book.add_order(70, MARKET_BID_ORDER_PRICE, 25,
-                                   Side::bid); // Market order
+                                   Side::bid, "gor"); // Market order
 
         REQUIRE(limit_order_book.get_best_order(Side::ask).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value());
@@ -178,11 +178,11 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
     }
 
     SECTION("Adding a partially filled market ask order") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
-        limit_order_book.add_order(68, 99, 10, Side::bid);
-        limit_order_book.add_order(69, 101, 10, Side::ask);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
+        limit_order_book.add_order(68, 99, 10, Side::bid, "gor");
+        limit_order_book.add_order(69, 101, 10, Side::ask, "gor");
         limit_order_book.add_order(70, MARKET_ASK_ORDER_PRICE, 25,
-                                   Side::ask); // Market order
+                                   Side::ask, "gor"); // Market order
 
         REQUIRE(limit_order_book.get_best_order(Side::bid).has_value() == false);
         REQUIRE(limit_order_book.get_best_order(Side::ask).has_value());
@@ -195,17 +195,17 @@ TEST_CASE("Adding order to limit order book", "[lob]") {
 }
 
 TEST_CASE("Getting best order from empty limit order book", "[lob]") {
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trades {}; LimitOrderBook limit_order_book{TEST_TICKER, trades};
 
     REQUIRE(limit_order_book.get_best_order(Side::bid).has_value() == false);
     REQUIRE(limit_order_book.get_best_order(Side::ask).has_value() == false);
 }
 
 TEST_CASE("Getting order by ID from limit order book", "[lob]") {
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trades {}; LimitOrderBook limit_order_book{TEST_TICKER, trades};
 
     SECTION("Getting existing order") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
         REQUIRE(limit_order_book.get_order_by_id(67).has_value());
         const Order& order = limit_order_book.get_order_by_id(67).value();
         REQUIRE(order.get_order_id() == 67);
@@ -220,21 +220,21 @@ TEST_CASE("Getting order by ID from limit order book", "[lob]") {
 }
 
 TEST_CASE("Cancelling order in limit order book", "[lob]") {
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trades {}; LimitOrderBook limit_order_book{TEST_TICKER, trades};
 
     SECTION("Cancelling non-existing order") {
         REQUIRE(limit_order_book.cancel_order(67).has_value() == false);
     }
 
     SECTION("Cancelling existing order") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
         REQUIRE(limit_order_book.cancel_order(67).has_value());
         REQUIRE(limit_order_book.get_order_by_id(67).has_value() == false);
     }
 }
 
 TEST_CASE("Getting level aggregate", "[lob]") {
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trades {}; LimitOrderBook limit_order_book{TEST_TICKER, trades};
 
     SECTION("Getting level aggregate of empty order book") {
         auto level_aggregate = limit_order_book.get_level_aggregate(Side::bid, 0);
@@ -242,9 +242,9 @@ TEST_CASE("Getting level aggregate", "[lob]") {
     }
 
     SECTION("Getting level aggregate with valid level number") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
-        limit_order_book.add_order(68, 100, 10, Side::bid);
-        limit_order_book.add_order(69, 101, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
+        limit_order_book.add_order(68, 100, 10, Side::bid, "gor");
+        limit_order_book.add_order(69, 101, 10, Side::bid, "gor");
 
         auto level_zero_aggregate = limit_order_book.get_level_aggregate(Side::bid, 0).value();
         auto level_one_aggregate = limit_order_book.get_level_aggregate(Side::bid, 1).value();
@@ -257,7 +257,7 @@ TEST_CASE("Getting level aggregate", "[lob]") {
     }
 
     SECTION("Getting level aggregate with invalid level number") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
 
         auto level_ten_aggregate = limit_order_book.get_level_aggregate(Side::bid, 10);
 
@@ -266,7 +266,7 @@ TEST_CASE("Getting level aggregate", "[lob]") {
 }
 
 TEST_CASE("Getting top limit order book level aggregates", "[lob]") {
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trades {}; LimitOrderBook limit_order_book{TEST_TICKER, trades};
 
     SECTION("Getting aggregate of empty limit order book") {
         const auto top_aggregate = limit_order_book.get_top_order_book_level_aggregate();
@@ -281,13 +281,13 @@ TEST_CASE("Getting top limit order book level aggregates", "[lob]") {
     }
 
     SECTION("Getting aggregate of filled limit order book") {
-        limit_order_book.add_order(67, 100, 10, Side::bid);
-        limit_order_book.add_order(68, 100, 10, Side::bid);
-        limit_order_book.add_order(69, 101, 10, Side::bid);
+        limit_order_book.add_order(67, 100, 10, Side::bid, "gor");
+        limit_order_book.add_order(68, 100, 10, Side::bid, "gor");
+        limit_order_book.add_order(69, 101, 10, Side::bid, "gor");
 
-        limit_order_book.add_order(70, 200, 10, Side::ask);
-        limit_order_book.add_order(71, 200, 10, Side::ask);
-        limit_order_book.add_order(72, 201, 10, Side::ask);
+        limit_order_book.add_order(70, 200, 10, Side::ask, "gor");
+        limit_order_book.add_order(71, 200, 10, Side::ask, "gor");
+        limit_order_book.add_order(72, 201, 10, Side::ask, "gor");
 
         const auto top_aggregate = limit_order_book.get_top_order_book_level_aggregate();
 
@@ -316,7 +316,7 @@ TEST_CASE("Getting top limit order book level aggregates", "[lob]") {
 }
 
 TEST_CASE("Getting fill cost of top X orders", "[lob]") {
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trades {}; LimitOrderBook limit_order_book{TEST_TICKER, trades};
 
     SECTION("Getting fill price with invalid quantity") {
         REQUIRE(limit_order_book.get_fill_cost(-100, Side::bid).has_value() == false);
@@ -327,9 +327,9 @@ TEST_CASE("Getting fill cost of top X orders", "[lob]") {
     }
 
     SECTION("Getting fill cost with sufficient liquidity in book") {
-        limit_order_book.add_order(67, 100, 40, Side::ask);
-        limit_order_book.add_order(68, 101, 30, Side::ask);
-        limit_order_book.add_order(69, 102, 50, Side::ask);
+        limit_order_book.add_order(67, 100, 40, Side::ask, "gor");
+        limit_order_book.add_order(68, 101, 30, Side::ask, "gor");
+        limit_order_book.add_order(69, 102, 50, Side::ask, "gor");
 
         REQUIRE(limit_order_book.get_fill_cost(80, Side::ask).has_value());
         auto total_price = limit_order_book.get_fill_cost(80, Side::ask).value();
@@ -337,7 +337,7 @@ TEST_CASE("Getting fill cost of top X orders", "[lob]") {
     }
 
     SECTION("Getting total cost with insufficient liquidity in book") {
-        limit_order_book.add_order(67, 100, 20, Side::ask);
+        limit_order_book.add_order(67, 100, 20, Side::ask, "gor");
 
         REQUIRE(limit_order_book.get_fill_cost(80, Side::ask).has_value());
         auto total_price = limit_order_book.get_fill_cost(80, Side::ask).value();

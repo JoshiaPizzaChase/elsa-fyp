@@ -257,8 +257,8 @@ void GatewayApplication::process_report() {
                      exec_trans_type_str(r.exec_trans_type));
         logger->info("[ExecutionReport] exec_type: {}", exec_status_str(r.exec_type));
         logger->info("[ExecutionReport] ord_status: {}", exec_status_str(r.ord_status));
-        logger->info("[ExecutionReport] ord_reject_reason: {}",
-                     r.ord_reject_reason.value_or("N/A"));
+        logger->info("[ExecutionReport] text: {}",
+                     r.text.value_or("N/A"));
         logger->info("[ExecutionReport] symbol: {}", r.symbol);
         logger->info("[ExecutionReport] side: {}", side_str(r.side));
         logger->info("[ExecutionReport] price: {}",

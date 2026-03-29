@@ -79,7 +79,7 @@ message ExecutionReportContainer {
   ExecTransType exec_trans_type = 7; // Category of report.
   ExecTypeOrOrderStatus exec_type = 8; // Event causing report.
   ExecTypeOrOrderStatus ord_status = 9; // Current order status.
-  string ord_reject_reason = 10;
+  string text = 10; // Used to be ord_reject_reason
   string symbol = 11;
   Side side = 12;
   int32 price = 13; // For limit orders.

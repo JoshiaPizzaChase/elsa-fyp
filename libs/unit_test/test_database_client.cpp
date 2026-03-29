@@ -150,7 +150,7 @@ TEST_CASE("insert_order succeeds and row is queryable", "[DatabaseClient][orders
         .time_in_force  = TimeInForce::day,
     };
 
-    auto result = db.insert_order(1, order);
+    auto result = db.insert_order(1, order, true);
     REQUIRE(result.has_value());
 
     wait_for_questdb_ingestion();
@@ -182,10 +182,10 @@ TEST_CASE("insert_order succeeds and row is queryable", "[DatabaseClient][orders
 }
 
 // ===========================================================================
-//  insert_cancel  (QuestDB – orders table via ILP, status CANCELED)
+//  insert_cancel_request  (QuestDB – orders table via ILP, status CANCELED)
 // ===========================================================================
 
-TEST_CASE("insert_cancel succeeds and row is queryable", "[DatabaseClient][orders]") {
+TEST_CASE("insert_cancel_request succeeds and row is queryable", "[DatabaseClient][orders]") {
     DatabaseClient db;
 
     auto truncate_result = db.truncate_orders();
@@ -203,7 +203,7 @@ TEST_CASE("insert_cancel succeeds and row is queryable", "[DatabaseClient][order
         .order_qty      = 25,
     };
 
-    auto result = db.insert_cancel(cancel);
+    auto result = db.insert_cancel_request(cancel, true);
     REQUIRE(result.has_value());
 
     wait_for_questdb_ingestion();
@@ -444,7 +444,7 @@ TEST_CASE("insert_order market order stores price as 0",
         .time_in_force  = TimeInForce::day,
     };
 
-    auto result = db.insert_order(500, market_order);
+    auto result = db.insert_order(500, market_order, true);
     REQUIRE(result.has_value());
 
     wait_for_questdb_ingestion();
@@ -499,9 +499,9 @@ TEST_CASE("insert_order multiple orders are all queryable",
         .price = std::nullopt, .time_in_force = TimeInForce::day,
     };
 
-    REQUIRE(db.insert_order(301, order_a).has_value());
-    REQUIRE(db.insert_order(302, order_b).has_value());
-    REQUIRE(db.insert_order(303, order_c).has_value());
+    REQUIRE(db.insert_order(301, order_a, true).has_value());
+    REQUIRE(db.insert_order(302, order_b, true).has_value());
+    REQUIRE(db.insert_order(303, order_c, true).has_value());
 
     wait_for_questdb_ingestion();
 
@@ -538,7 +538,7 @@ TEST_CASE("insert_order multiple orders are all queryable",
 //  COMPREHENSIVE TESTS – order lifecycle: insert then cancel
 // ===========================================================================
 
-TEST_CASE("order lifecycle: insert_order followed by insert_cancel produces two rows",
+TEST_CASE("order lifecycle: insert_order followed by insert_cancel_request produces two rows",
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
@@ -553,7 +553,7 @@ TEST_CASE("order lifecycle: insert_order followed by insert_cancel produces two 
         .order_qty = 100, .ord_type = OrderType::limit,
         .price = 18500, .time_in_force = TimeInForce::day,
     };
-    REQUIRE(db.insert_order(600, order).has_value());
+    REQUIRE(db.insert_order(600, order, true).has_value());
 
     // 2. Cancel it.
     CancelOrderRequestContainer cancel{
@@ -562,7 +562,7 @@ TEST_CASE("order lifecycle: insert_order followed by insert_cancel produces two 
         .cl_ord_id = 6002, .symbol = "AMZN",
         .side = Side::bid, .order_qty = 100,
     };
-    REQUIRE(db.insert_cancel(cancel).has_value());
+    REQUIRE(db.insert_cancel_request(cancel, true).has_value());
 
     wait_for_questdb_ingestion();
 
@@ -611,7 +611,7 @@ TEST_CASE("insert_execution fully filled order",
         .exec_trans_type   = ExecTransType::exec_trans_new,
         .exec_type         = ExecType::status_filled,
         .ord_status        = OrderStatus::status_filled,
-        .ord_reject_reason = "",
+        .text = "",
         .symbol            = "NVDA",
         .side              = Side::ask,
         .price             = 45000,
@@ -664,7 +664,7 @@ TEST_CASE("insert_execution with no time_in_force stores UNKNOWN",
         .exec_trans_type   = ExecTransType::exec_trans_new,
         .exec_type         = ExecType::status_new,
         .ord_status        = OrderStatus::status_new,
-        .ord_reject_reason = "",
+        .text = "",
         .symbol            = "META",
         .side              = Side::bid,
         .price             = 50000,
@@ -712,7 +712,7 @@ TEST_CASE("insert_execution with no price stores 0",
         .exec_trans_type   = ExecTransType::exec_trans_new,
         .exec_type         = ExecType::status_new,
         .ord_status        = OrderStatus::status_new,
-        .ord_reject_reason = "",
+        .text = "",
         .symbol            = "TSLA",
         .side              = Side::ask,
         .price             = std::nullopt, // market-style, no price
@@ -760,7 +760,7 @@ TEST_CASE("insert_execution progression: partial fill then full fill produces tw
         .exec_trans_type   = ExecTransType::exec_trans_new,
         .exec_type         = ExecType::status_partially_filled,
         .ord_status        = OrderStatus::status_partially_filled,
-        .ord_reject_reason = "",
+        .text = "",
         .symbol            = "GOOG",
         .side              = Side::bid,
         .price             = 17500,
@@ -782,7 +782,7 @@ TEST_CASE("insert_execution progression: partial fill then full fill produces tw
         .exec_trans_type   = ExecTransType::exec_trans_new,
         .exec_type         = ExecType::status_filled,
         .ord_status        = OrderStatus::status_filled,
-        .ord_reject_reason = "",
+        .text = "",
         .symbol            = "GOOG",
         .side              = Side::bid,
         .price             = 17500,
@@ -837,7 +837,7 @@ TEST_CASE("insert_execution succeeds and row is queryable", "[DatabaseClient][or
         .exec_trans_type   = ExecTransType::exec_trans_new,
         .exec_type         = ExecType::status_partially_filled,
         .ord_status        = OrderStatus::status_partially_filled,
-        .ord_reject_reason = "",
+        .text = "",
         .symbol            = "MSFT",
         .side              = Side::bid,
         .price             = 30000, // $300.00 internal
@@ -1093,7 +1093,7 @@ TEST_CASE_METHOD(ConcurrencyBalanceFixture,
 }
 
 // ===========================================================================
-//  CONCURRENCY TESTS – QuestDB orders (insert_order / insert_cancel /
+//  CONCURRENCY TESTS – QuestDB orders (insert_order / insert_cancel_request /
 //  insert_execution via ILP, query_orders via PG wire)
 // ===========================================================================
 
@@ -1128,7 +1128,7 @@ TEST_CASE("concurrent insert_order from multiple clients",
                     .price          = 15000 + o * 100,
                     .time_in_force  = TimeInForce::day,
                 };
-                auto res = db.insert_order(oid, order);
+                auto res = db.insert_order(oid, order, true);
                 if (!res.has_value()) ++error_count;
             }
         });
@@ -1160,7 +1160,7 @@ TEST_CASE("concurrent insert_order from multiple clients",
     [[maybe_unused]] auto cleanup = verifier.truncate_orders();
 }
 
-TEST_CASE("concurrent insert_cancel from multiple clients",
+TEST_CASE("concurrent insert_cancel_request from multiple clients",
           "[DatabaseClient][orders][concurrency]") {
     {
         DatabaseClient setup;
@@ -1190,7 +1190,7 @@ TEST_CASE("concurrent insert_cancel from multiple clients",
                     .side           = Side::bid,
                     .order_qty      = 15,
                 };
-                auto res = db.insert_cancel(cancel);
+                auto res = db.insert_cancel_request(cancel, true);
                 if (!res.has_value()) ++error_count;
             }
         });
@@ -1246,7 +1246,7 @@ TEST_CASE("concurrent insert_execution from multiple clients",
                     .exec_trans_type   = ExecTransType::exec_trans_new,
                     .exec_type         = ExecType::status_filled,
                     .ord_status        = OrderStatus::status_filled,
-                    .ord_reject_reason = "",
+                    .text = "",
                     .symbol            = "NVDA",
                     .side              = Side::ask,
                     .price             = 40000 + e * 100,
@@ -1285,7 +1285,7 @@ TEST_CASE("concurrent insert_execution from multiple clients",
 // Mixed concurrent workload: threads simultaneously insert orders, cancels,
 // and executions.  All calls must succeed and the total row count must match.
 // ---------------------------------------------------------------------------
-TEST_CASE("concurrent mixed insert_order, insert_cancel, insert_execution",
+TEST_CASE("concurrent mixed insert_order, insert_cancel_request, insert_execution",
           "[DatabaseClient][orders][concurrency]") {
     {
         DatabaseClient setup;
@@ -1318,7 +1318,7 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel, insert_execution",
                     .price          = 15000,
                     .time_in_force  = TimeInForce::day,
                 };
-                if (!db.insert_order(oid, order).has_value()) ++order_errors;
+                if (!db.insert_order(oid, order, true).has_value()) ++order_errors;
             }
         });
     }
@@ -1339,7 +1339,7 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel, insert_execution",
                     .side           = Side::ask,
                     .order_qty      = 10,
                 };
-                if (!db.insert_cancel(cancel).has_value()) ++cancel_errors;
+                if (!db.insert_cancel_request(cancel, true).has_value()) ++cancel_errors;
             }
         });
     }
@@ -1360,7 +1360,7 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel, insert_execution",
                     .exec_trans_type   = ExecTransType::exec_trans_new,
                     .exec_type         = ExecType::status_partially_filled,
                     .ord_status        = OrderStatus::status_partially_filled,
-                    .ord_reject_reason = "",
+                    .text = "",
                     .symbol            = "AAPL",
                     .side              = Side::bid,
                     .price             = 15000,
@@ -1429,7 +1429,7 @@ TEST_CASE("concurrent query_orders reads while inserting",
                 .price          = 20000,
                 .time_in_force  = TimeInForce::day,
             };
-            if (!db.insert_order(40000 + o, order).has_value()) ++write_errors;
+            if (!db.insert_order(40000 + o, order, true).has_value()) ++write_errors;
             // Small stagger so reads interleave with writes.
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }

@@ -257,8 +257,8 @@ inline std::string serialize_container(const core::ExecutionReportContainer& con
     container_proto.set_exec_trans_type(convert_to_proto(container.exec_trans_type));
     container_proto.set_exec_type(convert_to_proto(container.exec_type));
     container_proto.set_ord_status(convert_to_proto(container.ord_status));
-    if (container.ord_reject_reason.has_value()) {
-        container_proto.set_ord_reject_reason(container.ord_reject_reason.value());
+    if (container.text.has_value()) {
+        container_proto.set_text(container.text.value());
     }
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
@@ -332,7 +332,7 @@ inline core::Container deserialize_container(const std::string& data) {
         container.exec_trans_type = convert_to_internal(proto.exec_trans_type());
         container.exec_type = convert_to_internal(proto.exec_type());
         container.ord_status = convert_to_internal(proto.ord_status());
-        container.ord_reject_reason = proto.ord_reject_reason();
+        container.text = proto.text();
         container.symbol = proto.symbol();
         container.side = convert_to_internal(proto.side());
         if (proto.has_price()) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "limit_order_book.h"
+#include <queue>
 #include "websocket_server.h"
 #include <string>
 #include <vector>
