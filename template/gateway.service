@@ -1,0 +1,12 @@
+[Unit]
+Description=EduX Gateway
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/gateway
+ExecStart=/usr/local/bin/gateway/gateway
+Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
+
+[Install]
+Alias=gateway.service

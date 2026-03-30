@@ -17,8 +17,10 @@ struct TopOrderBookLevelAggregates {
     char ticker[core::constants::MAX_TICKER_LENGTH]{};
     std::array<LevelAggregate, core::constants::ORDER_BOOK_AGGREGATE_LEVELS> bid_level_aggregates;
     std::array<LevelAggregate, core::constants::ORDER_BOOK_AGGREGATE_LEVELS> ask_level_aggregates;
+    uint64_t create_timestamp;
 
-    TopOrderBookLevelAggregates(const char* ticker_str) {
+    TopOrderBookLevelAggregates(const char* ticker_str, uint64_t create_timestamp)
+        : create_timestamp(create_timestamp) {
         size_t len = strlen(ticker_str);
         assert(len > 0 && len < sizeof(ticker));
         memcpy(ticker, ticker_str, len);
@@ -42,7 +44,10 @@ struct TopOrderBookLevelAggregates {
     }
 
     void to_json(json& j) {
-        j = json{{"ticker", ticker}, {"bids", json::array()}, {"asks", json::array()}};
+        j = json{{"ticker", ticker},
+                 {"bids", json::array()},
+                 {"asks", json::array()},
+                 {"create_timestamp", create_timestamp}};
 
         for (const auto& level : bid_level_aggregates) {
             j["bids"].push_back(
@@ -59,7 +64,8 @@ struct TopOrderBookLevelAggregates {
 
     static TopOrderBookLevelAggregates from_json(const json& j) {
         std::string ticker_str = j.at("ticker").get<std::string>();
-        TopOrderBookLevelAggregates snapshot{ticker_str.c_str()};
+        uint64_t create_timestamp = static_cast<uint64_t>(j.at("create_timestamp").get<int>());
+        TopOrderBookLevelAggregates snapshot{ticker_str.c_str(), create_timestamp};
 
         for (size_t i = 0; i < snapshot.bid_level_aggregates.size(); ++i) {
             snapshot.bid_level_aggregates[i].price =

@@ -3,9 +3,12 @@
 #include "core/orderbook_snapshot.h"
 #include "core/trade.h"
 #include "order.h"
+#include <queue>
+#include <expected>
 #include <limits>
 #include <list>
 #include <map>
+#include <string>
 #include <unordered_map>
 
 namespace engine {
@@ -17,11 +20,13 @@ using SideContainer = std::map<int, std::list<Order>>;
 
 class LimitOrderBook {
   public:
-    explicit LimitOrderBook(std::string_view ticker);
+    LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
+                   TradeRingBuffer shm_trade);
+    LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container);
 
     [[nodiscard]] std::string_view get_ticker() const;
 
-    void add_order(int order_id, int price, int quantity, Side side);
+    void add_order(int order_id, int price, int quantity, Side side, std::string_view trader_id);
     void cancel_order(int order_id);
 
     [[nodiscard]] const SideContainer& get_side(Side side) const;
@@ -38,8 +43,9 @@ class LimitOrderBook {
     [[nodiscard]] std::optional<int> get_fill_cost(int quantity, Side side) const;
 
   private:
-    OrderbookSnapshotRingBuffer shm_orderbook_snapshot;
     TradeRingBuffer shm_trade;
+
+    std::queue<Trade>& trade_container;
 
     std::string ticker{};
 
@@ -49,10 +55,10 @@ class LimitOrderBook {
     std::unordered_map<int, std::list<Order>::const_iterator> order_id_map{};
 
     void match_order(SideContainer& near_side, SideContainer& far_side, int price,
-                     int remaining_quantity, int order_id, Side side);
+                     int remaining_quantity, int order_id, Side side, std::string_view trader_id);
 
-    [[nodiscard]] Trade create_trade(int taker_order_id, int maker_order_id, int price,
-                                     int quantity, Side taker_side) const;
+    [[nodiscard]] Trade create_trade(int taker_order_id, int maker_order_id, std::string_view taker_id,
+                 std::string_view maker_id, int price, int quantity, Side taker_side) const;
 
     [[nodiscard]] SideContainer& get_side_mut(Side side);
 };

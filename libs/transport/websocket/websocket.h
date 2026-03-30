@@ -56,15 +56,22 @@ struct ConnectionMetadata {
         m_status = ConnectionStatus::open;
 
         typename Endpoint::connection_ptr connection = endpoint->get_con_from_hdl(handle);
-        m_counter_party = connection->get_response_header("Server");
+        if (connection->is_server()) {
+            m_counter_party = connection->get_request_header("client_name");
+        } else {
+            m_counter_party = connection->get_response_header("Server");
+        }
     }
 
     void on_fail(Endpoint* endpoint, websocketpp::connection_hdl handle) {
         m_status = ConnectionStatus::failed;
 
         typename Endpoint::connection_ptr connection = endpoint->get_con_from_hdl(handle);
-        m_counter_party = connection->get_response_header("Server");
-        m_error_reason = connection->get_ec().message();
+        if (connection->is_server()) {
+            m_counter_party = connection->get_request_header("client_name");
+        } else {
+            m_counter_party = connection->get_response_header("Server");
+        }
     }
 
     void on_close(Endpoint* endpoint, websocketpp::connection_hdl handle) {
@@ -91,8 +98,26 @@ struct ConnectionMetadata {
         return m_id;
     }
 
+    std::string get_uri() const {
+        return m_uri;
+    }
+
+    std::string get_counter_party() const {
+        return m_counter_party;
+    }
+
     ConnectionStatus get_status() const {
         return m_status;
+    }
+
+    std::string get_error_reason() const {
+        return m_error_reason;
+    }
+
+    // Makes a copy of the message store and returns it!
+    // This is expensive, use cautiously.
+    std::vector<std::string> get_message_store() const {
+        return m_message_store;
     }
 
     // Message queuing and storing
@@ -111,7 +136,7 @@ struct ConnectionMetadata {
     friend std::ostream& operator<<(std::ostream& out, ConnectionMetadata const& data) {
         out << "> URI: " << data.m_uri << "\n"
             << "> Status: " << static_cast<int>(data.m_status) << "\n"
-            << (data.m_counter_party.empty() ? "None Specified" : data.m_counter_party) << "\n"
+            << "> Counter party: " << data.m_counter_party << "\n"
             << "> Error/close reason: "
             << (data.m_error_reason.empty() ? "N/A" : data.m_error_reason);
 
@@ -273,6 +298,13 @@ class WebsocketManager {
         }
 
         return metadata_it->second;
+    }
+
+    // Useful if you want to iterate over all connections in the map.
+    // For example, getting the list of connection names.
+    // Since it returns a const reference, use cautiously to avoid dangling references.
+    const std::unordered_map<int, typename ConnectionMetadata::conn_meta_shared_ptr>& get_id_to_connection_map() const {
+        return m_id_to_connection_map;
     }
 
   protected:

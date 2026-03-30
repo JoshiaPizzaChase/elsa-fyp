@@ -37,7 +37,7 @@ static bool wait_for_open(transport::WebsocketManager<transport::Server>& mgr, i
 }
 
 int main() {
-    constexpr int port = 9003;
+    constexpr int port = 9999;
     const std::string uri = "localhost";
 
     transport::WebsocketManagerServer server(port, uri);

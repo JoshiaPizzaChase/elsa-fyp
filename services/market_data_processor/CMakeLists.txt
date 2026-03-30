@@ -4,6 +4,7 @@ add_library(market_data_processor_lib
 target_include_directories(market_data_processor_lib
         PUBLIC
         ${CMAKE_SOURCE_DIR}/libs
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
         /opt/homebrew/include
 )
 target_link_libraries(market_data_processor_lib PUBLIC websocket_lib nlohmann_json::nlohmann_json reflectcpp)

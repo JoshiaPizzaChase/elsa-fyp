@@ -5,15 +5,15 @@
 class TestClient : public FixClient {
   public:
     TestClient(const std::string& file) : FixClient(file) {};
-    void on_order_cancel_rejected(const std::string& custom_order_id,
+    void on_order_cancel_rejected(int client_order_id,
                                   const std::string& reason) override {
-        std::cout << "[Test] Order Cancel Rejected: " << custom_order_id << " " << reason << '\n';
+        std::cout << "[Test] Order Cancel Rejected: " << client_order_id << " " << reason << '\n';
     }
     void on_order_update(const ExecutionReport& report) override {
         std::cout << "[Test] Order Update" << '\n';
         std::cout << "Ticker: " << report.ticker << '\n';
         std::cout << "OrderId: " << report.order_id << '\n';
-        std::cout << "CustomOrderId: " << report.custom_order_id << '\n';
+        std::cout << "ClientOrderId: " << report.client_order_id << '\n';
         std::cout << "Filled" << report.filled_qty << '\n';
         std::cout << "Last Px" << report.last_px << '\n';
     }

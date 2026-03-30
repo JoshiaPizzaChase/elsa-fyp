@@ -2,8 +2,8 @@
 #include <boost/contract.hpp>
 
 namespace engine {
-Order::Order(int order_id, int price, int quantity, Side side)
-    : order_id{order_id}, price{price}, quantity{quantity}, side{side} {
+Order::Order(int order_id, int price, int quantity, Side side, std::string_view trader_id)
+    : order_id{order_id}, price{price}, quantity{quantity}, side{side}, trader_id{trader_id} {
 }
 
 int Order::get_order_id() const {
@@ -20,6 +20,10 @@ int Order::get_quantity() const {
 
 Side Order::get_side() const {
     return side;
+}
+
+const std::string& Order::get_trader_id() const {
+    return trader_id;
 }
 
 void Order::fill(int fill_quantity) {

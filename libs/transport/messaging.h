@@ -145,6 +145,36 @@ convert_to_internal(transport::ExecTypeOrOrderStatus exec_type_or_order_status) 
 }
 
 // Serializer and deserializer functions
+inline std::string serialize_container(const core::TradeContainer& container) {
+    transport::ContainerWrapper container_wrapper;
+    transport::TradeContainer container_proto;
+
+    container_proto.set_ticker(container.ticker);
+    container_proto.set_price(container.price);
+    container_proto.set_quantity(container.quantity);
+    container_proto.set_trade_id(container.trade_id);
+    container_proto.set_taker_id(container.taker_id);
+    container_proto.set_maker_id(container.maker_id);
+    container_proto.set_taker_order_id(container.taker_order_id);
+    container_proto.set_maker_order_id(container.maker_order_id);
+    container_proto.set_is_taker_buyer(container.is_taker_buyer);
+
+    *container_wrapper.mutable_trade() = container_proto;
+    return container_wrapper.SerializeAsString();
+}
+
+inline std::string serialize_container(const core::CancelOrderResponseContainer& container) {
+    transport::ContainerWrapper container_wrapper;
+    transport::CancelOrderResponseContainer container_proto;
+
+    container_proto.set_order_id(container.order_id);
+    container_proto.set_cl_ord_id(container.cl_ord_id);
+    container_proto.set_success(container.success);
+
+    *container_wrapper.mutable_cancel_order_response() = container_proto;
+    return container_wrapper.SerializeAsString();
+}
+
 inline std::string serialize_container(const core::FillCostQueryContainer& container) {
     transport::ContainerWrapper container_wrapper;
     transport::FillCostQueryContainer container_proto;
@@ -176,6 +206,9 @@ inline std::string serialize_container(const core::NewOrderSingleContainer& cont
     container_proto.set_cl_ord_id(container.cl_ord_id);
     container_proto.set_sender_comp_id(container.sender_comp_id);
     container_proto.set_target_comp_id(container.target_comp_id);
+    if (container.order_id.has_value()) {
+        container_proto.set_order_id(container.order_id.value());
+    }
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
     container_proto.set_order_qty(container.order_qty);
@@ -191,21 +224,26 @@ inline std::string serialize_container(const core::NewOrderSingleContainer& cont
 }
 
 inline std::string serialize_container(const core::CancelOrderRequestContainer& container) {
+    transport::ContainerWrapper container_wrapper;
     transport::CancelOrderRequestContainer container_proto;
 
     container_proto.set_cl_ord_id(container.cl_ord_id);
     container_proto.set_sender_comp_id(container.sender_comp_id);
     container_proto.set_target_comp_id(container.target_comp_id);
-    container_proto.set_order_id(container.order_id);
+    if (container.order_id.has_value()) {
+        container_proto.set_order_id(container.order_id.value());
+    }
     container_proto.set_orig_cl_ord_id(container.orig_cl_ord_id);
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
     container_proto.set_order_qty(container.order_qty);
 
-    return container_proto.SerializeAsString();
+    *container_wrapper.mutable_cancel_order_request() = container_proto;
+    return container_wrapper.SerializeAsString();
 }
 
 inline std::string serialize_container(const core::ExecutionReportContainer& container) {
+    transport::ContainerWrapper container_wrapper;
     transport::ExecutionReportContainer container_proto;
 
     container_proto.set_sender_comp_id(container.sender_comp_id);
@@ -219,7 +257,9 @@ inline std::string serialize_container(const core::ExecutionReportContainer& con
     container_proto.set_exec_trans_type(convert_to_proto(container.exec_trans_type));
     container_proto.set_exec_type(convert_to_proto(container.exec_type));
     container_proto.set_ord_status(convert_to_proto(container.ord_status));
-    container_proto.set_ord_reject_reason(container.ord_reject_reason);
+    if (container.text.has_value()) {
+        container_proto.set_text(container.text.value());
+    }
     container_proto.set_symbol(container.symbol);
     container_proto.set_side(convert_to_proto(container.side));
     if (container.price.has_value()) {
@@ -232,7 +272,8 @@ inline std::string serialize_container(const core::ExecutionReportContainer& con
     container_proto.set_cum_qty(container.cum_qty);
     container_proto.set_avg_px(container.avg_px);
 
-    return container_proto.SerializeAsString();
+    *container_wrapper.mutable_execution_report() = container_proto;
+    return container_wrapper.SerializeAsString();
 }
 
 inline core::Container deserialize_container(const std::string& data) {
@@ -246,6 +287,9 @@ inline core::Container deserialize_container(const std::string& data) {
     case transport::ContainerWrapper::kNewOrderSingle: {
         const auto& proto = container_wrapper.new_order_single();
         core::NewOrderSingleContainer container;
+        if (proto.has_order_id()) {
+            container.order_id = proto.order_id();
+        }
         container.cl_ord_id = proto.cl_ord_id();
         container.sender_comp_id = proto.sender_comp_id();
         container.target_comp_id = proto.target_comp_id();
@@ -265,7 +309,9 @@ inline core::Container deserialize_container(const std::string& data) {
         container.cl_ord_id = proto.cl_ord_id();
         container.sender_comp_id = proto.sender_comp_id();
         container.target_comp_id = proto.target_comp_id();
-        container.order_id = proto.order_id();
+        if (proto.has_order_id()) {
+            container.order_id = proto.order_id();
+        }
         container.orig_cl_ord_id = proto.orig_cl_ord_id();
         container.symbol = proto.symbol();
         container.side = convert_to_internal(proto.side());
@@ -286,7 +332,7 @@ inline core::Container deserialize_container(const std::string& data) {
         container.exec_trans_type = convert_to_internal(proto.exec_trans_type());
         container.exec_type = convert_to_internal(proto.exec_type());
         container.ord_status = convert_to_internal(proto.ord_status());
-        container.ord_reject_reason = proto.ord_reject_reason();
+        container.text = proto.text();
         container.symbol = proto.symbol();
         container.side = convert_to_internal(proto.side());
         if (proto.has_price()) {
@@ -315,6 +361,28 @@ inline core::Container deserialize_container(const std::string& data) {
         if (proto.has_total_cost()) {
             container.total_cost = proto.total_cost();
         }
+        return container;
+    }
+    case transport::ContainerWrapper::kTrade: {
+        const auto& proto = container_wrapper.trade();
+        core::TradeContainer container;
+        container.ticker = proto.ticker();
+        container.price = proto.price();
+        container.quantity = proto.quantity();
+        container.trade_id = proto.trade_id();
+        container.taker_id = proto.taker_id();
+        container.maker_id = proto.maker_id();
+        container.taker_order_id = proto.taker_order_id();
+        container.maker_order_id = proto.maker_order_id();
+        container.is_taker_buyer = proto.is_taker_buyer();
+        return container;
+    }
+    case transport::ContainerWrapper::kCancelOrderResponse: {
+        const auto& proto = container_wrapper.cancel_order_response();
+        core::CancelOrderResponseContainer container;
+        container.order_id = proto.order_id();
+        container.cl_ord_id = proto.cl_ord_id();
+        container.success = proto.success();
         return container;
     }
 

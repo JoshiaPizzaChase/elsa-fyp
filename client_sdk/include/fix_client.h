@@ -27,20 +27,19 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
 
   public:
     explicit FixClient(const std::string&);
-    void connect(const int&) const;
+    void connect(int) const;
     void disconnect();
     [[nodiscard]] bool is_connected() const;
     [[nodiscard]] FIX::SessionID get_session_id() const;
     // methods to interact with market
-    bool submit_market_order(const std::string&, const double&, const OrderSide&,
-                             const std::string& = "") const;
+    bool submit_market_order(const std::string&, const double&, const OrderSide&, int) const;
     bool submit_limit_order(const std::string&, const double&, const double&, const OrderSide&,
-                            const TimeInForce&, const std::string& = "") const;
-    bool cancel_order(const std::string&, const OrderSide&, const std::string&) const;
+                            const TimeInForce&, int) const;
+    bool cancel_order(const std::string&, const OrderSide&, int, int) const;
 
   protected:
     virtual void on_order_update(const ExecutionReport&) = 0;
-    virtual void on_order_cancel_rejected(const std::string&, const std::string&) = 0;
+    virtual void on_order_cancel_rejected(int, const std::string&) = 0;
 
   private:
     void onCreate(const FIX::SessionID&) override {};
@@ -68,9 +67,10 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
     void onMessage(const FIX42::OrderCancelReject&, const FIX::SessionID& session_id) override;
 
     // helper functions for creating requests
-    static FIX42::NewOrderSingle
-    create_new_order_fix_request(const std::string& ticker, const double& quantity,
-                                 const OrderSide& side, const std::string& custom_order_id = "") {
+    static FIX42::NewOrderSingle create_new_order_fix_request(const std::string& ticker,
+                                                              const double& quantity,
+                                                              const OrderSide& side,
+                                                              int client_order_id) {
         FIX42::NewOrderSingle new_order_fix_message;
 
         new_order_fix_message.set(
@@ -78,20 +78,21 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
         new_order_fix_message.set(FIX::TransactTime(FIX::TransactTime(true)));
         new_order_fix_message.set(FIX::Symbol(ticker));
         new_order_fix_message.set(FIX::OrderQty(quantity));
-        if (!custom_order_id.empty()) {
-            new_order_fix_message.set(FIX::ClOrdID(custom_order_id));
-        }
+        new_order_fix_message.set(FIX::ClOrdID(std::to_string(client_order_id)));
 
         return new_order_fix_message;
     }
 
-    static FIX42::OrderCancelRequest
-    create_cancel_order_fix_request(const std::string& ticker, const OrderSide& side,
-                                    const std::string& custom_order_id) {
-        const auto req_id = "cancel-" + custom_order_id;
+    static FIX42::OrderCancelRequest create_cancel_order_fix_request(const std::string& ticker,
+                                                                     const OrderSide& side,
+                                                                     int orig_client_order_id,
+                                                                     int client_order_id) {
+        const auto orig_client_order_id_str = std::to_string(orig_client_order_id);
+        const auto client_order_id_str = std::to_string(client_order_id);
         FIX42::OrderCancelRequest order_cancel_request(
-            custom_order_id, req_id, ticker,
+            orig_client_order_id_str, client_order_id_str, ticker,
             side == OrderSide::BUY ? FIX::Side_BUY : FIX::Side_SELL, FIX::TransactTime());
+        order_cancel_request.set(FIX::OrderQty(0));
         return order_cancel_request;
     }
 };

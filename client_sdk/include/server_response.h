@@ -13,7 +13,7 @@ enum class OrderStatus {
 
 struct ExecutionReport {
     std::string order_id;
-    std::string custom_order_id;
+    int client_order_id;
     std::string ticker;
     OrderSide side;
     OrderStatus status;

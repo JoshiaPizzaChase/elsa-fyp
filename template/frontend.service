@@ -1,0 +1,11 @@
+[Unit]
+Description=EduX Frontend
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/frontend
+ExecStart=/usr/bin/env serve -s build
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

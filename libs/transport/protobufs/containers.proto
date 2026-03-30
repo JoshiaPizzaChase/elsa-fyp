@@ -1,4 +1,4 @@
-edition = "2024";
+edition = "2023";
 
 package transport;
 
@@ -6,62 +6,63 @@ package transport;
 
 enum OrderType {
   ORDER_TYPE_UNSPECIFIED = 0;
-  ORDER_TYPE_LIMIT = 1;   // limit
-  ORDER_TYPE_MARKET = 2;  // market
+  ORDER_TYPE_LIMIT = 1; // limit
+  ORDER_TYPE_MARKET = 2; // market
 }
 
 enum Side {
   SIDE_UNSPECIFIED = 0;
-  SIDE_BID = 1;  // bid
-  SIDE_ASK = 2;  // ask
+  SIDE_BID = 1; // bid
+  SIDE_ASK = 2; // ask
 }
 
 enum TimeInForce {
   TIF_UNSPECIFIED = 0;
-  TIF_DAY = 1;  // day
+  TIF_DAY = 1; // day
   TIF_GTC = 2; // gtc
 }
 
 // Describes the "category" of the execution report.
 enum ExecTransType {
   EXEC_TRANS_TYPE_UNSPECIFIED = 0;
-  EXEC_TRANS_NEW = 1;      // exectrans_new
-  EXEC_TRANS_CANCEL = 2;   // exectrans_cancel
-  EXEC_TRANS_CORRECT = 3;  // exectrans_correct
-  EXEC_TRANS_STATUS = 4;   // exectrans_status
+  EXEC_TRANS_NEW = 1; // exectrans_new
+  EXEC_TRANS_CANCEL = 2; // exectrans_cancel
+  EXEC_TRANS_CORRECT = 3; // exectrans_correct
+  EXEC_TRANS_STATUS = 4; // exectrans_status
 }
 
 // Shared enum for ExecType and OrderStatus.
 enum ExecTypeOrOrderStatus {
   EXEC_TYPE_OR_ORDER_STATUS_UNSPECIFIED = 0;
-  STATUS_NEW = 1;               // status_new
-  STATUS_PARTIALLY_FILLED = 2;  // status_partiallyFilled
-  STATUS_FILLED = 3;            // status_filled
-  STATUS_CANCELED = 4;          // status_canceled
-  STATUS_PENDING_CANCEL = 5;    // status_pendingCancel
-  STATUS_REJECTED = 6;          // status_rejected
+  STATUS_NEW = 1; // status_new
+  STATUS_PARTIALLY_FILLED = 2; // status_partiallyFilled
+  STATUS_FILLED = 3; // status_filled
+  STATUS_CANCELED = 4; // status_canceled
+  STATUS_PENDING_CANCEL = 5; // status_pendingCancel
+  STATUS_REJECTED = 6; // status_rejected
 }
 
 // New order single equivalent
 message NewOrderSingleContainer {
   string sender_comp_id = 1;
   string target_comp_id = 2;
-  string cl_ord_id = 3;
+  int32 cl_ord_id = 3;
   string symbol = 4;
   Side side = 5;
   int32 order_qty = 6;
   OrderType ord_type = 7;
-  int32 price = 8;           // Only for limit orders.
+  int32 price = 8; // Only for limit orders.
   TimeInForce time_in_force = 9;
+  int32 order_id = 10;
 }
 
 // Order cancel request equivalent
 message CancelOrderRequestContainer {
   string sender_comp_id = 1;
   string target_comp_id = 2;
-  string order_id = 3;
-  string orig_cl_ord_id = 4;  // Original ClOrdID.
-  string cl_ord_id = 5;
+  int32 order_id = 3;
+  int32 orig_cl_ord_id = 4; // Original ClOrdID.
+  int32 cl_ord_id = 5;
   string symbol = 6;
   Side side = 7;
   int32 order_qty = 8;
@@ -71,17 +72,17 @@ message CancelOrderRequestContainer {
 message ExecutionReportContainer {
   string sender_comp_id = 1;
   string target_comp_id = 2;
-  string order_id = 3;                     // Internal order ID.
-  string cl_order_id = 4;                  // Client-defined.
-  string orig_cl_ord_id = 5;      // For cancel responses.
-  string exec_id = 6;                      // Unique report ID.
-  ExecTransType exec_trans_type = 7;       // Category of report.
-  ExecTypeOrOrderStatus exec_type = 8;     // Event causing report.
-  ExecTypeOrOrderStatus ord_status = 9;    // Current order status.
-  string ord_reject_reason = 10;
+  int32 order_id = 3; // Internal order ID.
+  int32 cl_order_id = 4; // Client-defined.
+  int32 orig_cl_ord_id = 5; // For cancel responses.
+  string exec_id = 6; // Unique report ID.
+  ExecTransType exec_trans_type = 7; // Category of report.
+  ExecTypeOrOrderStatus exec_type = 8; // Event causing report.
+  ExecTypeOrOrderStatus ord_status = 9; // Current order status.
+  string text = 10; // Used to be ord_reject_reason
   string symbol = 11;
   Side side = 12;
-  int32 price = 13;              // For limit orders.
+  int32 price = 13; // For limit orders.
   TimeInForce time_in_force = 14;
   int32 leaves_qty = 15;
   int32 cum_qty = 16;
@@ -89,14 +90,32 @@ message ExecutionReportContainer {
 }
 
 message FillCostQueryContainer {
-    string symbol = 1;
-    int32 quantity = 2;
-    Side side = 3;
+  string symbol = 1;
+  int32 quantity = 2;
+  Side side = 3;
 }
 
 message FillCostResponseContainer {
-    // Optional because Matching Engine may fail to retreive data.
-    int32 total_cost = 1;
+  // Optional because Matching Engine may fail to retreive data.
+  int32 total_cost = 1;
+}
+
+message TradeContainer {
+  string ticker = 1;
+  int32 price = 2;
+  int32 quantity = 3;
+  string trade_id = 4;
+  string taker_id = 5;
+  string maker_id = 6;
+  int32 taker_order_id = 7;
+  int32 maker_order_id = 8;
+  bool is_taker_buyer = 9;
+}
+
+message CancelOrderResponseContainer {
+  int32 order_id = 1;
+  int32 cl_ord_id = 2;
+  bool success = 3;
 }
 
 // This is intended to switching upon deserialization to determine which container type is being sent.
@@ -107,5 +126,7 @@ message ContainerWrapper {
     ExecutionReportContainer execution_report = 3;
     FillCostQueryContainer fill_cost_query = 4;
     FillCostResponseContainer fill_cost_response = 5;
+    TradeContainer trade = 6;
+    CancelOrderResponseContainer cancel_order_response = 7;
   }
 }
