@@ -25,9 +25,11 @@ std::string_view LimitOrderBook::get_ticker() const {
 void LimitOrderBook::add_order(int order_id, int price, int quantity, Side side,
                                std::string_view broker_id) {
     boost::contract::check c = boost::contract::public_function(this).precondition([&] {
+        BOOST_CONTRACT_ASSERT(order_id >= 0);
         BOOST_CONTRACT_ASSERT(!order_id_map.contains(order_id));
         BOOST_CONTRACT_ASSERT(price == MARKET_ASK_ORDER_PRICE || price > 0);
         BOOST_CONTRACT_ASSERT(quantity > 0);
+        BOOST_CONTRACT_ASSERT(!broker_id.empty());
     });
 
     if (side == Side::bid) {
@@ -190,6 +192,10 @@ Trade LimitOrderBook::create_trade(int taker_order_id, int maker_order_id,
                                    std::string_view taker_id, std::string_view maker_id, int price,
                                    int quantity, Side taker_side) const {
     boost::contract::check c = boost::contract::public_function(this).precondition([&] {
+        BOOST_CONTRACT_ASSERT(taker_order_id >= 0);
+        BOOST_CONTRACT_ASSERT(maker_order_id >= 0);
+        BOOST_CONTRACT_ASSERT(!taker_id.empty());
+        BOOST_CONTRACT_ASSERT(!maker_id.empty());
         BOOST_CONTRACT_ASSERT(price > 0);
         BOOST_CONTRACT_ASSERT(quantity > 0);
     });

@@ -77,6 +77,9 @@ TEST_F(MatchingLogicDeathTest, AddInvalidOrders) {
     // Non-positive quantity
     EXPECT_DEATH(limit_order_book.add_order(0, 10, 0, Side::ask, TEST_BROKER), "");
     EXPECT_DEATH(limit_order_book.add_order(0, 10, -10, Side::ask, TEST_BROKER), "");
+
+    // Empty broker id
+    EXPECT_DEATH(limit_order_book.add_order(0, 10, 10, Side::bid, ""), "");
 }
 
 TEST_F(MatchingLogicTest, AddBidOrderNoMatch) {
