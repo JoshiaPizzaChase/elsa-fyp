@@ -4,13 +4,15 @@
 using namespace engine;
 
 constexpr std::string_view TEST_TICKER{"GME"};
+constexpr std::string_view TEST_BROKER{"BROKER_1"};
 
 class GettersTest : public testing::Test {
   protected:
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trade_events{};
+    LimitOrderBook limit_order_book{TEST_TICKER, trade_events};
 
     void SetUp() override {
-        limit_order_book.add_order(0, 100, 10, Side::bid);
+        limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
     }
 };
 using GettersDeathTest = GettersTest;
@@ -28,6 +30,7 @@ TEST_F(GettersTest, GetBestOrder) {
                           EXPECT_EQ(order.get_price(), 100);
                           EXPECT_EQ(order.get_quantity(), 10);
                           EXPECT_EQ(order.get_side(), Side::bid);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
@@ -50,7 +53,8 @@ TEST_F(GettersTest, GetOrderByID) {
 
 class MatchingLogicTest : public testing::Test {
   protected:
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trade_events{};
+    LimitOrderBook limit_order_book{TEST_TICKER, trade_events};
 };
 using MatchingLogicDeathTest = MatchingLogicTest;
 
@@ -58,22 +62,25 @@ TEST_F(MatchingLogicDeathTest, AddInvalidOrders) {
     // Inserting duplicate order_id
     EXPECT_DEATH(
         {
-            limit_order_book.add_order(0, 100, 10, Side::bid);
-            limit_order_book.add_order(0, 100, 10, Side::bid);
+            limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
+            limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
         },
         "");
 
+    // Negative order id
+    EXPECT_DEATH(limit_order_book.add_order(-1, 0, 10, Side::ask, TEST_BROKER), "");
+
     // Non-positive price
-    EXPECT_DEATH(limit_order_book.add_order(0, 0, 10, Side::ask), "");
-    EXPECT_DEATH(limit_order_book.add_order(0, -10, 10, Side::ask), "");
+    EXPECT_DEATH(limit_order_book.add_order(0, 0, 10, Side::ask, TEST_BROKER), "");
+    EXPECT_DEATH(limit_order_book.add_order(0, -10, 10, Side::ask, TEST_BROKER), "");
 
     // Non-positive quantity
-    EXPECT_DEATH(limit_order_book.add_order(0, 10, 0, Side::ask), "");
-    EXPECT_DEATH(limit_order_book.add_order(0, 10, -10, Side::ask), "");
+    EXPECT_DEATH(limit_order_book.add_order(0, 10, 0, Side::ask, TEST_BROKER), "");
+    EXPECT_DEATH(limit_order_book.add_order(0, 10, -10, Side::ask, TEST_BROKER), "");
 }
 
 TEST_F(MatchingLogicTest, AddBidOrderNoMatch) {
-    limit_order_book.add_order(0, 100, 10, Side::bid);
+    limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
 
     std::ignore = limit_order_book.get_best_order(Side::bid)
                       .transform([](Order order) -> Order {
@@ -81,6 +88,7 @@ TEST_F(MatchingLogicTest, AddBidOrderNoMatch) {
                           EXPECT_EQ(order.get_price(), 100);
                           EXPECT_EQ(order.get_quantity(), 10);
                           EXPECT_EQ(order.get_side(), Side::bid);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
@@ -90,7 +98,7 @@ TEST_F(MatchingLogicTest, AddBidOrderNoMatch) {
 }
 
 TEST_F(MatchingLogicTest, AddAskOrderNoMatch) {
-    limit_order_book.add_order(0, 100, 10, Side::ask);
+    limit_order_book.add_order(0, 100, 10, Side::ask, TEST_BROKER);
 
     std::ignore = limit_order_book.get_best_order(Side::ask)
                       .transform([](Order order) -> Order {
@@ -98,6 +106,7 @@ TEST_F(MatchingLogicTest, AddAskOrderNoMatch) {
                           EXPECT_EQ(order.get_price(), 100);
                           EXPECT_EQ(order.get_quantity(), 10);
                           EXPECT_EQ(order.get_side(), Side::ask);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
@@ -107,30 +116,52 @@ TEST_F(MatchingLogicTest, AddAskOrderNoMatch) {
 }
 
 TEST_F(MatchingLogicTest, MatchExistingBidOrderCompletely) {
-    limit_order_book.add_order(0, 100, 10, Side::bid);
-    limit_order_book.add_order(1, 100, 10, Side::ask);
+    limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(1, 100, 10, Side::ask, TEST_BROKER);
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::bid));
     EXPECT_FALSE(limit_order_book.get_best_order(Side::ask));
 
     EXPECT_FALSE(limit_order_book.order_id_exists(0));
     EXPECT_FALSE(limit_order_book.order_id_exists(1));
+
+    ASSERT_TRUE(!trade_events.empty());
+    const auto& trade = trade_events.front();
+    EXPECT_EQ(trade.ticker, TEST_TICKER);
+    EXPECT_EQ(trade.price, 100);
+    EXPECT_EQ(trade.quantity, 10);
+    EXPECT_EQ(trade.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade.taker_order_id, 1);
+    EXPECT_EQ(trade.maker_order_id, 0);
+    EXPECT_FALSE(trade.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, MatchExistingAskOrderCompletely) {
-    limit_order_book.add_order(0, 100, 10, Side::ask);
-    limit_order_book.add_order(1, 100, 10, Side::bid);
+    limit_order_book.add_order(0, 100, 10, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(1, 100, 10, Side::bid, TEST_BROKER);
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::bid));
     EXPECT_FALSE(limit_order_book.get_best_order(Side::ask));
 
     EXPECT_FALSE(limit_order_book.order_id_exists(0));
     EXPECT_FALSE(limit_order_book.order_id_exists(1));
+
+    ASSERT_TRUE(!trade_events.empty());
+    const auto& trade = trade_events.front();
+    EXPECT_EQ(trade.ticker, TEST_TICKER);
+    EXPECT_EQ(trade.price, 100);
+    EXPECT_EQ(trade.quantity, 10);
+    EXPECT_EQ(trade.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade.taker_order_id, 1);
+    EXPECT_EQ(trade.maker_order_id, 0);
+    EXPECT_TRUE(trade.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, PartialFillStandingBidOrder) {
-    limit_order_book.add_order(0, 100, 10, Side::bid);
-    limit_order_book.add_order(1, 100, 5, Side::ask);
+    limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(1, 100, 5, Side::ask, TEST_BROKER);
 
     std::ignore = limit_order_book.get_best_order(Side::bid)
                       .transform([](Order order) -> Order {
@@ -138,6 +169,7 @@ TEST_F(MatchingLogicTest, PartialFillStandingBidOrder) {
                           EXPECT_EQ(order.get_price(), 100);
                           EXPECT_EQ(order.get_quantity(), 5);
                           EXPECT_EQ(order.get_side(), Side::bid);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
@@ -147,11 +179,22 @@ TEST_F(MatchingLogicTest, PartialFillStandingBidOrder) {
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::ask).has_value());
     EXPECT_FALSE(limit_order_book.order_id_exists(1));
+
+    ASSERT_TRUE(!trade_events.empty());
+    const auto& trade = trade_events.front();
+    EXPECT_EQ(trade.ticker, TEST_TICKER);
+    EXPECT_EQ(trade.price, 100);
+    EXPECT_EQ(trade.quantity, 5);
+    EXPECT_EQ(trade.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade.taker_order_id, 1);
+    EXPECT_EQ(trade.maker_order_id, 0);
+    EXPECT_FALSE(trade.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, PartialFillStandingAskOrder) {
-    limit_order_book.add_order(0, 100, 10, Side::ask);
-    limit_order_book.add_order(1, 100, 5, Side::bid);
+    limit_order_book.add_order(0, 100, 10, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(1, 100, 5, Side::bid, TEST_BROKER);
 
     std::ignore = limit_order_book.get_best_order(Side::ask)
                       .transform([](Order order) -> Order {
@@ -159,6 +202,7 @@ TEST_F(MatchingLogicTest, PartialFillStandingAskOrder) {
                           EXPECT_EQ(order.get_price(), 100);
                           EXPECT_EQ(order.get_quantity(), 5);
                           EXPECT_EQ(order.get_side(), Side::ask);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
@@ -168,11 +212,22 @@ TEST_F(MatchingLogicTest, PartialFillStandingAskOrder) {
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::bid).has_value());
     EXPECT_FALSE(limit_order_book.order_id_exists(1));
+
+    ASSERT_TRUE(!trade_events.empty());
+    const auto& trade = trade_events.front();
+    EXPECT_EQ(trade.ticker, TEST_TICKER);
+    EXPECT_EQ(trade.price, 100);
+    EXPECT_EQ(trade.quantity, 5);
+    EXPECT_EQ(trade.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade.taker_order_id, 1);
+    EXPECT_EQ(trade.maker_order_id, 0);
+    EXPECT_TRUE(trade.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, CompletelyFillStandingBidOrder) {
-    limit_order_book.add_order(0, 100, 5, Side::bid);
-    limit_order_book.add_order(1, 100, 10, Side::ask);
+    limit_order_book.add_order(0, 100, 5, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(1, 100, 10, Side::ask, TEST_BROKER);
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::bid));
     EXPECT_FALSE(limit_order_book.order_id_exists(0));
@@ -183,17 +238,29 @@ TEST_F(MatchingLogicTest, CompletelyFillStandingBidOrder) {
                           EXPECT_EQ(order.get_price(), 100);
                           EXPECT_EQ(order.get_quantity(), 5);
                           EXPECT_EQ(order.get_side(), Side::ask);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
                           ADD_FAILURE();
                           return std::nullopt;
                       });
+
+    ASSERT_TRUE(!trade_events.empty());
+    const auto& trade = trade_events.front();
+    EXPECT_EQ(trade.ticker, TEST_TICKER);
+    EXPECT_EQ(trade.price, 100);
+    EXPECT_EQ(trade.quantity, 5);
+    EXPECT_EQ(trade.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade.taker_order_id, 1);
+    EXPECT_EQ(trade.maker_order_id, 0);
+    EXPECT_FALSE(trade.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, CompletelyFillStandingAskOrder) {
-    limit_order_book.add_order(0, 100, 5, Side::ask);
-    limit_order_book.add_order(1, 100, 10, Side::bid);
+    limit_order_book.add_order(0, 100, 5, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(1, 100, 10, Side::bid, TEST_BROKER);
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::ask));
     EXPECT_FALSE(limit_order_book.order_id_exists(0));
@@ -204,19 +271,31 @@ TEST_F(MatchingLogicTest, CompletelyFillStandingAskOrder) {
                           EXPECT_EQ(order.get_price(), 100);
                           EXPECT_EQ(order.get_quantity(), 5);
                           EXPECT_EQ(order.get_side(), Side::bid);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
                           ADD_FAILURE();
                           return std::nullopt;
                       });
+
+    ASSERT_TRUE(!trade_events.empty());
+    const auto& trade = trade_events.front();
+    EXPECT_EQ(trade.ticker, TEST_TICKER);
+    EXPECT_EQ(trade.price, 100);
+    EXPECT_EQ(trade.quantity, 5);
+    EXPECT_EQ(trade.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade.taker_order_id, 1);
+    EXPECT_EQ(trade.maker_order_id, 0);
+    EXPECT_TRUE(trade.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, MatchMultipleStandingBidOrders) {
-    limit_order_book.add_order(0, 100, 5, Side::bid);
-    limit_order_book.add_order(1, 99, 5, Side::bid);
-    limit_order_book.add_order(2, 98, 5, Side::bid);
-    limit_order_book.add_order(3, 99, 20, Side::ask);
+    limit_order_book.add_order(0, 100, 5, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(1, 99, 5, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(2, 98, 5, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(3, 99, 20, Side::ask, TEST_BROKER);
 
     EXPECT_FALSE(limit_order_book.order_id_exists(0));
     EXPECT_FALSE(limit_order_book.order_id_exists(1));
@@ -226,6 +305,7 @@ TEST_F(MatchingLogicTest, MatchMultipleStandingBidOrders) {
                           EXPECT_EQ(order.get_price(), 98);
                           EXPECT_EQ(order.get_quantity(), 5);
                           EXPECT_EQ(order.get_side(), Side::bid);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
@@ -239,19 +319,43 @@ TEST_F(MatchingLogicTest, MatchMultipleStandingBidOrders) {
                           EXPECT_EQ(order.get_price(), 99);
                           EXPECT_EQ(order.get_quantity(), 10);
                           EXPECT_EQ(order.get_side(), Side::ask);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
                           ADD_FAILURE();
                           return std::nullopt;
                       });
+
+    ASSERT_EQ(trade_events.size(), 2);
+
+    const auto& trade_1 = trade_events.front();
+    EXPECT_EQ(trade_1.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_1.price, 100);
+    EXPECT_EQ(trade_1.quantity, 5);
+    EXPECT_EQ(trade_1.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.taker_order_id, 3);
+    EXPECT_EQ(trade_1.maker_order_id, 0);
+    EXPECT_FALSE(trade_1.is_taker_buyer);
+    trade_events.pop();
+
+    const auto& trade_2 = trade_events.front();
+    EXPECT_EQ(trade_2.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_2.price, 99);
+    EXPECT_EQ(trade_2.quantity, 5);
+    EXPECT_EQ(trade_2.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.taker_order_id, 3);
+    EXPECT_EQ(trade_2.maker_order_id, 1);
+    EXPECT_FALSE(trade_2.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, MatchMultipleStandingAskOrders) {
-    limit_order_book.add_order(0, 100, 5, Side::ask);
-    limit_order_book.add_order(1, 101, 5, Side::ask);
-    limit_order_book.add_order(2, 102, 5, Side::ask);
-    limit_order_book.add_order(3, 101, 20, Side::bid);
+    limit_order_book.add_order(0, 100, 5, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(1, 101, 5, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(2, 102, 5, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(3, 101, 20, Side::bid, TEST_BROKER);
 
     EXPECT_FALSE(limit_order_book.order_id_exists(0));
     EXPECT_FALSE(limit_order_book.order_id_exists(1));
@@ -261,6 +365,7 @@ TEST_F(MatchingLogicTest, MatchMultipleStandingAskOrders) {
                           EXPECT_EQ(order.get_price(), 102);
                           EXPECT_EQ(order.get_quantity(), 5);
                           EXPECT_EQ(order.get_side(), Side::ask);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
@@ -274,48 +379,117 @@ TEST_F(MatchingLogicTest, MatchMultipleStandingAskOrders) {
                           EXPECT_EQ(order.get_price(), 101);
                           EXPECT_EQ(order.get_quantity(), 10);
                           EXPECT_EQ(order.get_side(), Side::bid);
+                          EXPECT_EQ(order.get_trader_id(), TEST_BROKER);
                           return order;
                       })
                       .or_else([]() -> std::optional<Order> {
                           ADD_FAILURE();
                           return std::nullopt;
                       });
+
+    ASSERT_EQ(trade_events.size(), 2);
+
+    const auto& trade_1 = trade_events.front();
+    EXPECT_EQ(trade_1.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_1.price, 100);
+    EXPECT_EQ(trade_1.quantity, 5);
+    EXPECT_EQ(trade_1.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.taker_order_id, 3);
+    EXPECT_EQ(trade_1.maker_order_id, 0);
+    EXPECT_TRUE(trade_1.is_taker_buyer);
+    trade_events.pop();
+
+    const auto& trade_2 = trade_events.front();
+    EXPECT_EQ(trade_2.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_2.price, 101);
+    EXPECT_EQ(trade_2.quantity, 5);
+    EXPECT_EQ(trade_2.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.taker_order_id, 3);
+    EXPECT_EQ(trade_2.maker_order_id, 1);
+    EXPECT_TRUE(trade_2.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, PartiallyFillMarketBid) {
-
-    limit_order_book.add_order(0, 100, 10, Side::ask);
-    limit_order_book.add_order(1, 101, 10, Side::ask);
-    limit_order_book.add_order(2, MARKET_BID_ORDER_PRICE, 25,
-                               Side::bid); // Market order
+    limit_order_book.add_order(0, 100, 10, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(1, 101, 10, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(2, MARKET_BID_ORDER_PRICE, 25, Side::bid,
+                               TEST_BROKER); // Market order
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::ask));
     EXPECT_FALSE(limit_order_book.get_best_order(Side::bid));
+
+    ASSERT_EQ(trade_events.size(), 2);
+
+    const auto& trade_1 = trade_events.front();
+    EXPECT_EQ(trade_1.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_1.price, 100);
+    EXPECT_EQ(trade_1.quantity, 10);
+    EXPECT_EQ(trade_1.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.taker_order_id, 2);
+    EXPECT_EQ(trade_1.maker_order_id, 0);
+    EXPECT_TRUE(trade_1.is_taker_buyer);
+    trade_events.pop();
+
+    const auto& trade_2 = trade_events.front();
+    EXPECT_EQ(trade_2.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_2.price, 101);
+    EXPECT_EQ(trade_2.quantity, 10);
+    EXPECT_EQ(trade_2.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.taker_order_id, 2);
+    EXPECT_EQ(trade_2.maker_order_id, 1);
+    EXPECT_TRUE(trade_2.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, PartiallyFillMarketAsk) {
-
-    limit_order_book.add_order(0, 100, 10, Side::bid);
-    limit_order_book.add_order(1, 101, 10, Side::bid);
-    limit_order_book.add_order(2, MARKET_ASK_ORDER_PRICE, 25,
-                               Side::ask); // Market order
+    limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(1, 101, 10, Side::bid, TEST_BROKER);
+    limit_order_book.add_order(2, MARKET_ASK_ORDER_PRICE, 25, Side::ask,
+                               TEST_BROKER); // Market order
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::bid));
     EXPECT_FALSE(limit_order_book.get_best_order(Side::ask));
+
+    ASSERT_EQ(trade_events.size(), 2);
+
+    const auto& trade_1 = trade_events.front();
+    EXPECT_EQ(trade_1.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_1.price, 101);
+    EXPECT_EQ(trade_1.quantity, 10);
+    EXPECT_EQ(trade_1.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.taker_order_id, 2);
+    EXPECT_EQ(trade_1.maker_order_id, 1);
+    EXPECT_FALSE(trade_1.is_taker_buyer);
+    trade_events.pop();
+
+    const auto& trade_2 = trade_events.front();
+    EXPECT_EQ(trade_2.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_2.price, 100);
+    EXPECT_EQ(trade_2.quantity, 10);
+    EXPECT_EQ(trade_2.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.taker_order_id, 2);
+    EXPECT_EQ(trade_2.maker_order_id, 0);
+    EXPECT_FALSE(trade_2.is_taker_buyer);
 }
 
 TEST_F(MatchingLogicTest, AddMarketOrderToEmptyBook) {
-    limit_order_book.add_order(0, MARKET_BID_ORDER_PRICE, 10, Side::bid);
+    limit_order_book.add_order(0, MARKET_BID_ORDER_PRICE, 10, Side::bid, TEST_BROKER);
 
     EXPECT_FALSE(limit_order_book.get_best_order(Side::bid));
 }
 
 class CancelOrderTest : public testing::Test {
   protected:
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trade_events{};
+    LimitOrderBook limit_order_book{TEST_TICKER, trade_events};
 
     void SetUp() override {
-        limit_order_book.add_order(0, 100, 10, Side::bid);
+        limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
     }
 };
 using CancelOrderDeathTest = CancelOrderTest;
@@ -334,18 +508,19 @@ TEST_F(CancelOrderTest, CancelExistingOrder) {
 
 class LevelAggregateTest : public testing::Test {
   protected:
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trade_events{};
+    LimitOrderBook limit_order_book{TEST_TICKER, trade_events};
 
     void SetUp() override {
-        limit_order_book.add_order(0, 100, 10, Side::bid);
-        limit_order_book.add_order(1, 100, 20, Side::bid);
-        limit_order_book.add_order(2, 101, 10, Side::bid);
+        limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
+        limit_order_book.add_order(1, 100, 20, Side::bid, TEST_BROKER);
+        limit_order_book.add_order(2, 101, 10, Side::bid, TEST_BROKER);
     }
 
     void add_ask_order() {
-        limit_order_book.add_order(3, 200, 10, Side::ask);
-        limit_order_book.add_order(4, 200, 20, Side::ask);
-        limit_order_book.add_order(5, 201, 10, Side::ask);
+        limit_order_book.add_order(3, 200, 10, Side::ask, TEST_BROKER);
+        limit_order_book.add_order(4, 200, 20, Side::ask, TEST_BROKER);
+        limit_order_book.add_order(5, 201, 10, Side::ask, TEST_BROKER);
     }
 };
 using LevelAggregateDeathTest = LevelAggregateTest;
@@ -382,7 +557,8 @@ TEST_F(LevelAggregateTest, GetLevelAggregate) {
 
 TEST_F(LevelAggregateTest, GetTopOrderBookAggregate) {
     // Empty Order Book
-    const auto empty_limit_order_book = LimitOrderBook{TEST_TICKER};
+    std::queue<Trade> trade_evnets{};
+    const auto empty_limit_order_book = LimitOrderBook{TEST_TICKER, trade_events};
     const auto empty_lob_top_aggregate =
         empty_limit_order_book.get_top_order_book_level_aggregate();
 
@@ -425,7 +601,8 @@ TEST_F(LevelAggregateTest, GetTopOrderBookAggregate) {
 
 class FillCostQueryTest : public testing::Test {
   protected:
-    LimitOrderBook limit_order_book{TEST_TICKER};
+    std::queue<Trade> trade_events{};
+    LimitOrderBook limit_order_book{TEST_TICKER, trade_events};
 };
 using FillCostQueryDeathTest = FillCostQueryTest;
 
@@ -438,9 +615,9 @@ TEST_F(FillCostQueryTest, GetFillCost) {
     // Empty Book
     EXPECT_FALSE(limit_order_book.get_fill_cost(10, Side::bid));
 
-    limit_order_book.add_order(0, 100, 10, Side::ask);
-    limit_order_book.add_order(1, 100, 20, Side::ask);
-    limit_order_book.add_order(2, 101, 10, Side::ask);
+    limit_order_book.add_order(0, 100, 10, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(1, 100, 20, Side::ask, TEST_BROKER);
+    limit_order_book.add_order(2, 101, 10, Side::ask, TEST_BROKER);
 
     // Sufficient Liquidity
     std::ignore = limit_order_book.get_fill_cost(40, Side::ask)
