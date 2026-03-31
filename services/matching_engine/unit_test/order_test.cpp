@@ -4,9 +4,11 @@
 
 using namespace engine;
 
+constexpr std::string_view TEST_TRADER{"Trader_1"};
+
 class OrderTest : public testing::Test {
   protected:
-    OrderTest() : order{0, 100, 10, Side::bid} {
+    OrderTest() : order{0, 100, 10, Side::bid, TEST_TRADER} {
     }
 
     Order order;
