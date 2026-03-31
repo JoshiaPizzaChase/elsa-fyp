@@ -645,4 +645,84 @@ TEST_F(FillCostQueryTest, GetFillCost) {
                       });
 }
 
-// TODO: Unit test for create_trade after finalizing
+TEST(CreateTradeDeathTest, CreateInvalidTrade) {
+    // Negative taker order id
+    EXPECT_DEATH(std::ignore =
+                     create_trade(-1, 0, TEST_BROKER, TEST_BROKER, TEST_TICKER, 100, 10, Side::bid),
+                 "");
+
+    // Negative maker order id
+    EXPECT_DEATH(std::ignore =
+                     create_trade(0, -1, TEST_BROKER, TEST_BROKER, TEST_TICKER, 100, 10, Side::bid),
+                 "");
+
+    // Colliding taker maker order id
+    EXPECT_DEATH(std::ignore =
+                     create_trade(0, 0, TEST_BROKER, TEST_BROKER, TEST_TICKER, 100, 10, Side::bid),
+                 "");
+
+    // Empty taker id
+    EXPECT_DEATH(std::ignore = create_trade(0, 1, "", TEST_BROKER, TEST_TICKER, 100, 10, Side::bid),
+                 "");
+
+    // Empty maker id
+    EXPECT_DEATH(std::ignore = create_trade(0, 1, TEST_BROKER, "", TEST_TICKER, 100, 10, Side::bid),
+                 "");
+
+    // Empty ticker
+    EXPECT_DEATH(std::ignore = create_trade(0, 1, TEST_BROKER, TEST_BROKER, "", 100, 10, Side::bid),
+                 "");
+
+    // Non-positive price
+    EXPECT_DEATH(std::ignore =
+                     create_trade(0, 1, TEST_BROKER, TEST_BROKER, TEST_TICKER, 0, 10, Side::bid),
+                 "");
+    EXPECT_DEATH(std::ignore =
+                     create_trade(0, 1, TEST_BROKER, TEST_BROKER, TEST_TICKER, -10, 10, Side::bid),
+                 "");
+
+    // Non-positive quantity
+    EXPECT_DEATH(std::ignore =
+                     create_trade(0, 1, TEST_BROKER, TEST_BROKER, TEST_TICKER, 10, 0, Side::bid),
+                 "");
+    EXPECT_DEATH(std::ignore =
+                     create_trade(0, 1, TEST_BROKER, TEST_BROKER, TEST_TICKER, 10, -10, Side::bid),
+                 "");
+}
+
+TEST(CreateTradeTest, CreateValidTrade) {
+    const auto now_ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch())
+                            .count();
+
+    const auto trade_1 =
+        create_trade(0, 1, TEST_BROKER, TEST_BROKER, TEST_TICKER, 100, 10, Side::bid);
+
+    EXPECT_EQ(trade_1.taker_order_id, 0);
+    EXPECT_EQ(trade_1.maker_order_id, 1);
+    EXPECT_EQ(trade_1.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_1.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_1.price, 100);
+    EXPECT_EQ(trade_1.quantity, 10);
+    EXPECT_TRUE(trade_1.is_taker_buyer);
+    EXPECT_EQ(std::strlen(trade_1.trade_id),
+              core::constants::UUID_LENGTH -
+                  1); // Ensure trade id is uuid, -1 because of null terminator
+    EXPECT_GE(trade_1.create_timestamp, now_ts);
+
+    const auto trade_2 =
+        create_trade(0, 1, TEST_BROKER, TEST_BROKER, TEST_TICKER, 100, 10, Side::ask);
+    EXPECT_EQ(trade_2.taker_order_id, 0);
+    EXPECT_EQ(trade_2.maker_order_id, 1);
+    EXPECT_EQ(trade_2.taker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.maker_id, TEST_BROKER);
+    EXPECT_EQ(trade_2.ticker, TEST_TICKER);
+    EXPECT_EQ(trade_2.price, 100);
+    EXPECT_EQ(trade_2.quantity, 10);
+    EXPECT_FALSE(trade_2.is_taker_buyer);
+    EXPECT_EQ(std::strlen(trade_2.trade_id),
+              core::constants::UUID_LENGTH -
+                  1); // Ensure trade id is uuid, -1 because of null terminator
+    EXPECT_GE(trade_2.create_timestamp, now_ts);
+}

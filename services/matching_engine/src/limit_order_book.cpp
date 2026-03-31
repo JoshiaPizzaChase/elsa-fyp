@@ -1,7 +1,6 @@
 #include "limit_order_book.h"
 #include "core/constants.h"
-#include <boost/contract/assert.hpp>
-#include <boost/contract/check.hpp>
+#include <boost/contract.hpp>
 #include <boost/uuid.hpp>
 #include <chrono>
 #include <expected>
@@ -59,8 +58,8 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                 remaining_quantity >= order_quantity) {
                 remaining_quantity -= order_quantity;
                 Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
-                                               front_order.get_trader_id(), front_order.get_price(),
-                                               order_quantity, side);
+                                               front_order.get_trader_id(), ticker,
+                                               front_order.get_price(), order_quantity, side);
                 shm_trade.try_push(new_trade);
                 trade_container.emplace(new_trade);
 
@@ -72,8 +71,8 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                 front_order.fill(remaining_quantity);
 
                 Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
-                                               front_order.get_trader_id(), front_order.get_price(),
-                                               remaining_quantity, side);
+                                               front_order.get_trader_id(), ticker,
+                                               front_order.get_price(), remaining_quantity, side);
                 shm_trade.try_push(new_trade);
                 trade_container.emplace(new_trade);
                 remaining_quantity = 0;
@@ -188,14 +187,16 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
     return top_aggregate;
 }
 
-Trade LimitOrderBook::create_trade(int taker_order_id, int maker_order_id,
-                                   std::string_view taker_id, std::string_view maker_id, int price,
-                                   int quantity, Side taker_side) const {
-    boost::contract::check c = boost::contract::public_function(this).precondition([&] {
+Trade create_trade(int taker_order_id, int maker_order_id, std::string_view taker_id,
+                   std::string_view maker_id, std::string_view ticker, int price, int quantity,
+                   Side taker_side) {
+    boost::contract::check c = boost::contract::function().precondition([&] {
         BOOST_CONTRACT_ASSERT(taker_order_id >= 0);
         BOOST_CONTRACT_ASSERT(maker_order_id >= 0);
+        BOOST_CONTRACT_ASSERT(taker_order_id != maker_order_id);
         BOOST_CONTRACT_ASSERT(!taker_id.empty());
         BOOST_CONTRACT_ASSERT(!maker_id.empty());
+        BOOST_CONTRACT_ASSERT(!ticker.empty());
         BOOST_CONTRACT_ASSERT(price > 0);
         BOOST_CONTRACT_ASSERT(quantity > 0);
     });
@@ -204,8 +205,6 @@ Trade LimitOrderBook::create_trade(int taker_order_id, int maker_order_id,
                              std::chrono::system_clock::now().time_since_epoch())
                              .count();
 
-    // TODO: Add random trade_id generation
-    // TODO: add back taker and maker id
     return Trade{ticker.data(),
                  price,
                  quantity,
