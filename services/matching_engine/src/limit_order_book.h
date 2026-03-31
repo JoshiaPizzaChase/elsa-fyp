@@ -3,11 +3,10 @@
 #include "core/orderbook_snapshot.h"
 #include "core/trade.h"
 #include "order.h"
-#include <queue>
-#include <expected>
 #include <limits>
 #include <list>
 #include <map>
+#include <queue>
 #include <string>
 #include <unordered_map>
 
@@ -26,7 +25,7 @@ class LimitOrderBook {
 
     [[nodiscard]] std::string_view get_ticker() const;
 
-    void add_order(int order_id, int price, int quantity, Side side, std::string_view trader_id);
+    void add_order(int order_id, int price, int quantity, Side side, std::string_view broker_id);
     void cancel_order(int order_id);
 
     [[nodiscard]] const SideContainer& get_side(Side side) const;
@@ -55,10 +54,11 @@ class LimitOrderBook {
     std::unordered_map<int, std::list<Order>::const_iterator> order_id_map{};
 
     void match_order(SideContainer& near_side, SideContainer& far_side, int price,
-                     int remaining_quantity, int order_id, Side side, std::string_view trader_id);
+                     int remaining_quantity, int order_id, Side side, std::string_view broker_id);
 
-    [[nodiscard]] Trade create_trade(int taker_order_id, int maker_order_id, std::string_view taker_id,
-                 std::string_view maker_id, int price, int quantity, Side taker_side) const;
+    [[nodiscard]] Trade create_trade(int taker_order_id, int maker_order_id,
+                                     std::string_view taker_id, std::string_view maker_id,
+                                     int price, int quantity, Side taker_side) const;
 
     [[nodiscard]] SideContainer& get_side_mut(Side side);
 };
