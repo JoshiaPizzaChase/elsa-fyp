@@ -29,22 +29,22 @@ struct Trade {
         size_t len = strlen(ticker_str);
         assert(len > 0 && len < sizeof(ticker));
         memcpy(ticker, ticker_str, len);
-        ticker[len + 1] = '\0';
+        this->ticker[len] = '\0';
 
         len = strlen(trade_id);
         assert(len > 0 && len < sizeof(this->trade_id));
         memcpy(this->trade_id, trade_id, len);
-        this->trade_id[len + 1] = '\0';
+        this->trade_id[len] = '\0';
 
         len = strlen(taker_id);
         assert(len > 0 && len < sizeof(this->taker_id));
         memcpy(this->taker_id, taker_id, len);
-        this->taker_id[len + 1] = '\0';
+        this->taker_id[len] = '\0';
 
         len = strlen(maker_id);
         assert(len > 0 && len < sizeof(this->maker_id));
         memcpy(this->maker_id, maker_id, len);
-        this->maker_id[len + 1] = '\0';
+        this->maker_id[len] = '\0';
     }
 
     friend std::ostream& operator<<(std::ostream& os, const Trade& trade) {
