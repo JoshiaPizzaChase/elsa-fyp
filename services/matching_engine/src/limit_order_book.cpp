@@ -3,7 +3,6 @@
 #include <boost/contract.hpp>
 #include <boost/uuid.hpp>
 #include <chrono>
-#include <expected>
 #include <queue>
 
 namespace engine {
