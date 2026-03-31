@@ -14,6 +14,7 @@ int main(int argc, char* argv[]) {
         matching_engine_config.active_symbols,
         std::chrono::milliseconds{matching_engine_config.snapshot_flush_interval}};
 
+    matching_engine.init();
     matching_engine.wait_for_connections();
-    matching_engine.start();
+    matching_engine.run();
 }
