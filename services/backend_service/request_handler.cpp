@@ -1,13 +1,14 @@
 #include "request_handler.h"
-#include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <algorithm>
+#include <chrono>
 #include <format>
 #include <iostream>
 #include <limits>
 #include <ranges>
+#include <thread>
 #include <unordered_set>
 
 namespace backend {
@@ -620,6 +621,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         res["error"] = mdp_deploy_result.error();
         return res;
     }
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     bj::object me_params;
     me_params["matching_engine_host"] = machine_ip;
@@ -630,6 +632,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         res["error"] = me_deploy_result.error();
         return res;
     }
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     bj::object oms_params;
     oms_params["order_manager_host"] = machine_ip;
@@ -642,6 +645,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         res["error"] = oms_deploy_result.error();
         return res;
     }
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     bj::object gateway_params;
     gateway_params["downstream_order_manager_host"] = machine_ip;
