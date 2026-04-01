@@ -56,11 +56,14 @@ class LimitOrderBook {
     void match_order(SideContainer& near_side, SideContainer& far_side, int price,
                      int remaining_quantity, int order_id, Side side, std::string_view broker_id);
 
-
     [[nodiscard]] SideContainer& get_side_mut(Side side);
     [[nodiscard]] Trade create_trade(int taker_order_id, int maker_order_id,
                                      std::string_view taker_id, std::string_view maker_id,
                                      int price, int quantity, Side taker_side) const;
 };
+
+[[nodiscard]] Trade create_trade(int taker_order_id, int maker_order_id, std::string_view taker_id,
+                                 std::string_view maker_id, int price, int quantity,
+                                 Side taker_side);
 
 } // namespace engine
