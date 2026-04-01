@@ -1,5 +1,6 @@
 #pragma once
 
+#include "inbound_server.h"
 #include "limit_order_book.h"
 #include "shared_memory_publisher.h"
 #include "websocket_server.h"
@@ -13,21 +14,26 @@ using WebsocketManagerServer = transport::WebsocketManagerServer;
 
 struct MatchingEngineDependencyFactory {
     std::function<std::unique_ptr<Publisher<Trade>>(std::string_view)> create_trade_publisher;
+
     std::function<std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>(std::string_view)>
         create_orderbook_snapshot_publisher;
+
+    std::function<std::unique_ptr<InboundServer>(std::string_view, int,
+                                                 std::shared_ptr<spdlog::logger>)>
+        create_inbound_server;
 };
 
 class MatchingEngine {
   public:
     MatchingEngine(std::string_view host, int port, const std::vector<std::string>& active_symbols,
                    std::chrono::milliseconds flush_interval,
-                   MatchingEngineDependencyFactory dependency_factory);
+                   const MatchingEngineDependencyFactory& dependency_factory);
     void init();
     void run();
     void wait_for_connections();
 
   private:
-    WebsocketManagerServer inbound_ws_server;
+    std::unique_ptr<InboundServer> inbound_server;
 
     std::unordered_map<std::string,
                        std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>

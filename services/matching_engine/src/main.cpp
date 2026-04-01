@@ -1,4 +1,5 @@
 #include "configuration/matching_engine_config.h"
+#include "inbound_websocket_server.h"
 #include "matching_engine.h"
 #include "rfl/toml/load.hpp"
 #include <iostream>
@@ -11,7 +12,7 @@ int main(int argc, char* argv[]) {
     MatchingEngineConfig matching_engine_config =
         rfl::toml::load<MatchingEngineConfig>(me_cfg).value();
 
-    MatchingEngineDependencyFactory dependency_factory{
+    const MatchingEngineDependencyFactory dependency_factory{
         .create_trade_publisher =
             [](std::string_view symbol) {
                 return std::make_unique<SharedMemoryPublisher<Trade, TradeRingBuffer>>(
@@ -26,6 +27,11 @@ int main(int argc, char* argv[]) {
                     OrderbookSnapshotRingBuffer::open_exist_shm(
                         static_cast<std::string>(symbol) +
                         core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME));
+            },
+
+        .create_inbound_server =
+            [](std::string_view host, int port, std::shared_ptr<spdlog::logger> logger) {
+                return std::make_unique<InboundWebsocketServer>(host, port, logger);
             }};
 
     MatchingEngine matching_engine{
