@@ -15,7 +15,8 @@ namespace mdp {
 class MarketDataProcessor {
   private:
     std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-        "mdp_logger",std::format("{}/logs/{}/mdp.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
+        "mdp_logger",
+        std::format("{}/logs/{}/mdp.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
     std::vector<OrderbookSnapshotRingBuffer> orderbook_snapshot_ring_buffers;
     std::vector<TradeRingBuffer> trade_ring_buffers;
     transport::WebsocketManagerServer websocket_server;

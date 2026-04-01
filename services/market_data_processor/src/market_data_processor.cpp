@@ -6,8 +6,11 @@ MarketDataProcessor::MarketDataProcessor(const MdpConfig& config)
     orderbook_snapshot_ring_buffers.reserve(config.active_symbols.size());
     trade_ring_buffers.reserve(config.active_symbols.size());
     for (const auto& symbol : config.active_symbols) {
-        orderbook_snapshot_ring_buffers.emplace_back(OrderbookSnapshotRingBuffer::create(std::format("{}_{}_{}", symbol, core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE, SERVER_NAME)));
-        trade_ring_buffers.emplace_back(TradeRingBuffer::create(std::format("{}_{}_{}", symbol, core::constants::TRADE_SHM_FILE, SERVER_NAME)));
+        orderbook_snapshot_ring_buffers.emplace_back(
+            OrderbookSnapshotRingBuffer::create(std::format(
+                "{}_{}_{}", symbol, core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE, SERVER_NAME)));
+        trade_ring_buffers.emplace_back(TradeRingBuffer::create(
+            std::format("{}_{}_{}", symbol, core::constants::TRADE_SHM_FILE, SERVER_NAME)));
     }
 }
 
@@ -30,7 +33,8 @@ MarketDataProcessor::MarketDataProcessor(const MdpConfig& config)
                 logger->flush();
                 if (!res.has_value()) {
                     auto failed_ids = res.error();
-                    std::string error_msg = "MDP failed to publish orderbook snapshot to client id=";
+                    std::string error_msg =
+                        "MDP failed to publish orderbook snapshot to client id=";
                     for (const auto id : failed_ids) {
                         error_msg += std::to_string(id);
                         if (id != failed_ids.back()) {
