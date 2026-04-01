@@ -614,6 +614,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     bj::object mdp_params;
     mdp_params["host"] = machine_ip;
     mdp_params["ws_port"] = mdp_port;
+    mdp_params["active_symbols"] = join_csv(symbols);
     auto mdp_deploy_result = deploy_service("mdp", mdp_params);
     if (!mdp_deploy_result.has_value()) {
         res["error"] = mdp_deploy_result.error();
@@ -623,6 +624,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     bj::object me_params;
     me_params["matching_engine_host"] = machine_ip;
     me_params["matching_engine_port"] = me_port;
+    me_params["active_symbols"] = join_csv(symbols);
     auto me_deploy_result = deploy_service("me", me_params);
     if (!me_deploy_result.has_value()) {
         res["error"] = me_deploy_result.error();

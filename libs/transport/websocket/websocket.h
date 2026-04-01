@@ -323,7 +323,7 @@ class WebsocketManager {
 
         // Redirect endpoint logs to separate file from spdlogs
         std::ostream* log_stream = new std::ofstream(
-            PROJECT_SOURCE_DIR + std::format("/logs/{}_endpoint.log", logger_name));
+            std::format("{}/logs/{}/{}_endpoint.log", PROJECT_SOURCE_DIR, SERVER_NAME, logger_name));
         m_endpoint.get_alog().set_ostream(log_stream);
         m_endpoint.get_elog().set_ostream(log_stream);
     }

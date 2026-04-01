@@ -11,7 +11,7 @@ struct overloaded : Ts... {
 };
 
 static std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-    "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log");
+    "matching_engine_logger", std::format("{}/logs/{}/matching_engine.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
 
 MatchingEngine::MatchingEngine(std::string_view host, int port,
                                const std::vector<std::string>& active_symbols,

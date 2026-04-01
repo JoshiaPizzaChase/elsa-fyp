@@ -48,7 +48,7 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
 
   private:
     std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-        "gateway_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/gateway.log");
+        "gateway_logger", std::format("{}/logs/{}/gateway.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
     transport::WebsocketManagerClient m_websocketClient{logger};
     int gateway_connection_id{};
 
