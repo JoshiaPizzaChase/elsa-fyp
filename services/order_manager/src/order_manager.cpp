@@ -13,7 +13,7 @@ struct overloaded : Ts... {
 };
 
 static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-    "order_manager_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/order_manager.log")};
+    "order_manager_logger", std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
 OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
     : inbound_ws_server{port, host, logger}, order_request_ws_client{logger},

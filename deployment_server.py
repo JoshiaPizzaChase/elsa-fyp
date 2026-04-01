@@ -340,7 +340,15 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
         )
 
     gateway_special_keys = {"active_symbols", "fix_server_port", "whitelist"}
-    allowed_non_template_keys: set[str] = gateway_special_keys if service_name == "gateway" else set()
+    me_mdp_special_keys = {"active_symbols"}
+    
+    if service_name == "gateway":
+        allowed_non_template_keys = gateway_special_keys
+    elif service_name in {"me", "mdp"}:
+        allowed_non_template_keys = me_mdp_special_keys
+    else:
+        allowed_non_template_keys = set()
+    
     unknown_keys = [
         k for k in params.keys() if k not in template_data and k not in allowed_non_template_keys
     ]
@@ -353,10 +361,11 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     server_name_placeholder = "<server name placeholder>"
 
     for key, value in params.items():
-        if service_name == "gateway" and key == "active_symbols":
+        if key == "active_symbols" and service_name in {"gateway", "me", "mdp"}:
             final_config["active_symbols"] = _parse_csv_string(value, "active_symbols")
             LOGGER.info(
-                "Gateway active_symbols parsed: count=%d",
+                "%s active_symbols parsed: count=%d",
+                service_name.upper(),
                 len(final_config["active_symbols"]),
             )
             continue

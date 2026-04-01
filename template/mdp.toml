@@ -1,2 +1,3 @@
 host = "localhost"
 ws_port = 9001
+active_symbols = []

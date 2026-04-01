@@ -12,7 +12,7 @@ struct overloaded : Ts... {
 };
 
 static std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-    "matching_engine_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/matching_engine.log");
+    "matching_engine_logger", std::format("{}/logs/{}/matching_engine.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
 
 MatchingEngine::MatchingEngine(std::string_view host, int port,
                                const std::vector<std::string>& active_symbols,
@@ -26,13 +26,13 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
             LimitOrderBook{symbol, this->trade_events,
                            std::make_unique<SharedMemoryPublisher<Trade, TradeRingBuffer>>(
                                TradeRingBuffer ::open_exist_shm(
-                                   symbol + core::constants::TRADE_SHM_FILE + "_" + SERVER_NAME))});
+                                   std::format("{}_{}_{}", symbol, core::constants::TRADE_SHM_FILE, SERVER_NAME)))});
 
         orderbook_snapshot_publishers.emplace(
             symbol,
             SharedMemoryPublisher<TopOrderBookLevelAggregates, OrderbookSnapshotRingBuffer>(
                 OrderbookSnapshotRingBuffer::open_exist_shm(
-                    symbol + core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME)));
+                    std::format("{}_{}_{}", symbol, core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE, SERVER_NAME))));
     }
 }
 
