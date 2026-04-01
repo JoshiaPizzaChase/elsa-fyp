@@ -1,5 +1,7 @@
 #include "matching_engine.h"
+
 #include "core/containers.h"
+#include "shm_trade_publisher.h"
 #include "transport/messaging.h"
 
 namespace engine {
@@ -23,11 +25,11 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
 
     for (const auto& symbol : active_symbols) {
         limit_order_books.emplace(
-            symbol, LimitOrderBook{symbol, this->trade_events,
-                                   TradeRingBuffer::open_exist_shm(core::constants::TRADE_SHM_FILE +
-                                                                   "_" + SERVER_NAME)});
+            symbol,
+            LimitOrderBook{symbol, this->trade_events,
+                           std::make_unique<ShmTradePublisher>(TradeRingBuffer ::open_exist_shm(
+                               symbol + core::constants::TRADE_SHM_FILE + "_" + SERVER_NAME))});
     }
-
 }
 
 void MatchingEngine::init() {

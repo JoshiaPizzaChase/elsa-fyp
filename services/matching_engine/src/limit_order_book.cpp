@@ -1,5 +1,7 @@
 #include "limit_order_book.h"
+
 #include "core/constants.h"
+#include "trade_publisher.h"
 #include <boost/contract.hpp>
 #include <boost/uuid.hpp>
 #include <chrono>
@@ -7,12 +9,8 @@
 
 namespace engine {
 LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
-                               TradeRingBuffer shm_trade)
-    : shm_trade{std::move(shm_trade)}, trade_container{trade_container}, ticker{ticker} {
-}
-
-LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container)
-    : shm_trade{TradeRingBuffer::create("dummy", true)}, trade_container{trade_container},
+                               std::unique_ptr<TradePublisher> trade_publisher)
+    : trade_publisher{std::move(trade_publisher)}, trade_container{trade_container},
       ticker{ticker} {
 }
 
@@ -59,7 +57,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                 Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
                                                front_order.get_trader_id(), ticker,
                                                front_order.get_price(), order_quantity, side);
-                shm_trade.try_push(new_trade);
+                trade_publisher->try_publish(new_trade);
                 trade_container.emplace(new_trade);
 
                 std::cout << "New trade: " << new_trade << std::endl;
@@ -72,7 +70,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                 Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
                                                front_order.get_trader_id(), ticker,
                                                front_order.get_price(), remaining_quantity, side);
-                shm_trade.try_push(new_trade);
+                trade_publisher->try_publish(new_trade);
                 trade_container.emplace(new_trade);
                 remaining_quantity = 0;
             }

@@ -3,6 +3,8 @@
 #include "core/orderbook_snapshot.h"
 #include "core/trade.h"
 #include "order.h"
+#include "trade_publisher.h"
+
 #include <limits>
 #include <list>
 #include <map>
@@ -20,8 +22,7 @@ using SideContainer = std::map<int, std::list<Order>>;
 class LimitOrderBook {
   public:
     LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
-                   TradeRingBuffer shm_trade);
-    LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container);
+                   std::unique_ptr<TradePublisher> trade_publisher);
 
     [[nodiscard]] std::string_view get_ticker() const;
 
@@ -42,7 +43,7 @@ class LimitOrderBook {
     [[nodiscard]] std::optional<int> get_fill_cost(int quantity, Side side) const;
 
   private:
-    TradeRingBuffer shm_trade;
+    std::unique_ptr<TradePublisher> trade_publisher;
 
     std::queue<Trade>& trade_container;
 
