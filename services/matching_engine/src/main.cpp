@@ -2,8 +2,6 @@
 #include "inbound_websocket_server.h"
 #include "matching_engine.h"
 #include "rfl/toml/load.hpp"
-#include <iostream>
-#include <print>
 
 using namespace engine;
 
@@ -16,17 +14,16 @@ int main(int argc, char* argv[]) {
         .create_trade_publisher =
             [](std::string_view symbol) {
                 return std::make_unique<SharedMemoryPublisher<Trade, TradeRingBuffer>>(
-                    TradeRingBuffer ::open_exist_shm(static_cast<std::string>(symbol) +
-                                                     core::constants::TRADE_SHM_FILE + "_" +
-                                                     SERVER_NAME));
+                    TradeRingBuffer ::open_exist_shm(std::format(
+                        "{}_{}_{}", symbol, core::constants::TRADE_SHM_FILE, SERVER_NAME)));
             },
         .create_orderbook_snapshot_publisher =
             [](std::string_view symbol) {
                 return std::make_unique<SharedMemoryPublisher<TopOrderBookLevelAggregates,
                                                               OrderbookSnapshotRingBuffer>>(
                     OrderbookSnapshotRingBuffer::open_exist_shm(
-                        static_cast<std::string>(symbol) +
-                        core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME));
+                        std::format("{}_{}_{}", symbol,
+                                    core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE, SERVER_NAME)));
             },
 
         .create_inbound_server =
