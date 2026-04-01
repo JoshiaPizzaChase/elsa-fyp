@@ -6,7 +6,7 @@ using namespace engine;
 constexpr std::string_view TEST_TICKER{"GME"};
 constexpr std::string_view TEST_BROKER{"BROKER_1"};
 
-class FakeTradePublisher : public TradePublisher {
+class FakeTradePublisher : public Publisher<Trade> {
   public:
     bool try_publish(Trade& trade) override {
         return true;

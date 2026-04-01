@@ -1,7 +1,7 @@
 #include "matching_engine.h"
 
 #include "core/containers.h"
-#include "shm_trade_publisher.h"
+#include "shared_memory_publisher.h"
 #include "transport/messaging.h"
 
 namespace engine {
@@ -27,8 +27,9 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
         limit_order_books.emplace(
             symbol,
             LimitOrderBook{symbol, this->trade_events,
-                           std::make_unique<ShmTradePublisher>(TradeRingBuffer ::open_exist_shm(
-                               symbol + core::constants::TRADE_SHM_FILE + "_" + SERVER_NAME))});
+                           std::make_unique<SharedMemoryPublisher<Trade, TradeRingBuffer>>(
+                               TradeRingBuffer ::open_exist_shm(
+                                   symbol + core::constants::TRADE_SHM_FILE + "_" + SERVER_NAME))});
     }
 }
 

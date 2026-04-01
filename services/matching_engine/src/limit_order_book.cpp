@@ -1,7 +1,6 @@
 #include "limit_order_book.h"
 
 #include "core/constants.h"
-#include "trade_publisher.h"
 #include <boost/contract.hpp>
 #include <boost/uuid.hpp>
 #include <chrono>
@@ -9,7 +8,7 @@
 
 namespace engine {
 LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
-                               std::unique_ptr<TradePublisher> trade_publisher)
+                               std::unique_ptr<Publisher<Trade>> trade_publisher)
     : trade_publisher{std::move(trade_publisher)}, trade_container{trade_container},
       ticker{ticker} {
 }
