@@ -4,15 +4,35 @@
 #include <iostream>
 #include <print>
 
+using namespace engine;
+
 int main(int argc, char* argv[]) {
     auto me_cfg = argc < 2 ? "me.toml" : argv[1];
-    engine::MatchingEngineConfig matching_engine_config =
-        rfl::toml::load<engine::MatchingEngineConfig>(me_cfg).value();
+    MatchingEngineConfig matching_engine_config =
+        rfl::toml::load<MatchingEngineConfig>(me_cfg).value();
 
-    engine::MatchingEngine matching_engine{
+    MatchingEngineDependencyFactory dependency_factory{
+        .create_trade_publisher =
+            [](std::string_view symbol) {
+                return std::make_unique<SharedMemoryPublisher<Trade, TradeRingBuffer>>(
+                    TradeRingBuffer ::open_exist_shm(static_cast<std::string>(symbol) +
+                                                     core::constants::TRADE_SHM_FILE + "_" +
+                                                     SERVER_NAME));
+            },
+        .create_orderbook_snapshot_publisher =
+            [](std::string_view symbol) {
+                return std::make_unique<SharedMemoryPublisher<TopOrderBookLevelAggregates,
+                                                              OrderbookSnapshotRingBuffer>>(
+                    OrderbookSnapshotRingBuffer::open_exist_shm(
+                        static_cast<std::string>(symbol) +
+                        core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME));
+            }};
+
+    MatchingEngine matching_engine{
         matching_engine_config.matching_engine_host, matching_engine_config.matching_engine_port,
         matching_engine_config.active_symbols,
-        std::chrono::milliseconds{matching_engine_config.snapshot_flush_interval}};
+        std::chrono::milliseconds{matching_engine_config.snapshot_flush_interval},
+        dependency_factory};
 
     matching_engine.init();
     matching_engine.wait_for_connections();

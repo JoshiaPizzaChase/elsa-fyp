@@ -11,10 +11,17 @@
 namespace engine {
 using WebsocketManagerServer = transport::WebsocketManagerServer;
 
+struct MatchingEngineDependencyFactory {
+    std::function<std::unique_ptr<Publisher<Trade>>(std::string_view)> create_trade_publisher;
+    std::function<std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>(std::string_view)>
+        create_orderbook_snapshot_publisher;
+};
+
 class MatchingEngine {
   public:
     MatchingEngine(std::string_view host, int port, const std::vector<std::string>& active_symbols,
-                   std::chrono::milliseconds flush_interval);
+                   std::chrono::milliseconds flush_interval,
+                   MatchingEngineDependencyFactory dependency_factory);
     void init();
     void run();
     void wait_for_connections();
@@ -22,8 +29,8 @@ class MatchingEngine {
   private:
     WebsocketManagerServer inbound_ws_server;
 
-    std::unordered_map<std::string, SharedMemoryPublisher<TopOrderBookLevelAggregates,
-                                                          OrderbookSnapshotRingBuffer>>
+    std::unordered_map<std::string,
+                       std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>
         orderbook_snapshot_publishers; // One publisher for each symbol
     std::chrono::milliseconds flush_interval;
 

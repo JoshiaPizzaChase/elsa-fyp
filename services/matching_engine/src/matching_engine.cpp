@@ -16,23 +16,21 @@ static std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::
 
 MatchingEngine::MatchingEngine(std::string_view host, int port,
                                const std::vector<std::string>& active_symbols,
-                               std::chrono::milliseconds flush_interval)
+                               std::chrono::milliseconds flush_interval,                               MatchingEngineDependencyFactory dependency_factory)
     : inbound_ws_server{port, host, logger}, flush_interval{flush_interval},
       incoming_request_connection_id{}, order_response_connection_id{} {
 
     for (const auto& symbol : active_symbols) {
         limit_order_books.emplace(
             symbol,
+
             LimitOrderBook{symbol, this->trade_events,
-                           std::make_unique<SharedMemoryPublisher<Trade, TradeRingBuffer>>(
-                               TradeRingBuffer ::open_exist_shm(
-                                   symbol + core::constants::TRADE_SHM_FILE + "_" + SERVER_NAME))});
+                           dependency_factory.create_trade_publisher(symbol)});
 
         orderbook_snapshot_publishers.emplace(
             symbol,
-            SharedMemoryPublisher<TopOrderBookLevelAggregates, OrderbookSnapshotRingBuffer>(
-                OrderbookSnapshotRingBuffer::open_exist_shm(
-                    symbol + core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME)));
+
+            dependency_factory.create_orderbook_snapshot_publisher(symbol));
     }
 }
 

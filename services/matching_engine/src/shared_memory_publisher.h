@@ -3,6 +3,7 @@
 
 #include <algorithm>
 
+namespace engine {
 template <typename T, typename RingBufferT>
 class SharedMemoryPublisher final : public Publisher<T> {
   public:
@@ -15,3 +16,4 @@ class SharedMemoryPublisher final : public Publisher<T> {
   private:
     RingBufferT ring_buffer;
 };
+} // namespace engine
