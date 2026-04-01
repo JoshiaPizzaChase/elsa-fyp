@@ -9,7 +9,7 @@
 namespace engine {
 LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
                                std::unique_ptr<Publisher<Trade>> trade_publisher)
-    : trade_publisher{std::move(trade_publisher)}, trade_container{trade_container},
+    : trade_publisher{std::move(trade_publisher)}, trade_events{trade_container},
       ticker{ticker} {
 }
 
@@ -57,7 +57,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                                                front_order.get_trader_id(), ticker,
                                                front_order.get_price(), order_quantity, side);
                 trade_publisher->try_publish(new_trade);
-                trade_container.emplace(new_trade);
+                trade_events.emplace(new_trade);
 
                 std::cout << "New trade: " << new_trade << std::endl;
 
@@ -70,7 +70,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                                                front_order.get_trader_id(), ticker,
                                                front_order.get_price(), remaining_quantity, side);
                 trade_publisher->try_publish(new_trade);
-                trade_container.emplace(new_trade);
+                trade_events.emplace(new_trade);
                 remaining_quantity = 0;
             }
         }

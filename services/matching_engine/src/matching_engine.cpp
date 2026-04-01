@@ -17,11 +17,8 @@ static std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::
 MatchingEngine::MatchingEngine(std::string_view host, int port,
                                const std::vector<std::string>& active_symbols,
                                std::chrono::milliseconds flush_interval)
-    : inbound_ws_server{port, host, logger},
-      shm_orderbook_snapshot{OrderbookSnapshotRingBuffer::open_exist_shm(
-          core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME)},
-      flush_interval{flush_interval}, incoming_request_connection_id{},
-      order_response_connection_id{} {
+    : inbound_ws_server{port, host, logger}, flush_interval{flush_interval},
+      incoming_request_connection_id{}, order_response_connection_id{} {
 
     for (const auto& symbol : active_symbols) {
         limit_order_books.emplace(
@@ -30,6 +27,12 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
                            std::make_unique<SharedMemoryPublisher<Trade, TradeRingBuffer>>(
                                TradeRingBuffer ::open_exist_shm(
                                    symbol + core::constants::TRADE_SHM_FILE + "_" + SERVER_NAME))});
+
+        orderbook_snapshot_publishers.emplace(
+            symbol,
+            SharedMemoryPublisher<TopOrderBookLevelAggregates, OrderbookSnapshotRingBuffer>(
+                OrderbookSnapshotRingBuffer::open_exist_shm(
+                    symbol + core::constants::ORDERBOOK_SNAPSHOT_SHM_FILE + "_" + SERVER_NAME)));
     }
 }
 
@@ -164,9 +167,11 @@ void MatchingEngine::run() {
 
             if (const auto now{std::chrono::steady_clock::now()};
                 now - last_flush > flush_interval) {
-                for (const auto& lob : limit_order_books) {
-                    auto snapshot{lob.second.get_top_order_book_level_aggregate()};
-                    if (!shm_orderbook_snapshot.try_push(snapshot)) {
+                for (const auto& [symbol, lob] : limit_order_books) {
+                    auto snapshot{lob.get_top_order_book_level_aggregate()};
+
+                    if (auto& symbol_snapshot_publisher = orderbook_snapshot_publishers.at(symbol);
+                        !symbol_snapshot_publisher.try_publish(snapshot)) {
                         std::cerr << "Failed to push snapshot " << "\n";
                     }
                 }

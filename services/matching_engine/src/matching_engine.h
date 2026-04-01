@@ -1,6 +1,7 @@
 #pragma once
 
 #include "limit_order_book.h"
+#include "shared_memory_publisher.h"
 #include "websocket_server.h"
 
 #include <queue>
@@ -21,15 +22,18 @@ class MatchingEngine {
   private:
     WebsocketManagerServer inbound_ws_server;
 
-    OrderbookSnapshotRingBuffer shm_orderbook_snapshot;
+    std::unordered_map<std::string, SharedMemoryPublisher<TopOrderBookLevelAggregates,
+                                                          OrderbookSnapshotRingBuffer>>
+        orderbook_snapshot_publishers; // One publisher for each symbol
     std::chrono::milliseconds flush_interval;
 
     int incoming_request_connection_id;
     int order_response_connection_id;
 
-    std::queue<Trade> trade_events;
+    std::queue<Trade> trade_events; // Container for limit order books to dump trade events
 
-    std::unordered_map<std::string, LimitOrderBook> limit_order_books;
+    std::unordered_map<std::string, LimitOrderBook>
+        limit_order_books; // One limit order book for each symbol
 };
 
 } // namespace engine

@@ -24,6 +24,12 @@ class LimitOrderBook {
     LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
                    std::unique_ptr<Publisher<Trade>> trade_publisher);
 
+    LimitOrderBook(const LimitOrderBook&) = delete;
+    LimitOrderBook& operator=(const LimitOrderBook&) = delete;
+
+    LimitOrderBook(LimitOrderBook&&) = default;
+    LimitOrderBook& operator=(LimitOrderBook&&) = delete;
+
     [[nodiscard]] std::string_view get_ticker() const;
 
     void add_order(int order_id, int price, int quantity, Side side, std::string_view broker_id);
@@ -45,7 +51,7 @@ class LimitOrderBook {
   private:
     std::unique_ptr<Publisher<Trade>> trade_publisher;
 
-    std::queue<Trade>& trade_container;
+    std::queue<Trade>& trade_events;
 
     std::string ticker{};
 
