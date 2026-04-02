@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include <core/constants.h>
 #include <database/database_client.h>
 #include <questdb/ingress/line_sender.hpp>
 
@@ -89,6 +90,10 @@ public:
         m_uat_server_ids.push_back(server_id);
 
         // Initial balances: USD cash + stock holdings per user.
+        // Balance in DB should be multiplied by square of decimal_to_int_multiplier
+        const int balance_multiplier_squared = static_cast<int>(
+            core::constants::decimal_to_int_multiplier * core::constants::decimal_to_int_multiplier);
+        
         struct BalanceSeed { int user_id; std::string symbol; int balance; };
         const std::vector<BalanceSeed> balances = {
             {admin_id,   "USD",   100000}, {admin_id,   "AAPL",  50},
@@ -100,7 +105,8 @@ public:
         };
 
         for (const auto& b : balances) {
-            auto res = m_db.insert_balance(b.user_id, server_id, b.symbol, b.balance);
+            const int scaled_balance = b.balance * balance_multiplier_squared;
+            auto res = m_db.insert_balance(b.user_id, server_id, b.symbol, scaled_balance);
             if (!res.has_value())
                 std::println("[UAT] Warning: balance insert failed (user={} sym={}): {}",
                              b.user_id, b.symbol, res.error());

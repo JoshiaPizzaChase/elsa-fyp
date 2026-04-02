@@ -272,6 +272,9 @@ bj::object RequestHandler::handle_user_servers(const boost::urls::params_view& p
     }
 
     bj::array arr;
+    const int balance_multiplier_squared = static_cast<int>(
+        core::constants::decimal_to_int_multiplier * core::constants::decimal_to_int_multiplier);
+    
     for (const auto& srv : result.value()) {
         bj::object obj;
         obj["server_id"]   = srv.server_id;
@@ -288,7 +291,7 @@ bj::object RequestHandler::handle_user_servers(const boost::urls::params_view& p
         for (const auto& b : srv.balances) {
             bj::object bo;
             bo["symbol"]  = b.symbol;
-            bo["balance"] = b.balance;
+            bo["balance"] = b.balance / balance_multiplier_squared;
             bal_arr.emplace_back(std::move(bo));
         }
         obj["balances"] = std::move(bal_arr);
@@ -383,14 +386,18 @@ bj::object RequestHandler::handle_account_details(const boost::urls::params_view
 
     res["role"] = details.role;
 
+    const int balance_multiplier_squared = static_cast<int>(
+        core::constants::decimal_to_int_multiplier * core::constants::decimal_to_int_multiplier);
+    
     bj::array bal_arr;
     int total_value = 0;
     for (const auto& b : details.balances) {
         bj::object bo;
         bo["symbol"]  = b.symbol;
-        bo["balance"] = b.balance;
+        const int scaled_balance = b.balance / balance_multiplier_squared;
+        bo["balance"] = scaled_balance;
         bal_arr.emplace_back(std::move(bo));
-        total_value += b.balance;
+        total_value += scaled_balance;
     }
     res["balances"]    = std::move(bal_arr);
     res["total_value"] = total_value;
@@ -612,6 +619,23 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         }
     };
 
+    // Create server and allowlist in database BEFORE deploying services
+    // This ensures OMS can initialize balances when it starts
+    std::vector<database::DatabaseClient::ServiceInsertRow> service_rows;
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::mdp, mdp_port});
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::me, me_port});
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::oms, oms_port});
+    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::gateway, gateway_port});
+
+    auto create_result = m_db_client.create_server_with_services(
+        server_name, caller_id, description, symbols, ids_result.value(), service_rows, initial_usd);
+    if (!create_result.has_value()) {
+        res["error"] = create_result.error();
+        return res;
+    }
+    int server_id = create_result.value();
+
+    // Now deploy the services - OMS can now read the server and allowlist from DB
     bj::object mdp_params;
     mdp_params["host"] = machine_ip;
     mdp_params["ws_port"] = mdp_port;
@@ -657,32 +681,6 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     if (!gateway_deploy_result.has_value()) {
         res["error"] = gateway_deploy_result.error();
         return res;
-    }
-
-    std::vector<database::DatabaseClient::ServiceInsertRow> service_rows;
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::mdp, mdp_port});
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::me, me_port});
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::oms, oms_port});
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::gateway, gateway_port});
-
-    auto create_result = m_db_client.create_server_with_services(
-        server_name, caller_id, description, symbols, ids_result.value(), service_rows, initial_usd);
-    if (!create_result.has_value()) {
-        res["error"] = create_result.error();
-        return res;
-    }
-    int server_id = create_result.value();
-
-    std::vector<int> balance_user_ids = ids_result.value();
-    if (std::ranges::find(balance_user_ids, caller_id) == balance_user_ids.end()) {
-        balance_user_ids.push_back(caller_id);
-    }
-    for (const int user_id : balance_user_ids) {
-        auto balance_result = m_db_client.insert_balance(user_id, server_id, "USD", initial_usd);
-        if (!balance_result.has_value()) {
-            res["error"] = balance_result.error();
-            return res;
-        }
     }
     auto create_table_res = m_db_client.create_quest_tables(server_name);
     if (!create_table_res.has_value()) {

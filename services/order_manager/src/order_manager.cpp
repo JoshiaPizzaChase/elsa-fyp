@@ -3,6 +3,7 @@
 
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
+#include <boost/contract/core/exception.hpp>
 #include <boost/uuid.hpp>
 
 namespace om {
@@ -13,7 +14,8 @@ struct overloaded : Ts... {
 };
 
 static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-    "order_manager_logger", std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
+    "order_manager_logger",
+    std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
 OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
     : inbound_ws_server{port, host, logger}, order_request_ws_client{logger},
@@ -27,8 +29,40 @@ OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
     logger->info("Order Manager constructed");
     logger->flush();
 
-    balance_checker.update_balance("CLIENT_1", "USD", 50000000);
-    balance_checker.update_balance("CLIENT_1", "TSLA", 50000);
+    // Initialize USD balances for users if not already present
+    if (SERVER_NAME != nullptr) {
+        std::string server_name(SERVER_NAME);
+        logger->info("Initializing balances for server: {}", server_name);
+
+        auto result = database_client.ensure_initial_usd_balances(server_name, 100000);
+        if (result.has_value()) {
+            logger->info("Initialized {} USD balances for server: {}", result.value(), server_name);
+        } else {
+            logger->error("Failed to initialize balances for server {}: {}", server_name,
+                          result.error());
+        }
+
+        // Load all user balances into the balance_checker
+        auto users_balances_result = database_client.get_all_users_balances_for_server(server_name);
+        if (users_balances_result.has_value()) {
+            const auto& users_balances = users_balances_result.value();
+            logger->info("Loading balances for {} users into balance_checker", users_balances.size());
+            
+            for (const auto& user_balance : users_balances) {
+                const std::string& username = user_balance.username;
+                for (const auto& balance : user_balance.balances) {
+                    // Initialize balance in balance_checker (delta of 0 just sets the balance)
+                    balance_checker.update_balance(username, balance.symbol, balance.balance);
+                    logger->info("Loaded balance for user {}: {} {}", username, balance.balance, balance.symbol);
+                }
+            }
+        } else {
+            logger->error("Failed to load balances into balance_checker: {}", 
+                          users_balances_result.error());
+        }
+    } else {
+        logger->warn("SERVER_NAME environment variable not set, skipping balance initialization");
+    }
 }
 
 std::expected<void, std::string> OrderManager::connect_matching_engine(std::string host, int port) {
