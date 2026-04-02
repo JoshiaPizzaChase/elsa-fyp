@@ -31,7 +31,8 @@ function LobbyPage() {
         const mdpEndpoint = (server.mdp_ip && server.mdp_port)
             ? `ws://${server.mdp_ip}:${server.mdp_port}`
             : '';
-        navigate(`/${server.server_name}/trading/AAPL`, {state: {mdpEndpoint}});
+        const firstSymbol = (server.active_symbols?.[0] ?? 'AAPL').toUpperCase();
+        navigate(`/${server.server_name}/trading/${firstSymbol}`, {state: {mdpEndpoint}});
     };
 
     return (

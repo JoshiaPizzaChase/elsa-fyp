@@ -4,7 +4,7 @@ import {createChart} from 'lightweight-charts';
 import useWebSocket from './hooks/useWebSocket';
 import OrderBook from './components/OrderBook';
 import RecentTrades from './components/RecentTrades';
-import TickerSelector, {DEFAULT_TICKERS} from './components/TickerSelector';
+import TickerSelector from './components/TickerSelector';
 import {getActiveSymbols, getHistoricalTrades, getServerMdpEndpoint} from './api';
 import './App.css';
 
@@ -24,7 +24,7 @@ function App() {
     const location = useLocation();
     const [mdpEndpoint, setMdpEndpoint] = useState(location.state?.mdpEndpoint ?? '');
 
-    const [activeTickers, setActiveTickers] = useState(DEFAULT_TICKERS);
+    const [activeTickers, setActiveTickers] = useState([]);
 
     useEffect(() => {
         if (!serverName) return;
@@ -50,13 +50,16 @@ function App() {
         if (!serverName) return;
         getActiveSymbols(serverName)
             .then((data) => {
-                const symbols = data.symbols ?? [];
-                if (symbols.length > 0) setActiveTickers(symbols);
+                const symbols = (data.symbols ?? []).map((s) => s.toUpperCase());
+                setActiveTickers(symbols);
             })
-            .catch((err) => console.error('Failed to fetch active symbols:', err));
+            .catch((err) => {
+                console.error('Failed to fetch active symbols:', err);
+                setActiveTickers([]);
+            });
     }, [serverName]);
 
-    const selectedTicker = activeTickers.includes(ticker?.toUpperCase()) ? ticker.toUpperCase() : (activeTickers[0] ?? 'AAPL');
+    const selectedTicker = ticker?.toUpperCase() ?? '';
     const selectedTickerRef = useRef(selectedTicker);
 
     const handleTickerChange = useCallback((newTicker) => {
@@ -69,6 +72,17 @@ function App() {
     const [recentTrades, setRecentTrades] = useState([]);
     const seenTradeIdsRef = useRef(new Set());
     const [selectedTimeframe, setSelectedTimeframe] = useState(TIMEFRAMES[0]);
+
+    useEffect(() => {
+        if (!serverName || activeTickers.length === 0) return;
+        const currentTicker = ticker?.toUpperCase();
+        if (!currentTicker || !activeTickers.includes(currentTicker)) {
+            navigate(`/${serverName}/trading/${activeTickers[0]}`, {
+                replace: true,
+                state: {mdpEndpoint},
+            });
+        }
+    }, [activeTickers, ticker, serverName, navigate, mdpEndpoint]);
 
     const chartContainerRef = useRef(null);
     const chartRef = useRef(null);
@@ -205,7 +219,7 @@ function App() {
     const handleMessage = useCallback((data) => {
         // Filter out messages that don't match the selected ticker
         const msgTicker = data.ticker ?? data.symbol;
-        if (msgTicker && msgTicker.toUpperCase() !== selectedTickerRef.current) {
+        if (!msgTicker || msgTicker.toUpperCase() !== selectedTickerRef.current) {
             return;
         }
 

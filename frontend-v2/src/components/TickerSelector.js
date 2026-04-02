@@ -8,7 +8,7 @@ const TickerSelector = ({selectedTicker, onTickerChange, tickers}) => {
         <div className="ticker-selector">
             <select
                 className="ticker-dropdown"
-                value={selectedTicker}
+                value={selectedTicker || list[0]}
                 onChange={(e) => onTickerChange(e.target.value)}
             >
                 {list.map(ticker => (
@@ -21,4 +21,3 @@ const TickerSelector = ({selectedTicker, onTickerChange, tickers}) => {
 
 export {DEFAULT_TICKERS};
 export default TickerSelector;
-
