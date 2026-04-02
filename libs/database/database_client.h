@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <core/constants.h>
 #include <core/containers.h>
 #include <core/orders.h>
 #include <core/service.h>
@@ -24,8 +25,10 @@
 #define ORDERS_TABLE (std::string("orders_") + SERVER_NAME)
 #define TRADES_TABLE (std::string("trades_") + SERVER_NAME)
 
-inline questdb::ingress::table_name_view TRADES_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), TRADES_TABLE.length()};
-inline questdb::ingress::table_name_view ORDERS_TABLE_NAME_VIEW{TRADES_TABLE.c_str(), ORDERS_TABLE.length()};
+inline questdb::ingress::table_name_view TRADES_TABLE_NAME_VIEW{TRADES_TABLE.c_str(),
+                                                                TRADES_TABLE.length()};
+inline questdb::ingress::table_name_view ORDERS_TABLE_NAME_VIEW{TRADES_TABLE.c_str(),
+                                                                ORDERS_TABLE.length()};
 
 namespace database {
 
@@ -293,7 +296,7 @@ class AsyncWriter {
 
     void append(const TradeInsertionTask& trade_task) {
         const auto trade{trade_task.trade};
-        
+
         try {
             const auto trades_table = TRADES_TABLE_NAME_VIEW;
             const auto symbol = "symbol"_cn;
@@ -705,36 +708,34 @@ class DatabaseClient {
 
             const bool has_initial_usd = servers_has_initial_usd_column(txn);
             auto res = has_initial_usd
-                           ? txn.exec(
-                                 "SELECT s.server_id, s.server_name, s.description, "
-                                 "s.active_tickers, s.initial_usd, "
-                                 "u_admin.username AS admin_name, u.user_id, "
-                                 "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' "
-                                 "END AS role "
-                                 "FROM users u "
-                                 "JOIN servers s ON s.server_name = $2 "
-                                 "JOIN users u_admin ON u_admin.user_id = s.admin_id "
-                                 "WHERE u.username = $1 "
-                                 "AND (s.admin_id = u.user_id "
-                                 "     OR EXISTS (SELECT 1 FROM allowlist a "
-                                 "                WHERE a.server_id = s.server_id AND "
-                                 "a.user_id = u.user_id))",
-                                 pqxx::params{username, server_name})
-                           : txn.exec(
-                                 "SELECT s.server_id, s.server_name, s.description, "
-                                 "s.active_tickers, "
-                                 "u_admin.username AS admin_name, u.user_id, "
-                                 "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' "
-                                 "END AS role "
-                                 "FROM users u "
-                                 "JOIN servers s ON s.server_name = $2 "
-                                 "JOIN users u_admin ON u_admin.user_id = s.admin_id "
-                                 "WHERE u.username = $1 "
-                                 "AND (s.admin_id = u.user_id "
-                                 "     OR EXISTS (SELECT 1 FROM allowlist a "
-                                 "                WHERE a.server_id = s.server_id AND "
-                                 "a.user_id = u.user_id))",
-                                 pqxx::params{username, server_name});
+                           ? txn.exec("SELECT s.server_id, s.server_name, s.description, "
+                                      "s.active_tickers, s.initial_usd, "
+                                      "u_admin.username AS admin_name, u.user_id, "
+                                      "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' "
+                                      "END AS role "
+                                      "FROM users u "
+                                      "JOIN servers s ON s.server_name = $2 "
+                                      "JOIN users u_admin ON u_admin.user_id = s.admin_id "
+                                      "WHERE u.username = $1 "
+                                      "AND (s.admin_id = u.user_id "
+                                      "     OR EXISTS (SELECT 1 FROM allowlist a "
+                                      "                WHERE a.server_id = s.server_id AND "
+                                      "a.user_id = u.user_id))",
+                                      pqxx::params{username, server_name})
+                           : txn.exec("SELECT s.server_id, s.server_name, s.description, "
+                                      "s.active_tickers, "
+                                      "u_admin.username AS admin_name, u.user_id, "
+                                      "CASE WHEN s.admin_id = u.user_id THEN 'admin' ELSE 'member' "
+                                      "END AS role "
+                                      "FROM users u "
+                                      "JOIN servers s ON s.server_name = $2 "
+                                      "JOIN users u_admin ON u_admin.user_id = s.admin_id "
+                                      "WHERE u.username = $1 "
+                                      "AND (s.admin_id = u.user_id "
+                                      "     OR EXISTS (SELECT 1 FROM allowlist a "
+                                      "                WHERE a.server_id = s.server_id AND "
+                                      "a.user_id = u.user_id))",
+                                      pqxx::params{username, server_name});
             if (res.empty())
                 return std::nullopt;
 
@@ -820,22 +821,21 @@ class DatabaseClient {
                                      const std::vector<std::string>& symbols,
                                      const std::vector<int>& allowlist_user_ids,
                                      const std::vector<ServiceInsertRow>& services,
-                                     int initial_usd = 100000)
-        -> std::expected<int, std::string> {
+                                     int initial_usd = 100000) -> std::expected<int, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
             const std::string arr = build_pg_array(symbols);
             const bool has_initial_usd = servers_has_initial_usd_column(txn);
-            auto res = has_initial_usd
-                           ? txn.exec("INSERT INTO servers (server_name, admin_id, description, "
-                                      "active_tickers, initial_usd) "
-                                      "VALUES ($1, $2, $3, $4::varchar[], $5) RETURNING server_id",
-                                      pqxx::params{server_name, admin_id, description, arr,
-                                                   initial_usd})
-                           : txn.exec("INSERT INTO servers (server_name, admin_id, description, "
-                                      "active_tickers) "
-                                      "VALUES ($1, $2, $3, $4::varchar[]) RETURNING server_id",
-                                      pqxx::params{server_name, admin_id, description, arr});
+            auto res =
+                has_initial_usd
+                    ? txn.exec("INSERT INTO servers (server_name, admin_id, description, "
+                               "active_tickers, initial_usd) "
+                               "VALUES ($1, $2, $3, $4::varchar[], $5) RETURNING server_id",
+                               pqxx::params{server_name, admin_id, description, arr, initial_usd})
+                    : txn.exec("INSERT INTO servers (server_name, admin_id, description, "
+                               "active_tickers) "
+                               "VALUES ($1, $2, $3, $4::varchar[]) RETURNING server_id",
+                               pqxx::params{server_name, admin_id, description, arr});
             if (res.empty())
                 return std::unexpected{std::string{"Failed to create server"}};
             const int server_id = res[0]["server_id"].as<int>();
@@ -893,9 +893,8 @@ class DatabaseClient {
     auto delete_server(std::string_view server_name) -> std::expected<bool, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
-            auto srv_res =
-                txn.exec("SELECT server_id FROM servers WHERE server_name = $1",
-                         pqxx::params{server_name});
+            auto srv_res = txn.exec("SELECT server_id FROM servers WHERE server_name = $1",
+                                    pqxx::params{server_name});
             if (srv_res.empty())
                 return false;
             const int server_id = srv_res[0]["server_id"].as<int>();
@@ -1035,7 +1034,6 @@ class DatabaseClient {
         int port{};
     };
 
-
     auto query_services() const -> std::expected<std::vector<ServiceRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -1064,7 +1062,8 @@ class DatabaseClient {
         }
     }
 
-    auto query_services(const std::string_view machine_name) const -> std::expected<std::vector<ServiceRow>, std::string> {
+    auto query_services(const std::string_view machine_name) const
+        -> std::expected<std::vector<ServiceRow>, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
             auto res = txn.exec("SELECT "
@@ -1089,7 +1088,8 @@ class DatabaseClient {
             }
             return result;
         } catch (const std::exception& e) {
-            return std::unexpected{std::format("Error getting services of machine {}: {}", machine_name, e.what())};
+            return std::unexpected{
+                std::format("Error getting services of machine {}: {}", machine_name, e.what())};
         }
     }
 
@@ -1210,6 +1210,171 @@ class DatabaseClient {
         }
     }
 
+    // Get all user_ids from allowlist for a given server_id
+    auto get_users_by_server(int server_id) -> std::expected<std::vector<int>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            auto res = txn.exec("SELECT user_id FROM allowlist WHERE server_id = $1",
+                               pqxx::params{server_id});
+            txn.commit();
+            
+            std::vector<int> user_ids;
+            user_ids.reserve(res.size());
+            for (const auto& row : res) {
+                user_ids.push_back(row["user_id"].as<int>());
+            }
+            return user_ids;
+        } catch (const std::exception& e) {
+            return std::unexpected{std::format("Error getting users by server: {}", e.what())};
+        }
+    }
+
+    // Initialize USD balances for all users in a server (admin + allowlist) if not already present.
+    // This is done in a single transaction to avoid multiple database round trips.
+    auto ensure_initial_usd_balances(std::string_view server_name, int initial_usd_amount)
+        -> std::expected<int, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+
+            // Get server details
+            const bool has_initial_usd = servers_has_initial_usd_column(txn);
+            auto server_res =
+                has_initial_usd
+                    ? txn.exec("SELECT server_id, admin_id, initial_usd FROM servers WHERE "
+                               "server_name = $1",
+                               pqxx::params{server_name})
+                    : txn.exec("SELECT server_id, admin_id FROM servers WHERE server_name = $1",
+                               pqxx::params{server_name});
+
+            if (server_res.empty()) {
+                return std::unexpected{
+                    std::format("Server not found: {}", std::string(server_name))};
+            }
+
+            const auto& server_row = server_res[0];
+            int server_id = server_row["server_id"].as<int>();
+            int admin_id = server_row["admin_id"].as<int>();
+            int initial_usd = has_initial_usd ? server_row["initial_usd"].as<int>(initial_usd_amount)
+                                              : initial_usd_amount;
+
+            // Get all users from allowlist
+            auto allowlist_res =
+                txn.exec("SELECT user_id FROM allowlist WHERE server_id = $1", pqxx::params{server_id});
+
+            // Collect all user IDs (allowlist + admin)
+            std::vector<int> user_ids;
+            user_ids.reserve(allowlist_res.size() + 1);
+            for (const auto& row : allowlist_res) {
+                user_ids.push_back(row["user_id"].as<int>());
+            }
+            // Add admin if not already in the list
+            if (std::find(user_ids.begin(), user_ids.end(), admin_id) == user_ids.end()) {
+                user_ids.push_back(admin_id);
+            }
+
+            // Insert USD balance for each user if not already present
+            // Using INSERT ... ON CONFLICT DO NOTHING to avoid errors on duplicates
+            int inserted_count = 0;
+            for (int user_id : user_ids) {
+                // Calculate balance as integer to avoid scientific notation in SQL
+                int balance = static_cast<int>(
+                    initial_usd * core::constants::decimal_to_int_multiplier *
+                    core::constants::decimal_to_int_multiplier);
+                
+                auto result = txn.exec(
+                    "INSERT INTO balances (user_id, server_id, symbol, balance) "
+                    "VALUES ($1, $2, 'USD', $3) ON CONFLICT (user_id, server_id, symbol) DO NOTHING",
+                    pqxx::params{user_id, server_id, balance});
+                inserted_count += result.affected_rows();
+            }
+
+            txn.commit();
+            return inserted_count;
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error ensuring initial USD balances: {}", e.what())};
+        }
+    }
+
+    struct UserBalanceInfo {
+        std::string username;
+        std::vector<BalanceRow> balances;
+    };
+
+    // Get all users (including admin) and their balances for a given server.
+    // Returns a map of username -> balances for efficient lookup.
+    auto get_all_users_balances_for_server(std::string_view server_name)
+        -> std::expected<std::vector<UserBalanceInfo>, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+
+            // Get server_id and admin_id
+            auto server_res = txn.exec(
+                "SELECT server_id, admin_id FROM servers WHERE server_name = $1",
+                pqxx::params{server_name});
+
+            if (server_res.empty()) {
+                return std::unexpected{
+                    std::format("Server not found: {}", std::string(server_name))};
+            }
+
+            int server_id = server_res[0]["server_id"].as<int>();
+            int admin_id = server_res[0]["admin_id"].as<int>();
+
+            // Get all users from allowlist + admin
+            auto allowlist_res = txn.exec(
+                "SELECT user_id FROM allowlist WHERE server_id = $1",
+                pqxx::params{server_id});
+
+            std::vector<int> user_ids;
+            user_ids.reserve(allowlist_res.size() + 1);
+            for (const auto& row : allowlist_res) {
+                user_ids.push_back(row["user_id"].as<int>());
+            }
+            // Add admin if not already in the list
+            if (std::find(user_ids.begin(), user_ids.end(), admin_id) == user_ids.end()) {
+                user_ids.push_back(admin_id);
+            }
+
+            // Get usernames and balances for all users in a single query
+            std::vector<UserBalanceInfo> result;
+            result.reserve(user_ids.size());
+
+            for (int user_id : user_ids) {
+                // Get username
+                auto user_res = txn.exec(
+                    "SELECT username FROM users WHERE user_id = $1",
+                    pqxx::params{user_id});
+                
+                if (user_res.empty()) {
+                    continue; // Skip if user not found
+                }
+
+                std::string username = user_res[0]["username"].as<std::string>();
+
+                // Get all balances for this user
+                auto balance_res = txn.exec(
+                    "SELECT symbol, balance FROM balances WHERE user_id = $1 AND server_id = $2",
+                    pqxx::params{user_id, server_id});
+
+                std::vector<BalanceRow> balances;
+                balances.reserve(balance_res.size());
+                for (const auto& row : balance_res) {
+                    balances.emplace_back(
+                        BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
+                }
+
+                result.emplace_back(UserBalanceInfo{std::move(username), std::move(balances)});
+            }
+
+            txn.commit();
+            return result;
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error getting users and balances: {}", e.what())};
+        }
+    }
+
     // Remove UAT-generated rows from PostgreSQL.
     // Deletes in dependency order: allowlist -> balances -> servers -> users.
     auto delete_uat_data(const std::vector<int>& user_ids, const std::vector<int>& server_ids)
@@ -1238,39 +1403,43 @@ class DatabaseClient {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
-            auto trades_create_sql = std::format("CREATE TABLE IF NOT EXISTS trades_{} "
-                        "(ts TIMESTAMP,"
-                        "price INT,"
-                        "quantity INT,"
-                        "symbol SYMBOL,"
-                        "trade_id INT,"
-                        "taker_id INT,"
-                        "maker_id INT,"
-                        "taker_order_id INT,"
-                        "maker_order_id INT,"
-                        "is_taker_buyer BOOLEAN ) TIMESTAMP(ts) PARTITION BY DAY "
-                        "DEDUP UPSERT KEYS(ts, trade_id);", server_name);
+            auto trades_create_sql =
+                std::format("CREATE TABLE IF NOT EXISTS trades_{} "
+                            "(ts TIMESTAMP,"
+                            "price INT,"
+                            "quantity INT,"
+                            "symbol SYMBOL,"
+                            "trade_id INT,"
+                            "taker_id INT,"
+                            "maker_id INT,"
+                            "taker_order_id INT,"
+                            "maker_order_id INT,"
+                            "is_taker_buyer BOOLEAN ) TIMESTAMP(ts) PARTITION BY DAY "
+                            "DEDUP UPSERT KEYS(ts, trade_id);",
+                            server_name);
             txn.exec(trades_create_sql);
             auto orders_create_sql = std::format("CREATE TABLE IF NOT EXISTS orders_{} "
-                        "(ts TIMESTAMP,"
-                        "order_id INT,"
-                        "cl_order_id INT,"
-                        "sender_comp_id VARCHAR,"
-                        "symbol SYMBOL,"
-                        "side SYMBOL,"
-                        "order_qty INT,"
-                        "filled_qty INT,"
-                        "ord_type SYMBOL,"
-                        "price INT,"
-                        "time_in_force SYMBOL,"
-                        "order_status SYMBOL"
-                        ") TIMESTAMP(ts) PARTITION BY DAY "
-                        "DEDUP UPSERT KEYS(ts, order_id);", server_name);
+                                                 "(ts TIMESTAMP,"
+                                                 "order_id INT,"
+                                                 "cl_order_id INT,"
+                                                 "sender_comp_id VARCHAR,"
+                                                 "symbol SYMBOL,"
+                                                 "side SYMBOL,"
+                                                 "order_qty INT,"
+                                                 "filled_qty INT,"
+                                                 "ord_type SYMBOL,"
+                                                 "price INT,"
+                                                 "time_in_force SYMBOL,"
+                                                 "order_status SYMBOL"
+                                                 ") TIMESTAMP(ts) PARTITION BY DAY "
+                                                 "DEDUP UPSERT KEYS(ts, order_id);",
+                                                 server_name);
             txn.exec(orders_create_sql);
             txn.commit();
             return {};
         } catch (const std::exception& e) {
-            return std::unexpected{std::format("Error creating orders and trades table for server {}: {}", server_name, e.what())};
+            return std::unexpected{std::format(
+                "Error creating orders and trades table for server {}: {}", server_name, e.what())};
         }
     }
 
@@ -1284,7 +1453,8 @@ class DatabaseClient {
             txn.commit();
             return {};
         } catch (const std::exception& e) {
-            return std::unexpected{std::format("Error dropping quest db table for server {}: {}", server_name, e.what())};
+            return std::unexpected{std::format("Error dropping quest db table for server {}: {}",
+                                               server_name, e.what())};
         }
     }
 
@@ -1317,7 +1487,7 @@ class DatabaseClient {
     // These seemed to fix them, however if we want fast initial connections we want to pre-call
     // them for hot paths.
     void ensure_timeseries_connection() {
-        if (!m_timeseries_db_sql_connection) {
+        if (!m_timeseries_db_sql_connection || !m_timeseries_db_sql_connection->is_open()) {
             m_timeseries_db_sql_connection = std::make_unique<pqxx::connection>(
                 "host=localhost port=8812 user=admin password=quest dbname=qdb");
         }
@@ -1334,10 +1504,9 @@ class DatabaseClient {
         if (m_has_servers_initial_usd_column.has_value()) {
             return m_has_servers_initial_usd_column.value();
         }
-        auto res = txn.exec(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_schema = 'public' AND table_name = 'servers' "
-            "AND column_name = 'initial_usd'");
+        auto res = txn.exec("SELECT 1 FROM information_schema.columns "
+                            "WHERE table_schema = 'public' AND table_name = 'servers' "
+                            "AND column_name = 'initial_usd'");
         m_has_servers_initial_usd_column = !res.empty();
         return m_has_servers_initial_usd_column.value();
     }
