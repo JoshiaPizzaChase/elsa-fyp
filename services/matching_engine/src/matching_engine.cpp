@@ -1,6 +1,7 @@
 #include "matching_engine.h"
 
 #include "core/containers.h"
+#include "shared_memory_publisher.h"
 #include "transport/messaging.h"
 
 namespace engine {
