@@ -7,7 +7,8 @@
 #include <core/orders.h>
 #include <core/service.h>
 #include <core/thread_safe_queue.h>
-// #include <core/trade.h>
+#include "config.h"
+#include <cstdlib>
 #include <expected>
 #include <format>
 #include <memory>
@@ -18,8 +19,6 @@
 #include <string_view>
 #include <thread>
 #include <vector>
-#include <cstdlib>
-#include "config.h"
 
 // These macros are only used for those server-specific services, e.g. OMS
 #define ORDERS_TABLE (std::string("orders_") + SERVER_NAME)
@@ -1215,9 +1214,9 @@ class DatabaseClient {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
             auto res = txn.exec("SELECT user_id FROM allowlist WHERE server_id = $1",
-                               pqxx::params{server_id});
+                                pqxx::params{server_id});
             txn.commit();
-            
+
             std::vector<int> user_ids;
             user_ids.reserve(res.size());
             for (const auto& row : res) {
@@ -1254,12 +1253,13 @@ class DatabaseClient {
             const auto& server_row = server_res[0];
             int server_id = server_row["server_id"].as<int>();
             int admin_id = server_row["admin_id"].as<int>();
-            int initial_usd = has_initial_usd ? server_row["initial_usd"].as<int>(initial_usd_amount)
-                                              : initial_usd_amount;
+            int initial_usd = has_initial_usd
+                                  ? server_row["initial_usd"].as<int>(initial_usd_amount)
+                                  : initial_usd_amount;
 
             // Get all users from allowlist
-            auto allowlist_res =
-                txn.exec("SELECT user_id FROM allowlist WHERE server_id = $1", pqxx::params{server_id});
+            auto allowlist_res = txn.exec("SELECT user_id FROM allowlist WHERE server_id = $1",
+                                          pqxx::params{server_id});
 
             // Collect all user IDs (allowlist + admin)
             std::vector<int> user_ids;
@@ -1277,14 +1277,14 @@ class DatabaseClient {
             int inserted_count = 0;
             for (int user_id : user_ids) {
                 // Calculate balance as integer to avoid scientific notation in SQL
-                int balance = static_cast<int>(
-                    initial_usd * core::constants::decimal_to_int_multiplier *
-                    core::constants::decimal_to_int_multiplier);
-                
-                auto result = txn.exec(
-                    "INSERT INTO balances (user_id, server_id, symbol, balance) "
-                    "VALUES ($1, $2, 'USD', $3) ON CONFLICT (user_id, server_id, symbol) DO NOTHING",
-                    pqxx::params{user_id, server_id, balance});
+                int balance =
+                    static_cast<int>(initial_usd * core::constants::decimal_to_int_multiplier *
+                                     core::constants::decimal_to_int_multiplier);
+
+                auto result = txn.exec("INSERT INTO balances (user_id, server_id, symbol, balance) "
+                                       "VALUES ($1, $2, 'USD', $3) ON CONFLICT (user_id, "
+                                       "server_id, symbol) DO NOTHING",
+                                       pqxx::params{user_id, server_id, balance});
                 inserted_count += result.affected_rows();
             }
 
@@ -1309,9 +1309,9 @@ class DatabaseClient {
             pqxx::work txn{*m_core_db_sql_connection};
 
             // Get server_id and admin_id
-            auto server_res = txn.exec(
-                "SELECT server_id, admin_id FROM servers WHERE server_name = $1",
-                pqxx::params{server_name});
+            auto server_res =
+                txn.exec("SELECT server_id, admin_id FROM servers WHERE server_name = $1",
+                         pqxx::params{server_name});
 
             if (server_res.empty()) {
                 return std::unexpected{
@@ -1322,9 +1322,8 @@ class DatabaseClient {
             int admin_id = server_res[0]["admin_id"].as<int>();
 
             // Get all users from allowlist + admin
-            auto allowlist_res = txn.exec(
-                "SELECT user_id FROM allowlist WHERE server_id = $1",
-                pqxx::params{server_id});
+            auto allowlist_res = txn.exec("SELECT user_id FROM allowlist WHERE server_id = $1",
+                                          pqxx::params{server_id});
 
             std::vector<int> user_ids;
             user_ids.reserve(allowlist_res.size() + 1);
@@ -1342,10 +1341,9 @@ class DatabaseClient {
 
             for (int user_id : user_ids) {
                 // Get username
-                auto user_res = txn.exec(
-                    "SELECT username FROM users WHERE user_id = $1",
-                    pqxx::params{user_id});
-                
+                auto user_res = txn.exec("SELECT username FROM users WHERE user_id = $1",
+                                         pqxx::params{user_id});
+
                 if (user_res.empty()) {
                     continue; // Skip if user not found
                 }
@@ -1370,8 +1368,7 @@ class DatabaseClient {
             txn.commit();
             return result;
         } catch (const std::exception& e) {
-            return std::unexpected{
-                std::format("Error getting users and balances: {}", e.what())};
+            return std::unexpected{std::format("Error getting users and balances: {}", e.what())};
         }
     }
 
