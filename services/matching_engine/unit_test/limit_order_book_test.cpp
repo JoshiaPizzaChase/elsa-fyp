@@ -6,7 +6,7 @@ using namespace engine;
 constexpr std::string_view TEST_TICKER{"GME"};
 constexpr std::string_view TEST_BROKER{"BROKER_1"};
 
-class FakeTradePublisher : public Publisher<Trade> {
+class StubTradePublisher : public Publisher<Trade> {
   public:
     bool try_publish(Trade& trade) override {
         return true;
@@ -17,7 +17,7 @@ class GettersTest : public testing::Test {
   protected:
     std::queue<Trade> trade_events{};
     LimitOrderBook limit_order_book{TEST_TICKER, trade_events,
-                                    std::make_unique<FakeTradePublisher>()};
+                                    std::make_unique<StubTradePublisher>()};
 
     void SetUp() override {
         limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
@@ -63,7 +63,7 @@ class MatchingLogicTest : public testing::Test {
   protected:
     std::queue<Trade> trade_events{};
     LimitOrderBook limit_order_book{TEST_TICKER, trade_events,
-                                    std::make_unique<FakeTradePublisher>()};
+                                    std::make_unique<StubTradePublisher>()};
 };
 using MatchingLogicDeathTest = MatchingLogicTest;
 
@@ -499,7 +499,7 @@ class CancelOrderTest : public testing::Test {
   protected:
     std::queue<Trade> trade_events{};
     LimitOrderBook limit_order_book{TEST_TICKER, trade_events,
-                                    std::make_unique<FakeTradePublisher>()};
+                                    std::make_unique<StubTradePublisher>()};
 
     void SetUp() override {
         limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
@@ -523,7 +523,7 @@ class LevelAggregateTest : public testing::Test {
   protected:
     std::queue<Trade> trade_events{};
     LimitOrderBook limit_order_book{TEST_TICKER, trade_events,
-                                    std::make_unique<FakeTradePublisher>()};
+                                    std::make_unique<StubTradePublisher>()};
 
     void SetUp() override {
         limit_order_book.add_order(0, 100, 10, Side::bid, TEST_BROKER);
@@ -572,7 +572,7 @@ TEST_F(LevelAggregateTest, GetLevelAggregate) {
 TEST_F(LevelAggregateTest, GetTopOrderBookAggregate) {
     // Empty Order Book
     const auto empty_limit_order_book =
-        LimitOrderBook{TEST_TICKER, trade_events, std::make_unique<FakeTradePublisher>()};
+        LimitOrderBook{TEST_TICKER, trade_events, std::make_unique<StubTradePublisher>()};
     const auto empty_lob_top_aggregate =
         empty_limit_order_book.get_top_order_book_level_aggregate();
 
@@ -617,7 +617,7 @@ class FillCostQueryTest : public testing::Test {
   protected:
     std::queue<Trade> trade_events{};
     LimitOrderBook limit_order_book{TEST_TICKER, trade_events,
-                                    std::make_unique<FakeTradePublisher>()};
+                                    std::make_unique<StubTradePublisher>()};
 };
 using FillCostQueryDeathTest = FillCostQueryTest;
 
