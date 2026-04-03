@@ -37,12 +37,18 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
     }
 }
 
-void MatchingEngine::init() {
-    // TODO: Handle websocket start error after Websocket's error handling is updated
-    inbound_server->start();
-
-    logger->info("Matching Engine starts accepting connections");
-    logger->flush();
+void MatchingEngine::init() const {
+    const auto start_res = inbound_server->start();
+    std::ignore = start_res
+                      .transform([] {
+                          logger->info("[ME] ]Matching Engine starts accepting connections");
+                          logger->flush();
+                      })
+                      .or_else([](int) -> std::expected<void, int> {
+                          logger->error("[ME] Failed to start inbound websocket server");
+                          std::terminate();
+                          return {};
+                      });
 }
 
 // Spin locks until matching engine has two connections from OMS
@@ -178,5 +184,15 @@ void MatchingEngine::run() {
             }
         }
     }
+}
+
+const std::unordered_map<std::string, LimitOrderBook>&
+MatchingEngine::get_limit_order_books() const {
+    return limit_order_books;
+}
+
+const std::unordered_map<std::string, std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>&
+MatchingEngine::get_snapshot_publishers() const {
+    return orderbook_snapshot_publishers;
 }
 } // namespace engine

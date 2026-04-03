@@ -28,9 +28,13 @@ class MatchingEngine {
     MatchingEngine(std::string_view host, int port, const std::vector<std::string>& active_symbols,
                    std::chrono::milliseconds flush_interval,
                    const MatchingEngineDependencyFactory& dependency_factory);
-    void init();
+    void init() const;
     void run();
     void wait_for_connections();
+
+    const std::unordered_map<std::string, LimitOrderBook>& get_limit_order_books() const;
+    const std::unordered_map<std::string, std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>&
+    get_snapshot_publishers() const;
 
   private:
     std::unique_ptr<InboundServer> inbound_server;
