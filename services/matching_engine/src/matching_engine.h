@@ -32,8 +32,10 @@ class MatchingEngine {
     void run();
     void wait_for_connections();
 
-    const std::unordered_map<std::string, LimitOrderBook>& get_limit_order_books() const;
-    const std::unordered_map<std::string, std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>&
+    [[nodiscard]] const std::unordered_map<std::string, LimitOrderBook>&
+    get_limit_order_books() const;
+    [[nodiscard]] const std::unordered_map<std::string,
+                                           std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>&
     get_snapshot_publishers() const;
 
   private:
