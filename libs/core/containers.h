@@ -44,7 +44,9 @@ struct ExecutionReportContainer {
     ExecTransType exec_trans_type;     // Describes the type of execution report.
     ExecType exec_type;                // Order event that caused the issuance of this report.
     OrderStatus ord_status;            // Always the order status.
-    std::optional<std::string> text; // Instead of using ord_reject_reason, which does not have the vals we want (e.g. insufficient balance), we went with text instead.
+    std::optional<std::string>
+        text; // Instead of using ord_reject_reason, which does not have the vals we want (e.g.
+              // insufficient balance), we went with text instead.
     std::string symbol;
     Side side;
     std::optional<std::int32_t> price; // Only required in response to limit orders.
@@ -89,3 +91,97 @@ using Container = std::variant<core::NewOrderSingleContainer, core::CancelOrderR
                                core::CancelOrderResponseContainer>;
 
 } // namespace core
+
+template <>
+struct std::formatter<core::NewOrderSingleContainer> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const core::NewOrderSingleContainer& nosc, FormatContext& ctx) const {
+        return std::format_to(ctx.out(),
+                              "NewOrderSingleContainer{{sender_comp_id: {}, target_comp_id: {}, "
+                              "order_id: {}, cl_ord_id: {}, symbol: {}, side: {}, order_qty: {}, "
+                              "ord_type: {}, price: {}, time_in_force: {}}}",
+                              nosc.sender_comp_id, nosc.target_comp_id, nosc.order_id.value_or(-1),
+                              nosc.cl_ord_id, nosc.symbol, nosc.side, nosc.order_qty, nosc.ord_type,
+                              nosc.price.value_or(-1), nosc.time_in_force);
+    }
+};
+
+template <>
+struct std::formatter<core::TradeContainer> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const core::TradeContainer& tc, FormatContext& ctx) const {
+        return std::format_to(ctx.out(),
+                              "TradeContainer{{ticker: {}, price: {}, quantity: {}, trade_id: {}, "
+                              "taker_id: {}, maker_id: {}, taker_order_id: {}, maker_order_id: {}, "
+                              "is_taker_buyer: {}}}",
+                              tc.ticker, tc.price, tc.quantity, tc.trade_id, tc.taker_id,
+                              tc.maker_id, tc.taker_order_id, tc.maker_order_id, tc.is_taker_buyer);
+    }
+};
+
+template <>
+struct std::formatter<core::CancelOrderRequestContainer> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const core::CancelOrderRequestContainer& corc, FormatContext& ctx) const {
+        return std::format_to(
+            ctx.out(),
+            "CancelOrderRequestContainer{{sender_comp_id: {}, target_comp_id: {}, "
+            "order_id: {}, orig_cl_ord_id: {}, cl_ord_id: {}, symbol: {}, side: {}, "
+            "order_qty: {}}}",
+            corc.sender_comp_id, corc.target_comp_id, corc.order_id.value_or(-1),
+            corc.orig_cl_ord_id, corc.cl_ord_id, corc.symbol, corc.side, corc.order_qty);
+    }
+};
+
+template <>
+struct std::formatter<core::CancelOrderResponseContainer> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const core::CancelOrderResponseContainer& corc, FormatContext& ctx) const {
+        return std::format_to(
+            ctx.out(), "CancelOrderResponseContainer{{order_id: {}, cl_ord_id: {}, success: {}}}",
+            corc.order_id, corc.cl_ord_id, corc.success);
+    }
+};
+
+template <>
+struct std::formatter<core::FillCostQueryContainer> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const core::FillCostQueryContainer& fcqc, FormatContext& ctx) const {
+        return std::format_to(ctx.out(),
+                              "FillCostQueryContainer{{symbol: {}, quantity: {}, side: {}}}",
+                              fcqc.symbol, fcqc.quantity, fcqc.side);
+    }
+};
+
+template <>
+struct std::formatter<core::FillCostResponseContainer> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const core::FillCostResponseContainer& fcrc, FormatContext& ctx) const {
+        return std::format_to(ctx.out(), "FillCostResponseContainer{{total_cost: {}}}",
+                              fcrc.total_cost.value_or(-1));
+    }
+};

@@ -143,3 +143,40 @@ inline constexpr std::int32_t convert_to_internal_quantity(double quantity) {
 }
 
 } // namespace core
+
+template <>
+struct std::formatter<core::Side> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(core::Side side, FormatContext& ctx) const {
+        return std::format_to(ctx.out(), "{}", side == core::Side::bid ? "bid" : "ask");
+    }
+};
+
+template <>
+struct std::formatter<core::OrderType> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(core::OrderType ord_type, FormatContext& ctx) const {
+        return std::format_to(ctx.out(), "{}", ord_type == core::OrderType::limit ? "limit"
+                                                                                  : "market");
+    }
+};
+
+template <>
+struct std::formatter<core::TimeInForce> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(core::TimeInForce tif, FormatContext& ctx) const {
+        return std::format_to(ctx.out(), "{}", tif == core::TimeInForce::day ? "day" : "gtc");
+    }
+};
