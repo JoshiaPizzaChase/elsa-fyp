@@ -59,8 +59,6 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                 trade_publisher->try_publish(new_trade);
                 trade_events.emplace(new_trade);
 
-                std::cout << "New trade: " << new_trade << std::endl;
-
                 order_id_map.erase(best_level_orders.front().get_order_id());
                 best_level_orders.pop_front();
             } else {
@@ -82,7 +80,6 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
 
     if (remaining_quantity > 0 && price != MARKET_BID_ORDER_PRICE &&
         price != MARKET_ASK_ORDER_PRICE) {
-        std::cout << "In order object creation, trader_id: " << broker_id << std::endl;
         order_id_map[order_id] = near_side[price].emplace(near_side[price].end(), order_id, price,
                                                           remaining_quantity, side, broker_id);
     }

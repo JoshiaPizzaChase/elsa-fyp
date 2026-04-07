@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/containers.h"
 #include "inbound_server.h"
 #include "limit_order_book.h"
 #include "shared_memory_publisher.h"
@@ -29,7 +30,7 @@ class MatchingEngine {
                    std::chrono::milliseconds flush_interval,
                    const MatchingEngineDependencyFactory& dependency_factory);
     void init() const;
-    void run();
+    [[noreturn]] void run();
     void wait_for_connections();
 
     [[nodiscard]] const std::unordered_map<std::string, LimitOrderBook>&
@@ -54,5 +55,10 @@ class MatchingEngine {
     std::unordered_map<std::string, LimitOrderBook>
         limit_order_books; // One limit order book for each symbol
 };
+
+void process_container(const core::Container& container,
+                       std::unordered_map<std::string, LimitOrderBook>& limit_order_books,
+                       std::queue<Trade>& trade_events, InboundServer& inbound_server,
+                       int order_response_connection_id, int incoming_request_connection_id);
 
 } // namespace engine

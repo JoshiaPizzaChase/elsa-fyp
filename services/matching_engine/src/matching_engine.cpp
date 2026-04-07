@@ -41,7 +41,7 @@ void MatchingEngine::init() const {
     const auto start_res = inbound_server->start();
     std::ignore = start_res
                       .transform([] {
-                          logger->info("[ME] ]Matching Engine starts accepting connections");
+                          logger->info("[ME] Matching Engine starts accepting connections");
                           logger->flush();
                       })
                       .or_else([](int) -> std::expected<void, int> {
@@ -61,14 +61,14 @@ void MatchingEngine::wait_for_connections() {
     for (const auto& [id, counter_party] : connection_info) {
         if (counter_party == "order_request") {
             incoming_request_connection_id = id;
-            logger->info("Order request connection established, id: {}",
+            logger->info("[ME] Order request connection established, id: {}",
                          incoming_request_connection_id);
         } else if (counter_party == "order_response") {
             order_response_connection_id = id;
-            logger->info("Order response connection established, id: {}",
+            logger->info("[ME] Order response connection established, id: {}",
                          order_response_connection_id);
         } else {
-            logger->error("Unexpected connection: {}", counter_party);
+            logger->error("[ME] Unexpected connection: {}", counter_party);
         }
     }
 }
@@ -81,109 +81,146 @@ void MatchingEngine::run() {
             new_message.has_value()) {
             const auto container = transport::deserialize_container(new_message.value());
 
-            auto new_order_handler{[this](const core::NewOrderSingleContainer& new_order) {
-                assert(new_order.order_id.has_value());
+            process_container(container, limit_order_books, trade_events, *inbound_server,
+                              order_response_connection_id, incoming_request_connection_id);
+        }
 
-                auto& limit_order_book = limit_order_books.at(new_order.symbol);
+        if (const auto now{std::chrono::steady_clock::now()}; now - last_flush > flush_interval) {
+            for (const auto& [symbol, lob] : limit_order_books) {
+                auto snapshot{lob.get_top_order_book_level_aggregate()};
 
-                limit_order_book.add_order(new_order.order_id.value(),
-                                           new_order.price.value_or((new_order.side == Side::bid)
-                                                                        ? MARKET_BID_ORDER_PRICE
-                                                                        : MARKET_ASK_ORDER_PRICE),
-                                           new_order.order_qty,
-                                           (new_order.side == Side::bid) ? Side::bid : Side::ask,
-                                           new_order.sender_comp_id);
-
-                logger->info("New order request received");
-                logger->info("New order quantity: {}", new_order.order_qty);
-                logger->flush();
-
-                while (!trade_events.empty()) {
-                    const auto current_trade = trade_events.front();
-
-                    std::cout << "qty at trade container creation: " << current_trade.quantity
-                              << std::endl;
-
-                    const auto trade_container =
-                        core::TradeContainer{.ticker = current_trade.ticker,
-                                             .price = current_trade.price,
-                                             .quantity = current_trade.quantity,
-                                             .trade_id = current_trade.trade_id,
-                                             .taker_id = current_trade.taker_id,
-                                             .maker_id = current_trade.maker_id,
-                                             .taker_order_id = current_trade.taker_order_id,
-                                             .maker_order_id = current_trade.maker_order_id};
-
-                    inbound_server->send(order_response_connection_id,
-                                         transport::serialize_container(trade_container));
-                    trade_events.pop();
+                if (auto& symbol_snapshot_publisher = orderbook_snapshot_publishers.at(symbol);
+                    !symbol_snapshot_publisher->try_publish(snapshot)) {
+                    logger->error("Failed to push snapshot");
                 }
-            }};
-            auto cancel_order_handler{[this](
-                                          const core::CancelOrderRequestContainer& cancel_request) {
-                logger->info("Cancel order request received");
-                logger->info(transport::serialize_container(cancel_request));
-                logger->flush();
-
-                auto& limit_order_book = limit_order_books.at(cancel_request.symbol);
-
-                bool cancel_success = true;
-                if (limit_order_book.order_id_exists(cancel_request.order_id.value())) {
-                    limit_order_book.cancel_order(cancel_request.order_id.value());
-                } else {
-                    cancel_success = false;
-                }
-
-                const auto cancel_response =
-                    core::CancelOrderResponseContainer{.order_id = cancel_request.order_id.value(),
-                                                       .cl_ord_id = cancel_request.cl_ord_id,
-                                                       .success = cancel_success};
-
-                inbound_server->send(order_response_connection_id,
-                                     transport::serialize_container(cancel_response));
-            }};
-            auto fill_cost_query_handler{
-                [this](const core::FillCostQueryContainer& fill_cost_query) {
-                    logger->info("Fill cost query received");
-                    logger->info("Quantity: {}", fill_cost_query.quantity);
-                    logger->flush();
-
-                    auto& limit_order_book = limit_order_books.at(fill_cost_query.symbol);
-                    auto total_cost = limit_order_book.get_fill_cost(fill_cost_query.quantity,
-                                                                     fill_cost_query.side);
-
-                    logger->info("Calculated fill cost: {}", total_cost.value_or(-1));
-
-                    const auto response_container = core::FillCostResponseContainer{
-                        total_cost.transform([](int v) { return std::optional{v}; })
-                            .value_or(std::nullopt)};
-
-                    inbound_server->send(incoming_request_connection_id,
-                                         transport::serialize_container(response_container));
-                }};
-            auto catch_all_handler{[this](auto&&) {
-                logger->error("Received unexpected request from Order Manager");
-                logger->flush();
-            }};
-
-            std::visit(overloaded{new_order_handler, cancel_order_handler, fill_cost_query_handler,
-                                  catch_all_handler},
-                       container);
-
-            if (const auto now{std::chrono::steady_clock::now()};
-                now - last_flush > flush_interval) {
-                for (const auto& [symbol, lob] : limit_order_books) {
-                    auto snapshot{lob.get_top_order_book_level_aggregate()};
-
-                    if (auto& symbol_snapshot_publisher = orderbook_snapshot_publishers.at(symbol);
-                        !symbol_snapshot_publisher->try_publish(snapshot)) {
-                        std::cerr << "Failed to push snapshot " << "\n";
-                    }
-                }
-                last_flush = now;
             }
+            last_flush = now;
         }
     }
+}
+
+void process_container(const core::Container& container,
+                       std::unordered_map<std::string, LimitOrderBook>& limit_order_books,
+                       std::queue<Trade>& trade_events, InboundServer& inbound_server,
+                       int order_response_connection_id, int incoming_request_connection_id) {
+    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
+        boost::contract::check c = boost::contract::function().precondition(
+            [&] { BOOST_CONTRACT_ASSERT(new_order.order_id.has_value()); });
+
+        logger->info("[ME] New order received: {}", new_order);
+
+        auto& limit_order_book = limit_order_books.at(new_order.symbol);
+
+        limit_order_book.add_order(
+            new_order.order_id.value(),
+            new_order.price.value_or((new_order.side == Side::bid) ? MARKET_BID_ORDER_PRICE
+                                                                   : MARKET_ASK_ORDER_PRICE),
+            new_order.order_qty, (new_order.side == Side::bid) ? Side::bid : Side::ask,
+            new_order.sender_comp_id);
+
+        while (!trade_events.empty()) {
+            const auto current_trade = trade_events.front();
+
+            const auto trade_container =
+                core::TradeContainer{.ticker = current_trade.ticker,
+                                     .price = current_trade.price,
+                                     .quantity = current_trade.quantity,
+                                     .trade_id = current_trade.trade_id,
+                                     .taker_id = current_trade.taker_id,
+                                     .maker_id = current_trade.maker_id,
+                                     .taker_order_id = current_trade.taker_order_id,
+                                     .maker_order_id = current_trade.maker_order_id,
+                                     .is_taker_buyer = current_trade.is_taker_buyer};
+
+            const auto res =
+                inbound_server
+                    .send(order_response_connection_id,
+                          transport::serialize_container(trade_container))
+                    .transform([&] {
+                        logger->info("[ME] Successfully sent Trade: {}", trade_container);
+                        logger->flush();
+                    })
+                    .or_else([&](int) -> std::expected<void, int> {
+                        logger->error("[ME] Failed to sent Trade: {}", trade_container);
+                        logger->flush();
+                        return std::unexpected{-1};
+                    });
+
+            if (!res.has_value()) {
+                break;
+            }
+
+            trade_events.pop();
+        }
+    }};
+    auto cancel_order_handler{[&](const core::CancelOrderRequestContainer& cancel_request) {
+        boost::contract::check c = boost::contract::function().precondition(
+            [&] { BOOST_CONTRACT_ASSERT(cancel_request.order_id.has_value()); });
+
+        logger->info("[ME] Cancel request received: {}", cancel_request);
+        logger->flush();
+
+        auto& limit_order_book = limit_order_books.at(cancel_request.symbol);
+
+        bool cancel_success = true;
+        if (limit_order_book.order_id_exists(cancel_request.order_id.value())) {
+            limit_order_book.cancel_order(cancel_request.order_id.value());
+        } else {
+            cancel_success = false;
+        }
+
+        const auto cancel_response =
+            core::CancelOrderResponseContainer{.order_id = cancel_request.order_id.value(),
+                                               .cl_ord_id = cancel_request.cl_ord_id,
+                                               .success = cancel_success};
+
+        std::ignore =
+            inbound_server
+                .send(order_response_connection_id, transport::serialize_container(cancel_response))
+                .transform([&] {
+                    logger->info("[ME] Successfully sent Cancel Response: {}", cancel_response);
+                    logger->flush();
+                })
+                .or_else([&](int) -> std::expected<void, int> {
+                    logger->error("[ME] Failed to sent Cancel Response: {}", cancel_response);
+                    logger->flush();
+                    return std::unexpected{-1};
+                });
+    }};
+    auto fill_cost_query_handler{[&](const core::FillCostQueryContainer& fill_cost_query) {
+        logger->info("[ME] Fill cost query received: {}", fill_cost_query);
+        logger->flush();
+
+        const auto& limit_order_book = limit_order_books.at(fill_cost_query.symbol);
+        auto total_cost =
+            limit_order_book.get_fill_cost(fill_cost_query.quantity, fill_cost_query.side);
+
+        const auto response_container = core::FillCostResponseContainer{
+            total_cost.transform([](int v) { return std::optional{v}; }).value_or(std::nullopt)};
+
+        std::ignore =
+            inbound_server
+                .send(incoming_request_connection_id,
+                      transport::serialize_container(response_container))
+                .transform([&] {
+                    logger->info("[ME] Successfully sent Fill Cost Response: {}",
+                                 response_container);
+                    logger->flush();
+                })
+                .or_else([&](int) -> std::expected<void, int> {
+                    logger->error("[ME] Failed to sent Fill Cost Response: {}", response_container);
+                    logger->flush();
+                    return std::unexpected{-1};
+                });
+    }};
+    auto catch_all_handler{[](auto&&) {
+        logger->error("Received unexpected request from Order Manager");
+        logger->flush();
+    }};
+
+    std::visit(overloaded{new_order_handler, cancel_order_handler, fill_cost_query_handler,
+                          catch_all_handler},
+               container);
 }
 
 const std::unordered_map<std::string, LimitOrderBook>&
