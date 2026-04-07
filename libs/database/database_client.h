@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config.h"
 #include <atomic>
 #include <chrono>
 #include <core/constants.h>
@@ -7,7 +8,6 @@
 #include <core/orders.h>
 #include <core/service.h>
 #include <core/thread_safe_queue.h>
-#include "config.h"
 #include <cstdlib>
 #include <expected>
 #include <format>
@@ -19,15 +19,6 @@
 #include <string_view>
 #include <thread>
 #include <vector>
-
-// These macros are only used for those server-specific services, e.g. OMS
-#define ORDERS_TABLE (std::string("orders_") + SERVER_NAME)
-#define TRADES_TABLE (std::string("trades_") + SERVER_NAME)
-
-inline questdb::ingress::table_name_view TRADES_TABLE_NAME_VIEW{TRADES_TABLE.c_str(),
-                                                                TRADES_TABLE.length()};
-inline questdb::ingress::table_name_view ORDERS_TABLE_NAME_VIEW{TRADES_TABLE.c_str(),
-                                                                ORDERS_TABLE.length()};
 
 namespace database {
 
@@ -172,7 +163,9 @@ class AsyncWriter {
         const auto new_order_request = order.new_order_request;
 
         try {
-            const auto orders_table = ORDERS_TABLE_NAME_VIEW;
+            const auto orders_table_name = std::format("orders_{}", SERVER_NAME);
+            const questdb::ingress::table_name_view orders_table{
+                orders_table_name.c_str(), orders_table_name.length()};
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -218,7 +211,9 @@ class AsyncWriter {
         const auto cancel_order_request{cancel_request.cancel_order_request};
 
         try {
-            const auto orders_table = ORDERS_TABLE_NAME_VIEW;
+            const auto orders_table_name = std::format("orders_{}", SERVER_NAME);
+            const questdb::ingress::table_name_view orders_table{
+                orders_table_name.c_str(), orders_table_name.length()};
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -253,7 +248,9 @@ class AsyncWriter {
     void append(const ExecutionInsertionTask& exec_report) {
         const auto execution_report = exec_report.execution_report;
         try {
-            const auto orders_table = ORDERS_TABLE_NAME_VIEW;
+            const auto orders_table_name = std::format("orders_{}", SERVER_NAME);
+            const questdb::ingress::table_name_view orders_table{
+                orders_table_name.c_str(), orders_table_name.length()};
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -297,7 +294,9 @@ class AsyncWriter {
         const auto trade{trade_task.trade};
 
         try {
-            const auto trades_table = TRADES_TABLE_NAME_VIEW;
+            const auto trades_table_name = std::format("trades_{}", SERVER_NAME);
+            const questdb::ingress::table_name_view trades_table{
+                trades_table_name.c_str(), trades_table_name.length()};
             const auto symbol = "symbol"_cn;
             const auto price = "price"_cn;
             const auto quantity_cn = "quantity"_cn;
@@ -672,15 +671,6 @@ class DatabaseClient {
                                           "a.user_id = $1)",
                                           pqxx::params{user_id});
 
-            auto bal_res = txn.exec("SELECT symbol, balance FROM balances WHERE user_id = $1",
-                                    pqxx::params{user_id});
-            txn.commit();
-
-            std::vector<BalanceRow> balances;
-            balances.reserve(bal_res.size());
-            for (const auto& row : bal_res)
-                balances.push_back({row["symbol"].as<std::string>(), row["balance"].as<int>()});
-
             std::vector<UserServerRow> result;
             result.reserve(srv_res.size());
             for (const auto& row : srv_res) {
@@ -691,9 +681,19 @@ class DatabaseClient {
                 usr.description = row["description"].as<std::string>("");
                 usr.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
                 usr.initial_usd = has_initial_usd ? row["initial_usd"].as<int>(100000) : 100000;
-                usr.balances = balances;
+
+                auto bal_res = txn.exec("SELECT symbol, balance FROM balances "
+                                        "WHERE user_id = $1 AND server_id = $2",
+                                        pqxx::params{user_id, usr.server_id});
+                usr.balances.reserve(bal_res.size());
+                for (const auto& bal_row : bal_res) {
+                    usr.balances.push_back(
+                        {bal_row["symbol"].as<std::string>(), bal_row["balance"].as<int>()});
+                }
+
                 result.push_back(std::move(usr));
             }
+            txn.commit();
             return result;
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error getting user servers: {}", e.what())};
@@ -750,12 +750,10 @@ class DatabaseClient {
             details.active_tickers = parse_pg_array(row["active_tickers"].as<std::string>("{}"));
             details.initial_usd = has_initial_usd ? row["initial_usd"].as<int>(100000) : 100000;
 
-            // Build the PostgreSQL array literal for active tickers
-            const std::string arr_lit = build_pg_array(details.active_tickers);
-            auto bal_res =
-                txn.exec("SELECT symbol, balance FROM balances "
-                         "WHERE user_id = $1 AND (symbol = 'USD' OR symbol = ANY($2::varchar[]))",
-                         pqxx::params{user_id, arr_lit});
+            // Fetch all balances for the user
+            auto bal_res = txn.exec("SELECT symbol, balance FROM balances "
+                                    "WHERE user_id = $1 AND server_id = $2",
+                                    pqxx::params{user_id, server_id});
             txn.commit();
 
             for (const auto& brow : bal_res)
@@ -768,7 +766,8 @@ class DatabaseClient {
     }
 
     // Trades for a symbol from QuestDB after a given Unix timestamp (ms), ordered oldest-first.
-    auto query_trades(const std::string_view& symbol, long long after_ts_ms)
+    auto query_trades(const std::string_view& server_name, const std::string_view& symbol,
+                      long long after_ts_ms)
         -> std::expected<std::vector<HistoricalTradeRow>, std::string> {
         try {
             ensure_timeseries_connection();
@@ -777,12 +776,14 @@ class DatabaseClient {
             // Parameterised queries over QuestDB's PG wire are unreliable, so we
             // quote literals manually (safe: tickers are alphanumeric, after_ts_micros is numeric).
             const auto after_ts_micros = after_ts_ms * 1000LL;
-            const std::string query =
+            const auto trades_table = std::format("trades_{}", server_name);
+            const std::string query = std::format(
                 "SELECT trade_id, symbol, price, quantity, CAST(ts AS LONG) AS ts_micros "
-                "FROM trades "
+                "FROM {} "
                 "WHERE symbol = $1"
                 " AND ts >= to_timestamp($2) "
-                "ORDER BY ts ASC";
+                "ORDER BY ts ASC",
+                trades_table);
             auto res = txn.exec(query, pqxx::params{symbol, after_ts_micros});
             txn.commit();
 
@@ -801,6 +802,11 @@ class DatabaseClient {
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error querying trades: {}", e.what())};
         }
+    }
+
+    auto query_trades(const std::string_view& symbol, long long after_ts_ms)
+        -> std::expected<std::vector<HistoricalTradeRow>, std::string> {
+        return query_trades(SERVER_NAME, symbol, after_ts_ms);
     }
 
     // Insert a new server and populate its allowlist in one transaction.
@@ -1131,14 +1137,16 @@ class DatabaseClient {
     }
 
     // Assuming these are not in hot path, so synchronous is fine.
-    auto query_orders() -> std::expected<std::vector<OrderRow>, std::string> {
+    auto query_orders(const std::string_view& server_name) -> std::expected<std::vector<OrderRow>, std::string> {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
-            pqxx::result res =
-                txn.exec("SELECT order_id, cl_order_id, sender_comp_id, symbol, side, "
-                         "order_qty, filled_qty, ord_type, price, time_in_force, order_status "
-                         "FROM orders");
+            const auto orders_table = std::format("orders_{}", server_name);
+            pqxx::result res = txn.exec(
+                std::format("SELECT order_id, cl_order_id, sender_comp_id, symbol, side, "
+                            "order_qty, filled_qty, ord_type, price, time_in_force, order_status "
+                            "FROM {}",
+                            orders_table));
             txn.commit();
 
             std::vector<OrderRow> rows;
@@ -1164,14 +1172,20 @@ class DatabaseClient {
         }
     }
 
-    auto query_trades() -> std::expected<std::vector<TradeRow>, std::string> {
+    auto query_orders() -> std::expected<std::vector<OrderRow>, std::string> {
+        return query_orders(SERVER_NAME);
+    }
+
+    auto query_trades(const std::string_view& server_name) -> std::expected<std::vector<TradeRow>, std::string> {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
-            pqxx::result res =
-                txn.exec("SELECT price, quantity, symbol, trade_id, taker_id, maker_id, "
-                         "taker_order_id, maker_order_id, is_taker_buyer "
-                         "FROM trades");
+            const auto trades_table = std::format("trades_{}", server_name);
+            pqxx::result res = txn.exec(
+                std::format("SELECT price, quantity, symbol, trade_id, taker_id, maker_id, "
+                            "taker_order_id, maker_order_id, is_taker_buyer "
+                            "FROM {}",
+                            trades_table));
             txn.commit();
 
             std::vector<TradeRow> rows;
@@ -1193,6 +1207,10 @@ class DatabaseClient {
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error querying trades: {}", e.what())};
         }
+    }
+
+    auto query_trades() -> std::expected<std::vector<TradeRow>, std::string> {
+        return query_trades(SERVER_NAME);
     }
 
     auto insert_balance(int user_id, int server_id, std::string_view symbol, int balance)
