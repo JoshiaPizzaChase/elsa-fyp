@@ -29,13 +29,16 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
     }
 
     ~WebsocketManagerServer() {
-        websocketpp::lib::error_code error_code;
-        m_endpoint.stop_listening(error_code);
+        // If the server was stopped already, calling stop_listening again will produce an error.
+        if (m_endpoint.is_listening()) {
+            websocketpp::lib::error_code error_code;
+            m_endpoint.stop_listening(error_code);
 
-        if (error_code) {
-            m_logger->error(
-                "Websocket manager server failed to stop listening during destruction: {}",
-                error_code.message());
+            if (error_code) {
+                m_logger->error(
+                    "Websocket manager server failed to stop listening during destruction: {}",
+                    error_code.message());
+            }
         }
     }
 
@@ -138,6 +141,8 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
             if (auto it{m_handle_to_connection_map.find(handle)};
                 it != m_handle_to_connection_map.end()) {
                 it->second->on_close(&m_endpoint, handle);
+                // Added to prevent infinitely growing map size from closed connections.
+                this->m_handle_to_connection_map.erase(it);
             }
         });
         m_endpoint.set_fail_handler([this](ConnectionHandle handle) {

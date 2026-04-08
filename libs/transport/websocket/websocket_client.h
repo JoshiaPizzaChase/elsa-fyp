@@ -21,7 +21,10 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
     }
 
     ~WebsocketManagerClient() {
-        m_endpoint.stop_perpetual();
+        if (!m_perpetual_active) {
+            m_endpoint.stop_perpetual();
+            m_perpetual_active = false; // Not necessary, only done for completeness.
+        }
     }
 
     /*
@@ -30,8 +33,14 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
      * Launches new thread to handle network processing.
      */
     std::expected<void, int> start() override {
+        if (m_perpetual_active) {
+            m_logger->info("Websocket manager client has already been started!");
+            return std::unexpected{-1};
+        }
+
         m_endpoint.init_asio();
         m_endpoint.start_perpetual();
+        m_perpetual_active = true;
 
         // Launches a new thread
         m_thread = std::make_shared<websocketpp::lib::thread>(&Client::run, &m_endpoint);
@@ -44,7 +53,13 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
     std::expected<void, int> stop() override {
         m_logger->info("Manually stopping websocket manager client...");
 
+        if (!m_perpetual_active) {
+           m_logger->info("Websocket manager client has already been stopped!");
+           return std::unexpected{-1};
+        }
+
         m_endpoint.stop_perpetual();
+        m_perpetual_active = false;
 
         if (!close_all().has_value()) {
             m_logger->error("Websocket manager client failed to close some connections.");
@@ -81,24 +96,35 @@ class WebsocketManagerClient : public WebsocketManager<Client> {
 
         m_id_to_connection_map[new_id] = metadata_ptr;
 
-        connection->set_open_handler([metadata_ptr, capture0 = &m_endpoint](auto&& PH1) {
-            metadata_ptr->on_open(capture0, std::forward<decltype(PH1)>(PH1));
+        connection->set_open_handler([this, metadata_ptr](websocketpp::connection_hdl hdl) {
+                metadata_ptr->on_open(&m_endpoint, hdl);
+                this->m_logger->info("Client connection opened for ID: {}", metadata_ptr->get_id());
+            });
+
+        connection->set_fail_handler([this, metadata_ptr](websocketpp::connection_hdl hdl) {
+            metadata_ptr->on_fail(&m_endpoint, hdl);
+            this->m_logger->error("Connection failed for ID: {}. Check URI or Network.",
+                                  metadata_ptr->get_id());
         });
-        connection->set_fail_handler([metadata_ptr, capture0 = &m_endpoint](auto&& PH1) {
-            metadata_ptr->on_fail(capture0, std::forward<decltype(PH1)>(PH1));
+
+        connection->set_close_handler([this, metadata_ptr](websocketpp::connection_hdl hdl) {
+            metadata_ptr->on_close(&m_endpoint, hdl);
+            this->m_logger->info("Connection closed for ID: {}", metadata_ptr->get_id());
+            this->m_id_to_connection_map.erase(metadata_ptr->get_id());
         });
-        connection->set_close_handler([metadata_ptr, capture0 = &m_endpoint](auto&& PH1) {
-            metadata_ptr->on_close(capture0, std::forward<decltype(PH1)>(PH1));
-        });
-        connection->set_message_handler([metadata_ptr](auto&& PH1, auto&& PH2) {
-            metadata_ptr->on_message(std::forward<decltype(PH1)>(PH1),
-                                     std::forward<decltype(PH2)>(PH2));
+
+        connection->set_message_handler([this, metadata_ptr](websocketpp::connection_hdl hdl, Client::message_ptr msg) {
+            metadata_ptr->on_message(hdl, msg);
+            this->m_logger->info("Message received for ID: {}", metadata_ptr->get_id());
         });
 
         m_endpoint.connect(connection);
 
         return new_id;
     }
+
+    private:
+        std::atomic<bool> m_perpetual_active{false};
 };
 
 } // namespace transport
