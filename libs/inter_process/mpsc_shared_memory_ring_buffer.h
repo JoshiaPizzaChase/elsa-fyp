@@ -147,8 +147,7 @@ class MpscSharedMemoryRingBuffer {
     }
 
     static std::string get_shm_file_full_name(const std::string& shm_file_name_prefix) {
-        return shm_file_name_prefix + "_" + std::to_string(Buffer::shm_size()) + "_" +
-               std::to_string(POWER_OF_2_CAPACITY);
+        return shm_file_name_prefix + "_" + std::to_string(POWER_OF_2_CAPACITY);
     }
 
     static MpscSharedMemoryRingBuffer create(const std::string& shm_file_name_prefix,
