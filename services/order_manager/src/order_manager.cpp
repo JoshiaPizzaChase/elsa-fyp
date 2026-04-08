@@ -18,18 +18,19 @@ static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::as
     std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
 OrderManager::OrderManager(std::string_view host, int port, int gateway_count,
-                           OrderManagerDependencyFactory dependency_factory)
-    : inbound_ws_server{dependency_factory.create_inbound_server(host, port, logger)},
-      order_request_ws_client{logger}, order_response_ws_client{logger}, database_client{true},
-      gateway_count{gateway_count}, order_request_connection_id{}, order_response_connection_id{},
-      current_order_id{0} {
+                           const OrderManagerDependencyFactory& dependency_factory)
+    : inbound_server{dependency_factory.create_inbound_server(host, port, logger)},
+      order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
+      order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
+      database_client{true}, gateway_count{gateway_count}, order_request_connection_id{},
+      order_response_connection_id{} {
 }
 
 void OrderManager::init() {
     // TODO: Handle start error
-    inbound_ws_server.start();
-    order_request_ws_client.start();
-    order_response_ws_client.start();
+    inbound_server->start();
+    order_request_outbound_client->start();
+    order_response_outbound_client->start();
 
     // Initialize USD balances for users if not already present
     if (SERVER_NAME != nullptr) {
@@ -71,8 +72,8 @@ void OrderManager::init() {
 
 std::expected<void, std::string> OrderManager::connect_matching_engine(std::string host, int port) {
     // TODO: Handle expected
-    const auto order_request_connection_result =
-        order_request_ws_client.connect(std::format("ws://{}:{}", host, port), "order_request");
+    const auto order_request_connection_result = order_request_outbound_client->connect(
+        std::format("ws://{}:{}", host, port), "order_request");
 
     if (order_request_connection_result.has_value()) {
         order_request_connection_id = order_request_connection_result.value();
@@ -83,8 +84,8 @@ std::expected<void, std::string> OrderManager::connect_matching_engine(std::stri
         logger->flush();
     }
 
-    const auto order_response_connection_result =
-        order_response_ws_client.connect(std::format("ws://{}:{}", host, port), "order_response");
+    const auto order_response_connection_result = order_response_outbound_client->connect(
+        std::format("ws://{}:{}", host, port), "order_response");
 
     if (order_response_connection_result.has_value()) {
         order_response_connection_id = order_response_connection_result.value();
@@ -103,20 +104,20 @@ std::expected<void, std::string> OrderManager::start() {
 
     while (true) {
         // Process an incoming request
-        if (auto new_message = inbound_ws_server.dequeue_message(curr_gateway_id);
+        if (auto new_message = inbound_server->dequeue_message(curr_gateway_id);
             new_message.has_value()) {
             auto container = transport::deserialize_container(new_message.value());
 
             const std::optional<int> market_bid_fill_cost =
                 preprocess_container(container, order_id_map, order_info_map, curr_gateway_id,
-                                     order_request_ws_client, order_request_connection_id);
+                                     *order_request_outbound_client, order_request_connection_id);
 
             const bool is_container_valid =
                 validate_container(container, balance_checker, market_bid_fill_cost);
 
             forward_and_reply(is_container_valid, container, order_info_map, curr_gateway_id,
-                              order_request_ws_client, order_request_connection_id,
-                              inbound_ws_server, database_client);
+                              *order_request_outbound_client, order_request_connection_id,
+                              *inbound_server, database_client);
 
             update_database(container, database_client, is_container_valid);
         }
@@ -125,7 +126,7 @@ std::expected<void, std::string> OrderManager::start() {
 
         // Process a returned message container
         if (auto new_message =
-                order_response_ws_client.dequeue_message(order_response_connection_id);
+                order_response_outbound_client->dequeue_message(order_response_connection_id);
             new_message.has_value()) {
             auto container = transport::deserialize_container(new_message.value());
 
@@ -139,7 +140,7 @@ std::expected<void, std::string> OrderManager::start() {
                 update_order_info(*trade_container, order_info_map);
             }
 
-            return_execution_report(container, order_id_map, order_info_map, inbound_ws_server,
+            return_execution_report(container, order_id_map, order_info_map, *inbound_server,
                                     database_client);
 
             update_database(container, database_client);
@@ -153,7 +154,7 @@ std::optional<int> preprocess_container(core::Container& container,
                                         boost::bimap<int, int>& order_id_map,
                                         std::unordered_map<int, OrderInfo>& order_info_map,
                                         int arrival_gateway_id,
-                                        WebsocketManagerClient& order_request_ws_client,
+                                        transport::OutboundClient& order_request_ws_client,
                                         int order_request_connection_id) {
     // TODO: Fetch latest_assigned_order_id from DB
     static int latest_assigned_order_id{-1};
@@ -321,8 +322,8 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,
                        const std::unordered_map<int, OrderInfo>& order_info_map,
-                       int arrival_gateway_id, WebsocketManagerClient& order_request_ws_client,
-                       int order_request_connection_id, WebsocketManagerServer& inbound_ws_server,
+                       int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
+                       int order_request_connection_id, transport::InboundServer& inbound_ws_server,
                        database::DatabaseClient& database_client) {
     if (is_container_valid) {
         // Forward validated container to Matching Engine
@@ -342,7 +343,7 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
         logger->info("Returned success execution report");
         logger->flush();
     } else {
-        // Give immediate exeuction report as feedback on rejection to broker
+        // Give immediate execution report as feedback on rejection to broker
         const auto execution_report =
             generate_rejection_report_container(container, order_info_map);
         inbound_ws_server.send(arrival_gateway_id, transport::serialize_container(execution_report),
@@ -523,7 +524,7 @@ void update_order_info(const core::TradeContainer& trade_container,
 void return_execution_report(const core::Container& container,
                              const boost::bimap<int, int>& order_id_map,
                              const std::unordered_map<int, OrderInfo>& order_info_map,
-                             WebsocketManagerServer& inbound_ws_server,
+                             transport::InboundServer& inbound_ws_server,
                              database::DatabaseClient& database_client) {
     auto trade_handler{[&](const core::TradeContainer& trade) {
         const auto [taker_exec_report, maker_exec_report] =

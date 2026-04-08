@@ -4,14 +4,13 @@
 #include "core/containers.h"
 #include "database/database_client.h"
 #include "transport/inbound_server.h"
+#include "transport/outbound_client.h"
 #include "websocket_client.h"
 
 #include <boost/bimap.hpp>
 
 namespace om {
 inline const std::string USD_SYMBOL = "USD";
-
-using WebsocketManagerClient = transport::WebsocketManagerClient;
 
 struct OrderInfo {
     std::string sender_comp_id;
@@ -30,12 +29,15 @@ struct OrderManagerDependencyFactory {
     std::function<std::unique_ptr<transport::InboundServer>(std::string_view, int,
                                                             std::shared_ptr<spdlog::logger>)>
         create_inbound_server;
+
+    std::function<std::unique_ptr<transport::OutboundClient>(std::shared_ptr<spdlog::logger>)>
+        create_outbound_client;
 };
 
 class OrderManager {
   public:
     OrderManager(std::string_view host, int port, int gateway_count,
-                 OrderManagerDependencyFactory dependency_factory);
+                 const OrderManagerDependencyFactory& dependency_factory);
     void init();
     std::expected<void, std::string> connect_matching_engine(std::string host, int port);
     std::expected<void, std::string> start();
@@ -43,9 +45,9 @@ class OrderManager {
     typedef boost::bimap<int, int>::value_type order_id_pair;
 
   private:
-    std::unique_ptr<transport::InboundServer> inbound_ws_server;
-    WebsocketManagerClient order_request_ws_client;
-    WebsocketManagerClient order_response_ws_client;
+    std::unique_ptr<transport::InboundServer> inbound_server;
+    std::unique_ptr<transport::OutboundClient> order_request_outbound_client;
+    std::unique_ptr<transport::OutboundClient> order_response_outbound_client;
     BalanceChecker balance_checker;
     database::DatabaseClient database_client;
 
@@ -53,7 +55,6 @@ class OrderManager {
     int order_request_connection_id;
     int order_response_connection_id;
 
-    int current_order_id;
     // Left is internal order ID, Right is client order ID
     boost::bimap<int, int> order_id_map;
 
@@ -64,7 +65,7 @@ std::optional<int> preprocess_container(core::Container& container,
                                         boost::bimap<int, int>& order_id_map,
                                         std::unordered_map<int, OrderInfo>& order_info_map,
                                         int arrival_gateway_id,
-                                        WebsocketManagerClient& order_request_ws_client,
+                                        transport::OutboundClient& order_request_ws_client,
                                         int order_request_connection_id);
 
 bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
@@ -72,7 +73,7 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,
                        const std::unordered_map<int, OrderInfo>& order_info_map,
-                       int arrival_gateway_id, WebsocketManagerClient& order_request_ws_client,
+                       int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
                        database::DatabaseClient& database_client);
 

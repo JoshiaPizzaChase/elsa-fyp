@@ -2,6 +2,7 @@
 #include "order_manager.h"
 #include "rfl/toml/load.hpp"
 #include "transport/inbound_websocket_server.h"
+#include "transport/outbound_websocket_client.h"
 
 using namespace om;
 
@@ -10,10 +11,14 @@ int main(int argc, char* argv[]) {
     OrderManagerConfig order_manager_config = rfl::toml::load<OrderManagerConfig>(oms_cfg).value();
 
     const OrderManagerDependencyFactory dependency_factory{
-        .create_inbound_server = [](std::string_view host, int port,
-                                    std::shared_ptr<spdlog::logger> logger) {
-            return std::make_unique<transport::InboundWebsocketServer>(host, port, logger);
-        }};
+        .create_inbound_server =
+            [](std::string_view host, int port, std::shared_ptr<spdlog::logger> logger) {
+                return std::make_unique<transport::InboundWebsocketServer>(host, port, logger);
+            },
+        .create_outbound_client =
+            [](std::shared_ptr<spdlog::logger> logger) {
+                return std::make_unique<transport::OutboundWebsocketClient>(logger);
+            }};
 
     OrderManager order_manager{order_manager_config.order_manager_host,
                                order_manager_config.order_manager_port,
