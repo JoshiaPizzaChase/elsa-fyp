@@ -101,7 +101,7 @@ void MatchingEngine::run() {
 
 void process_container(const core::Container& container,
                        std::unordered_map<std::string, LimitOrderBook>& limit_order_books,
-                       std::queue<Trade>& trade_events, InboundServer& inbound_server,
+                       std::queue<Trade>& trade_events, transport::InboundServer& inbound_server,
                        int order_response_connection_id, int incoming_request_connection_id) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
         boost::contract::check c = boost::contract::function().precondition(

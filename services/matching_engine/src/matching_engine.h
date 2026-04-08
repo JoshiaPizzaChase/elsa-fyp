@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/containers.h"
-#include "inbound_server.h"
 #include "limit_order_book.h"
 #include "shared_memory_publisher.h"
+#include "transport/inbound_server.h"
 #include "websocket_server.h"
 
 #include <queue>
@@ -19,7 +19,7 @@ struct MatchingEngineDependencyFactory {
     std::function<std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>(std::string_view)>
         create_orderbook_snapshot_publisher;
 
-    std::function<std::unique_ptr<InboundServer>(std::string_view, int,
+    std::function<std::unique_ptr<transport::InboundServer>(std::string_view, int,
                                                  std::shared_ptr<spdlog::logger>)>
         create_inbound_server;
 };
@@ -40,7 +40,7 @@ class MatchingEngine {
     get_snapshot_publishers() const;
 
   private:
-    std::unique_ptr<InboundServer> inbound_server;
+    std::unique_ptr<transport::InboundServer> inbound_server;
 
     std::unordered_map<std::string,
                        std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>
@@ -58,7 +58,7 @@ class MatchingEngine {
 
 void process_container(const core::Container& container,
                        std::unordered_map<std::string, LimitOrderBook>& limit_order_books,
-                       std::queue<Trade>& trade_events, InboundServer& inbound_server,
+                       std::queue<Trade>& trade_events, transport::InboundServer& inbound_server,
                        int order_response_connection_id, int incoming_request_connection_id);
 
 } // namespace engine

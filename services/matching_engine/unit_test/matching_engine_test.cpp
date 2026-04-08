@@ -29,13 +29,14 @@ class StubSnapshotPublisher : public Publisher<TopOrderBookLevelAggregates> {
     }
 };
 
-class MockInboundWebsocketServer : public InboundServer {
+class MockInboundWebsocketServer : public transport::InboundServer {
   public:
     MOCK_METHOD((std::expected<void, int>), start, (), (override));
-    MOCK_METHOD(std::vector<InboundConnectionInfo>, get_connection_info, (), (const, override));
+    MOCK_METHOD(std::vector<transport::InboundConnectionInfo>, get_connection_info, (),
+                (const, override));
     MOCK_METHOD(std::optional<std::string>, dequeue_message, (int), (override));
-    MOCK_METHOD((std::expected<void, int>), send, (int, const std::string&, InboundMessageFormat),
-                (override));
+    MOCK_METHOD((std::expected<void, int>), send,
+                (int, const std::string&, transport::InboundMessageFormat), (override));
 };
 
 MatchingEngineDependencyFactory make_base_test_dependency_factory() {
@@ -121,8 +122,8 @@ class WaitConnectionTest : public testing::Test {
 
 TEST_F(WaitConnectionTest, ConnectionSuccess) {
     ON_CALL(*mock_ws, get_connection_info)
-        .WillByDefault(Return(std::vector{InboundConnectionInfo{0, "order_request"},
-                                          InboundConnectionInfo{1, "order_response"}}));
+        .WillByDefault(Return(std::vector{transport::InboundConnectionInfo{0, "order_request"},
+                                          transport::InboundConnectionInfo{1, "order_response"}}));
 
     test_me.wait_for_connections();
 }
@@ -195,28 +196,28 @@ TEST_F(ProcessContainerTest, NewOrderMatchSendsTradeContainer) {
                                                .price = 100,
                                                .time_in_force = core::TimeInForce::day};
 
-    EXPECT_CALL(mock_ws, send(0, _, InboundMessageFormat::binary))
-        .WillOnce(Invoke(
-            [](int, const std::string& payload, InboundMessageFormat) -> std::expected<void, int> {
-                const auto container = transport::deserialize_container(payload);
-                auto trade = std::get_if<core::TradeContainer>(&container);
-                EXPECT_NE(trade, nullptr);
-                if (trade == nullptr) {
-                    return std::unexpected{-1};
-                }
+    EXPECT_CALL(mock_ws, send(0, _, transport::InboundMessageFormat::binary))
+        .WillOnce(Invoke([](int, const std::string& payload,
+                            transport::InboundMessageFormat) -> std::expected<void, int> {
+            const auto container = transport::deserialize_container(payload);
+            auto trade = std::get_if<core::TradeContainer>(&container);
+            EXPECT_NE(trade, nullptr);
+            if (trade == nullptr) {
+                return std::unexpected{-1};
+            }
 
-                EXPECT_EQ(trade->ticker, "AAPL");
-                EXPECT_EQ(trade->price, 100);
-                EXPECT_EQ(trade->quantity, 5);
-                EXPECT_EQ(trade->taker_id, "CLIENT");
-                EXPECT_EQ(trade->maker_id, "MAKER");
-                EXPECT_EQ(trade->taker_order_id, 2);
-                EXPECT_EQ(trade->maker_order_id, 1);
-                EXPECT_TRUE(trade->is_taker_buyer);
-                EXPECT_FALSE(trade->trade_id.empty());
+            EXPECT_EQ(trade->ticker, "AAPL");
+            EXPECT_EQ(trade->price, 100);
+            EXPECT_EQ(trade->quantity, 5);
+            EXPECT_EQ(trade->taker_id, "CLIENT");
+            EXPECT_EQ(trade->maker_id, "MAKER");
+            EXPECT_EQ(trade->taker_order_id, 2);
+            EXPECT_EQ(trade->maker_order_id, 1);
+            EXPECT_TRUE(trade->is_taker_buyer);
+            EXPECT_FALSE(trade->trade_id.empty());
 
-                return std::expected<void, int>{};
-            }));
+            return std::expected<void, int>{};
+        }));
 
     process_container(incoming_bid, test_limit_order_books, trade_events, mock_ws, 0, 1);
 
@@ -261,21 +262,21 @@ TEST_F(ProcessContainerTest, SuccessfulCancel) {
                                                      .side = Side::ask,
                                                      .order_qty = 5};
 
-    EXPECT_CALL(mock_ws, send(0, _, InboundMessageFormat::binary))
-        .WillOnce(Invoke(
-            [](int, const std::string& payload, InboundMessageFormat) -> std::expected<void, int> {
-                const auto container = transport::deserialize_container(payload);
-                auto cancel_response = std::get_if<core::CancelOrderResponseContainer>(&container);
-                EXPECT_NE(cancel_response, nullptr);
-                if (cancel_response == nullptr) {
-                    return std::unexpected{-1};
-                }
+    EXPECT_CALL(mock_ws, send(0, _, transport::InboundMessageFormat::binary))
+        .WillOnce(Invoke([](int, const std::string& payload,
+                            transport::InboundMessageFormat) -> std::expected<void, int> {
+            const auto container = transport::deserialize_container(payload);
+            auto cancel_response = std::get_if<core::CancelOrderResponseContainer>(&container);
+            EXPECT_NE(cancel_response, nullptr);
+            if (cancel_response == nullptr) {
+                return std::unexpected{-1};
+            }
 
-                EXPECT_EQ(cancel_response->order_id, 1);
-                EXPECT_EQ(cancel_response->cl_ord_id, 1001);
-                EXPECT_TRUE(cancel_response->success);
-                return std::expected<void, int>{};
-            }));
+            EXPECT_EQ(cancel_response->order_id, 1);
+            EXPECT_EQ(cancel_response->cl_ord_id, 1001);
+            EXPECT_TRUE(cancel_response->success);
+            return std::expected<void, int>{};
+        }));
 
     process_container(cancel_request, test_limit_order_books, trade_events, mock_ws, 0, 1);
 
@@ -292,21 +293,21 @@ TEST_F(ProcessContainerTest, FailedCancel) {
                                                      .side = Side::ask,
                                                      .order_qty = 5};
 
-    EXPECT_CALL(mock_ws, send(0, _, InboundMessageFormat::binary))
-        .WillOnce(Invoke(
-            [](int, const std::string& payload, InboundMessageFormat) -> std::expected<void, int> {
-                const auto container = transport::deserialize_container(payload);
-                auto cancel_response = std::get_if<core::CancelOrderResponseContainer>(&container);
-                EXPECT_NE(cancel_response, nullptr);
-                if (cancel_response == nullptr) {
-                    return std::unexpected{-1};
-                }
+    EXPECT_CALL(mock_ws, send(0, _, transport::InboundMessageFormat::binary))
+        .WillOnce(Invoke([](int, const std::string& payload,
+                            transport::InboundMessageFormat) -> std::expected<void, int> {
+            const auto container = transport::deserialize_container(payload);
+            auto cancel_response = std::get_if<core::CancelOrderResponseContainer>(&container);
+            EXPECT_NE(cancel_response, nullptr);
+            if (cancel_response == nullptr) {
+                return std::unexpected{-1};
+            }
 
-                EXPECT_EQ(cancel_response->order_id, 1);
-                EXPECT_EQ(cancel_response->cl_ord_id, 1001);
-                EXPECT_FALSE(cancel_response->success);
-                return std::expected<void, int>{};
-            }));
+            EXPECT_EQ(cancel_response->order_id, 1);
+            EXPECT_EQ(cancel_response->cl_ord_id, 1001);
+            EXPECT_FALSE(cancel_response->success);
+            return std::expected<void, int>{};
+        }));
 
     process_container(cancel_request, test_limit_order_books, trade_events, mock_ws, 0, 1);
 }
@@ -319,28 +320,28 @@ TEST_F(ProcessContainerTest, FillCostQueryReturnsComputedCost) {
     core::FillCostQueryContainer fill_cost_query{
         .symbol = "AAPL", .quantity = 25, .side = Side::ask};
 
-    EXPECT_CALL(mock_ws, send(1, _, InboundMessageFormat::binary))
-        .WillOnce(Invoke(
-            [](int, const std::string& payload, InboundMessageFormat) -> std::expected<void, int> {
-                const auto container = transport::deserialize_container(payload);
-                auto response = std::get_if<core::FillCostResponseContainer>(&container);
-                EXPECT_NE(response, nullptr);
-                if (response == nullptr) {
-                    return std::unexpected{-1};
-                }
+    EXPECT_CALL(mock_ws, send(1, _, transport::InboundMessageFormat::binary))
+        .WillOnce(Invoke([](int, const std::string& payload,
+                            transport::InboundMessageFormat) -> std::expected<void, int> {
+            const auto container = transport::deserialize_container(payload);
+            auto response = std::get_if<core::FillCostResponseContainer>(&container);
+            EXPECT_NE(response, nullptr);
+            if (response == nullptr) {
+                return std::unexpected{-1};
+            }
 
-                std::ignore = response->total_cost
-                                  .transform([](int tc) {
-                                      EXPECT_EQ(tc, 2515); // 10*100 + 15*101
-                                      return tc;
-                                  })
-                                  .or_else([]() -> std::optional<int> {
-                                      ADD_FAILURE();
-                                      return std::nullopt;
-                                  });
+            std::ignore = response->total_cost
+                              .transform([](int tc) {
+                                  EXPECT_EQ(tc, 2515); // 10*100 + 15*101
+                                  return tc;
+                              })
+                              .or_else([]() -> std::optional<int> {
+                                  ADD_FAILURE();
+                                  return std::nullopt;
+                              });
 
-                return std::expected<void, int>{};
-            }));
+            return std::expected<void, int>{};
+        }));
 
     process_container(fill_cost_query, test_limit_order_books, trade_events, mock_ws, 0, 1);
 }
@@ -352,19 +353,19 @@ TEST_F(ProcessContainerTest, FillCostQueryWhenNoLiquidity) {
         .side = Side::ask,
     };
 
-    EXPECT_CALL(mock_ws, send(1, _, InboundMessageFormat::binary))
-        .WillOnce(Invoke(
-            [](int, const std::string& payload, InboundMessageFormat) -> std::expected<void, int> {
-                const auto container = transport::deserialize_container(payload);
-                auto response = std::get_if<core::FillCostResponseContainer>(&container);
-                EXPECT_NE(response, nullptr);
-                if (response == nullptr) {
-                    return std::unexpected{-1};
-                }
+    EXPECT_CALL(mock_ws, send(1, _, transport::InboundMessageFormat::binary))
+        .WillOnce(Invoke([](int, const std::string& payload,
+                            transport::InboundMessageFormat) -> std::expected<void, int> {
+            const auto container = transport::deserialize_container(payload);
+            auto response = std::get_if<core::FillCostResponseContainer>(&container);
+            EXPECT_NE(response, nullptr);
+            if (response == nullptr) {
+                return std::unexpected{-1};
+            }
 
-                EXPECT_FALSE(response->total_cost.has_value());
-                return std::expected<void, int>{};
-            }));
+            EXPECT_FALSE(response->total_cost.has_value());
+            return std::expected<void, int>{};
+        }));
 
     process_container(fill_cost_query, test_limit_order_books, trade_events, mock_ws, 0, 1);
 }

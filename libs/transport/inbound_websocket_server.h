@@ -2,15 +2,17 @@
 #include "inbound_server.h"
 #include "websocket_server.h"
 
-namespace engine {
+#include <utility>
 
-using WebsocketManagerServer = transport::WebsocketManagerServer;
+namespace transport {
+
+using WebsocketManagerServer = WebsocketManagerServer;
 
 class InboundWebsocketServer : public InboundServer {
   public:
     explicit InboundWebsocketServer(std::string_view host, int port,
                                     std::shared_ptr<spdlog::logger> logger)
-        : inbound_ws_server{port, host, logger} {};
+        : inbound_ws_server{port, host, std::move(logger)} {};
 
     std::expected<void, int> start() override {
         return inbound_ws_server.start();

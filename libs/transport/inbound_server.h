@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace engine {
+namespace transport {
 
 enum class InboundMessageFormat {
     text,
@@ -27,4 +27,4 @@ class InboundServer {
     send(int id, const std::string& payload,
          InboundMessageFormat fmt = InboundMessageFormat::binary) = 0;
 };
-} // namespace engine
+} // namespace transport

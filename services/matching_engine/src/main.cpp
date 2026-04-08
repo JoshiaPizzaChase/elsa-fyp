@@ -1,5 +1,5 @@
+#include "transport/inbound_websocket_server.h"
 #include "configuration/matching_engine_config.h"
-#include "inbound_websocket_server.h"
 #include "matching_engine.h"
 #include "rfl/toml/load.hpp"
 
@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 
         .create_inbound_server =
             [](std::string_view host, int port, std::shared_ptr<spdlog::logger> logger) {
-                return std::make_unique<InboundWebsocketServer>(host, port, logger);
+                return std::make_unique<transport::InboundWebsocketServer>(host, port, logger);
             }};
 
     MatchingEngine matching_engine{
