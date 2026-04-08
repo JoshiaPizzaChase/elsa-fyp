@@ -272,8 +272,8 @@ bj::object RequestHandler::handle_user_servers(const boost::urls::params_view& p
     }
 
     bj::array arr;
-    const int balance_multiplier_squared = static_cast<int>(
-        core::constants::decimal_to_int_multiplier * core::constants::decimal_to_int_multiplier);
+    const int balance_multiplier = static_cast<int>(core::constants::decimal_to_int_multiplier);
+    const int balance_multiplier_squared = balance_multiplier * balance_multiplier;
     
     for (const auto& srv : result.value()) {
         bj::object obj;
@@ -291,7 +291,8 @@ bj::object RequestHandler::handle_user_servers(const boost::urls::params_view& p
         for (const auto& b : srv.balances) {
             bj::object bo;
             bo["symbol"]  = b.symbol;
-            bo["balance"] = b.balance / balance_multiplier_squared;
+            const int divisor = (b.symbol == "USD") ? balance_multiplier_squared : balance_multiplier;
+            bo["balance"] = static_cast<double>(b.balance) / divisor;
             bal_arr.emplace_back(std::move(bo));
         }
         obj["balances"] = std::move(bal_arr);
@@ -312,6 +313,7 @@ bj::object RequestHandler::handle_historical_trades(const boost::urls::params_vi
         return res;
     }
 
+    const std::string server_name = (*server_it).value;
     const std::string symbol = (*symbol_it).value;
 
     auto after_ts_it = params.find("after_ts_ms");
@@ -320,7 +322,7 @@ bj::object RequestHandler::handle_historical_trades(const boost::urls::params_vi
         long long after_ts_ms{};
         try { after_ts_ms = std::stoll(std::string((*after_ts_it).value)); }
         catch (...) { res["error"] = "Invalid after_ts_ms"; return res; }
-        result = m_db_client.query_trades(symbol, after_ts_ms);
+        result = m_db_client.query_trades(server_name, symbol, after_ts_ms);
     } else {
         res["error"] = "No after_ts_ms specified";
         return res;
@@ -386,15 +388,16 @@ bj::object RequestHandler::handle_account_details(const boost::urls::params_view
 
     res["role"] = details.role;
 
-    const int balance_multiplier_squared = static_cast<int>(
-        core::constants::decimal_to_int_multiplier * core::constants::decimal_to_int_multiplier);
+    const int balance_multiplier = static_cast<int>(core::constants::decimal_to_int_multiplier);
+    const int balance_multiplier_squared = balance_multiplier * balance_multiplier;
     
     bj::array bal_arr;
-    int total_value = 0;
+    double total_value = 0.0;
     for (const auto& b : details.balances) {
         bj::object bo;
         bo["symbol"]  = b.symbol;
-        const int scaled_balance = b.balance / balance_multiplier_squared;
+        const int divisor = (b.symbol == "USD") ? balance_multiplier_squared : balance_multiplier;
+        const double scaled_balance = static_cast<double>(b.balance) / divisor;
         bo["balance"] = scaled_balance;
         bal_arr.emplace_back(std::move(bo));
         total_value += scaled_balance;

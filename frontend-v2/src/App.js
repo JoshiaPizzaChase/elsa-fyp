@@ -215,23 +215,57 @@ function App() {
         };
     }, [selectedTicker, serverName, ingestTrade, rebuildCandles]);
 
+    const normalizeBookLevels = useCallback((levels) => {
+        if (!Array.isArray(levels)) return [];
+        return levels
+            .map((level) => {
+                const price = Number(level?.price ?? level?.px);
+                const quantity = Number(level?.quantity ?? level?.qty ?? level?.size);
+                return {price, quantity};
+            })
+            .filter((level) =>
+                Number.isFinite(level.price) &&
+                Number.isFinite(level.quantity) &&
+                level.price > 0 &&
+                level.quantity > 0
+            );
+    }, []);
+
     // Handle incoming live messages
     const handleMessage = useCallback((data) => {
         // Filter out messages that don't match the selected ticker
-        const msgTicker = data.ticker ?? data.symbol;
-        if (!msgTicker || msgTicker.toUpperCase() !== selectedTickerRef.current) {
+        const msgTicker = (data.ticker ?? data.symbol ?? '').toUpperCase();
+        const currentTicker = selectedTickerRef.current;
+        
+        if (!msgTicker || !currentTicker) {
+            return;
+        }
+        
+        if (msgTicker !== currentTicker) {
             return;
         }
 
         // Order book snapshot
-        if (data.bids && data.asks) {
-            const sortedBids = [...data.bids].sort((a, b) => b.price - a.price);
-            const sortedAsks = [...data.asks].sort((a, b) => a.price - b.price);
+        const incomingBids = data.bids ?? data.bid_level_aggregates;
+        const incomingAsks = data.asks ?? data.ask_level_aggregates;
+        if (incomingBids && incomingAsks) {
+            const normalizedBids = normalizeBookLevels(incomingBids);
+            const normalizedAsks = normalizeBookLevels(incomingAsks);
+            console.log(
+                `[WS] Orderbook snapshot for ${msgTicker}:`,
+                normalizedBids.length,
+                'bids,',
+                normalizedAsks.length,
+                'asks'
+            );
+            const sortedBids = [...normalizedBids].sort((a, b) => b.price - a.price);
+            const sortedAsks = [...normalizedAsks].sort((a, b) => a.price - b.price);
             setBids(sortedBids);
             setAsks(sortedAsks);
         }
         // Trade message
         else if (data.trade_id !== undefined) {
+            console.log(`[WS] Trade for ${msgTicker}:`, data.price, 'x', data.quantity);
             setLastTradePrice(data.price);
             if (!seenTradeIdsRef.current.has(data.trade_id)) {
                 seenTradeIdsRef.current.add(data.trade_id);
@@ -239,7 +273,7 @@ function App() {
             }
             ingestTrade(data.price, data.quantity ?? 0, data.create_timestamp);
         }
-    }, [ingestTrade]);
+    }, [ingestTrade, normalizeBookLevels]);
 
     const {isConnected} = useWebSocket(mdpEndpoint, handleMessage);
 

@@ -13,7 +13,7 @@ int test_fix() {
 
         auto* client = new TestClient(pathToConfig.string());
         client->connect(5);
-        std::cout << client->submit_limit_order("GME", 10.0, 100, OrderSide::BUY, TimeInForce::GTC, 8964) << std::endl;
+        std::cout << client->submit_limit_order("GME", 100.0, 2, OrderSide::BUY, TimeInForce::GTC, 8964) << std::endl;
         return 0;
     } catch (std::exception& e) {
         std::cout << e.what() << '\n';
