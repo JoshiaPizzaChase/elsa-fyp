@@ -31,15 +31,13 @@ class InboundWebsocketServer : public InboundServer {
     std::optional<std::string> dequeue_message(int id) override {
         return inbound_ws_server.dequeue_message(id);
     }
-    std::expected<void, int> send(int id, const std::string& payload,
-                                  InboundMessageFormat fmt) override {
+    std::expected<void, int> send(int id, const std::string& payload, MessageFormat fmt) override {
         return inbound_ws_server.send(id, payload,
-                                      (fmt == InboundMessageFormat::binary)
-                                          ? transport::MessageFormat::binary
-                                          : transport::MessageFormat::text);
+                                      (fmt == MessageFormat::binary) ? MessageFormat::binary
+                                                                     : MessageFormat::text);
     }
 
   private:
     WebsocketManagerServer inbound_ws_server;
 };
-} // namespace engine
+} // namespace transport
