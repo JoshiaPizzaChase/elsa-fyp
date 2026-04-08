@@ -17,17 +17,19 @@ static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::as
     "order_manager_logger",
     std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
-OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
-    : inbound_ws_server{port, host, logger}, order_request_ws_client{logger},
-      order_response_ws_client{logger}, database_client{true}, gateway_count{gateway_count},
-      order_request_connection_id{}, order_response_connection_id{}, current_order_id{0} {
+OrderManager::OrderManager(std::string_view host, int port, int gateway_count,
+                           OrderManagerDependencyFactory dependency_factory)
+    : inbound_ws_server{dependency_factory.create_inbound_server(host, port, logger)},
+      order_request_ws_client{logger}, order_response_ws_client{logger}, database_client{true},
+      gateway_count{gateway_count}, order_request_connection_id{}, order_response_connection_id{},
+      current_order_id{0} {
+}
+
+void OrderManager::init() {
     // TODO: Handle start error
     inbound_ws_server.start();
     order_request_ws_client.start();
     order_response_ws_client.start();
-
-    logger->info("Order Manager constructed");
-    logger->flush();
 
     // Initialize USD balances for users if not already present
     if (SERVER_NAME != nullptr) {
@@ -46,18 +48,20 @@ OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
         auto users_balances_result = database_client.get_all_users_balances_for_server(server_name);
         if (users_balances_result.has_value()) {
             const auto& users_balances = users_balances_result.value();
-            logger->info("Loading balances for {} users into balance_checker", users_balances.size());
-            
+            logger->info("Loading balances for {} users into balance_checker",
+                         users_balances.size());
+
             for (const auto& user_balance : users_balances) {
                 const std::string& username = user_balance.username;
                 for (const auto& balance : user_balance.balances) {
                     // Initialize balance in balance_checker (delta of 0 just sets the balance)
                     balance_checker.update_balance(username, balance.symbol, balance.balance);
-                    logger->info("Loaded balance for user {}: {} {}", username, balance.balance, balance.symbol);
+                    logger->info("Loaded balance for user {}: {} {}", username, balance.balance,
+                                 balance.symbol);
                 }
             }
         } else {
-            logger->error("Failed to load balances into balance_checker: {}", 
+            logger->error("Failed to load balances into balance_checker: {}",
                           users_balances_result.error());
         }
     } else {

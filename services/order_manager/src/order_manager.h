@@ -3,15 +3,14 @@
 #include "balance_checker.h"
 #include "core/containers.h"
 #include "database/database_client.h"
+#include "transport/inbound_server.h"
 #include "websocket_client.h"
-#include "websocket_server.h"
 
 #include <boost/bimap.hpp>
 
 namespace om {
-inline constexpr std::string USD_SYMBOL = "USD";
+inline const std::string USD_SYMBOL = "USD";
 
-using WebsocketManagerServer = transport::WebsocketManagerServer;
 using WebsocketManagerClient = transport::WebsocketManagerClient;
 
 struct OrderInfo {
@@ -27,16 +26,24 @@ struct OrderInfo {
     int arrival_gateway_id; // Assume that all orders in same order_id chain arrives in same gateway
 };
 
+struct OrderManagerDependencyFactory {
+    std::function<std::unique_ptr<transport::InboundServer>(std::string_view, int,
+                                                            std::shared_ptr<spdlog::logger>)>
+        create_inbound_server;
+};
+
 class OrderManager {
   public:
-    OrderManager(std::string_view host, int port, int gateway_count);
+    OrderManager(std::string_view host, int port, int gateway_count,
+                 OrderManagerDependencyFactory dependency_factory);
+    void init();
     std::expected<void, std::string> connect_matching_engine(std::string host, int port);
     std::expected<void, std::string> start();
 
     typedef boost::bimap<int, int>::value_type order_id_pair;
 
   private:
-    WebsocketManagerServer inbound_ws_server;
+    std::unique_ptr<transport::InboundServer> inbound_ws_server;
     WebsocketManagerClient order_request_ws_client;
     WebsocketManagerClient order_response_ws_client;
     BalanceChecker balance_checker;
@@ -66,7 +73,7 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 void forward_and_reply(bool is_container_valid, const core::Container& container,
                        const std::unordered_map<int, OrderInfo>& order_info_map,
                        int arrival_gateway_id, WebsocketManagerClient& order_request_ws_client,
-                       int order_request_connection_id, WebsocketManagerServer& inbound_ws_server,
+                       int order_request_connection_id, transport::InboundServer& inbound_ws_server,
                        database::DatabaseClient& database_client);
 
 core::ExecutionReportContainer
@@ -86,7 +93,7 @@ void update_order_info(const core::TradeContainer& trade_container,
 void return_execution_report(const core::Container& container,
                              const boost::bimap<int, int>& order_id_map,
                              const std::unordered_map<int, OrderInfo>& order_info_map,
-                             WebsocketManagerServer& inbound_ws_server,
+                             transport::InboundServer& inbound_ws_server,
                              database::DatabaseClient& database_client);
 
 std::pair<core::ExecutionReportContainer, core::ExecutionReportContainer>
