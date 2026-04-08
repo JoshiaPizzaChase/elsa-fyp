@@ -32,9 +32,7 @@ class InboundWebsocketServer : public InboundServer {
         return inbound_ws_server.dequeue_message(id);
     }
     std::expected<void, int> send(int id, const std::string& payload, MessageFormat fmt) override {
-        return inbound_ws_server.send(id, payload,
-                                      (fmt == MessageFormat::binary) ? MessageFormat::binary
-                                                                     : MessageFormat::text);
+        return inbound_ws_server.send(id, payload, fmt);
     }
 
   private:
