@@ -57,6 +57,7 @@ target_include_directories(test_database_client
         ${CMAKE_SOURCE_DIR}/libs
         /opt/homebrew/include
         ${CMAKE_SOURCE_DIR}/deps/c-questdb-client/include
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
 )
 
 target_compile_options(test_interactive_client PRIVATE -Wall -Wextra -Wpedantic)
