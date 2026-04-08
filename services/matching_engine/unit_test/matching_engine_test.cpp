@@ -36,7 +36,7 @@ class MockInboundWebsocketServer : public transport::InboundServer {
                 (const, override));
     MOCK_METHOD(std::optional<std::string>, dequeue_message, (int), (override));
     MOCK_METHOD((std::expected<void, int>), send,
-                (int, const std::string&, transport::InboundMessageFormat), (override));
+                (int, const std::string&, transport::MessageFormat), (override));
 };
 
 MatchingEngineDependencyFactory make_base_test_dependency_factory() {
@@ -196,9 +196,9 @@ TEST_F(ProcessContainerTest, NewOrderMatchSendsTradeContainer) {
                                                .price = 100,
                                                .time_in_force = core::TimeInForce::day};
 
-    EXPECT_CALL(mock_ws, send(0, _, transport::InboundMessageFormat::binary))
+    EXPECT_CALL(mock_ws, send(0, _, transport::MessageFormat::binary))
         .WillOnce(Invoke([](int, const std::string& payload,
-                            transport::InboundMessageFormat) -> std::expected<void, int> {
+                            transport::MessageFormat) -> std::expected<void, int> {
             const auto container = transport::deserialize_container(payload);
             auto trade = std::get_if<core::TradeContainer>(&container);
             EXPECT_NE(trade, nullptr);
@@ -262,9 +262,9 @@ TEST_F(ProcessContainerTest, SuccessfulCancel) {
                                                      .side = Side::ask,
                                                      .order_qty = 5};
 
-    EXPECT_CALL(mock_ws, send(0, _, transport::InboundMessageFormat::binary))
+    EXPECT_CALL(mock_ws, send(0, _, transport::MessageFormat::binary))
         .WillOnce(Invoke([](int, const std::string& payload,
-                            transport::InboundMessageFormat) -> std::expected<void, int> {
+                            transport::MessageFormat) -> std::expected<void, int> {
             const auto container = transport::deserialize_container(payload);
             auto cancel_response = std::get_if<core::CancelOrderResponseContainer>(&container);
             EXPECT_NE(cancel_response, nullptr);
@@ -293,9 +293,9 @@ TEST_F(ProcessContainerTest, FailedCancel) {
                                                      .side = Side::ask,
                                                      .order_qty = 5};
 
-    EXPECT_CALL(mock_ws, send(0, _, transport::InboundMessageFormat::binary))
+    EXPECT_CALL(mock_ws, send(0, _, transport::MessageFormat::binary))
         .WillOnce(Invoke([](int, const std::string& payload,
-                            transport::InboundMessageFormat) -> std::expected<void, int> {
+                            transport::MessageFormat) -> std::expected<void, int> {
             const auto container = transport::deserialize_container(payload);
             auto cancel_response = std::get_if<core::CancelOrderResponseContainer>(&container);
             EXPECT_NE(cancel_response, nullptr);
@@ -320,9 +320,9 @@ TEST_F(ProcessContainerTest, FillCostQueryReturnsComputedCost) {
     core::FillCostQueryContainer fill_cost_query{
         .symbol = "AAPL", .quantity = 25, .side = Side::ask};
 
-    EXPECT_CALL(mock_ws, send(1, _, transport::InboundMessageFormat::binary))
+    EXPECT_CALL(mock_ws, send(1, _, transport::MessageFormat::binary))
         .WillOnce(Invoke([](int, const std::string& payload,
-                            transport::InboundMessageFormat) -> std::expected<void, int> {
+                            transport::MessageFormat) -> std::expected<void, int> {
             const auto container = transport::deserialize_container(payload);
             auto response = std::get_if<core::FillCostResponseContainer>(&container);
             EXPECT_NE(response, nullptr);
@@ -353,9 +353,9 @@ TEST_F(ProcessContainerTest, FillCostQueryWhenNoLiquidity) {
         .side = Side::ask,
     };
 
-    EXPECT_CALL(mock_ws, send(1, _, transport::InboundMessageFormat::binary))
+    EXPECT_CALL(mock_ws, send(1, _, transport::MessageFormat::binary))
         .WillOnce(Invoke([](int, const std::string& payload,
-                            transport::InboundMessageFormat) -> std::expected<void, int> {
+                            transport::MessageFormat) -> std::expected<void, int> {
             const auto container = transport::deserialize_container(payload);
             auto response = std::get_if<core::FillCostResponseContainer>(&container);
             EXPECT_NE(response, nullptr);

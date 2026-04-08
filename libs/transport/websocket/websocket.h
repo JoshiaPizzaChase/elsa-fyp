@@ -4,7 +4,7 @@
 #include "core/thread_safe_queue.h"
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include <boost/asio/placeholders.hpp>
+#include "transport/message_format.h"
 #include <concepts>
 #include <expected>
 #include <fstream>
@@ -14,8 +14,6 @@
 #include <websocketpp/client.hpp>
 #include <websocketpp/close.hpp>
 #include <websocketpp/common/connection_hdl.hpp>
-#include <websocketpp/common/memory.hpp>
-#include <websocketpp/common/thread.hpp>
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/config/asio_no_tls_client.hpp>
 #include <websocketpp/frame.hpp>
@@ -34,11 +32,6 @@ enum class ConnectionStatus {
     open,
     failed,
     closed,
-};
-
-enum class MessageFormat {
-    text,
-    binary
 };
 
 template <ClientOrServer Endpoint>

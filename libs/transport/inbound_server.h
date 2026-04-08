@@ -1,15 +1,13 @@
 #pragma once
+
+#include "message_format.h"
+
 #include <expected>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace transport {
-
-enum class InboundMessageFormat {
-    text,
-    binary
-};
 
 struct InboundConnectionInfo {
     int id;
@@ -23,8 +21,7 @@ class InboundServer {
     virtual std::expected<void, int> start() = 0;
     virtual std::vector<InboundConnectionInfo> get_connection_info() const = 0;
     virtual std::optional<std::string> dequeue_message(int id) = 0;
-    virtual std::expected<void, int>
-    send(int id, const std::string& payload,
-         InboundMessageFormat fmt = InboundMessageFormat::binary) = 0;
+    virtual std::expected<void, int> send(int id, const std::string& payload,
+                                          MessageFormat fmt = MessageFormat::binary) = 0;
 };
 } // namespace transport
