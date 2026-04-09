@@ -7,6 +7,7 @@
 #include <boost/asio/placeholders.hpp>
 #include <concepts>
 #include <expected>
+#include <mutex>
 #include <fstream>
 #include <string_view>
 #include <unordered_map>
@@ -111,6 +112,7 @@ struct ConnectionMetadata {
     }
 
     void set_status(ConnectionStatus status) {
+        std::lock_guard<std::mutex> lock(m_mtx);
         m_status = status;
     }
 
@@ -154,6 +156,7 @@ struct ConnectionMetadata {
     }
 
   private:
+    std::mutex m_mtx;
     int m_id;
     websocketpp::connection_hdl m_handle;
     ConnectionStatus m_status;
