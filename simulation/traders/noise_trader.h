@@ -8,9 +8,13 @@
 #include <thread>
 
 // TODO 1: Switch to CRTP for compile-time polymorphism later.
-// TODO 2: Improve the class designs below. Having a separate parent class for ProcessGenerator and DecisionGenerator and QuantityGenerator seems a bit dumb.
-// TODO 3: Improve the NoiseTrader class. We might want a factory pattern such that the caller does not have to create the ProcessGenerator, DecisionGenerator, and QuantityGenerator themselves. Any other ideas..?
-// TODO 4: Should the NoiseTrader class even own the ProcessGenerator, DecisionGenerator, and QuantityGenerator themselves? I'm scared it becomes a God class.
+// TODO 2: Improve the class designs below. Having a separate parent class for ProcessGenerator and
+// DecisionGenerator and QuantityGenerator seems a bit dumb.
+// TODO 3: Improve the NoiseTrader class. We might want a factory pattern such that the caller does
+// not have to create the ProcessGenerator, DecisionGenerator, and QuantityGenerator themselves. Any
+// other ideas..?
+// TODO 4: Should the NoiseTrader class even own the ProcessGenerator, DecisionGenerator, and
+// QuantityGenerator themselves? I'm scared it becomes a God class.
 class ProcessGenerator {
   public:
     virtual void wait_for_arrival() = 0;
@@ -78,7 +82,8 @@ template <typename T>
 class UniformQuantityGenerator : public QuantityGenerator<T> {
   public:
     UniformQuantityGenerator(T min_val, T max_val)
-        : m_min{min_val}, m_max{max_val}, m_rd{}, m_generator(m_rd()), m_distribution{m_min, m_max} {
+        : m_min{min_val}, m_max{max_val}, m_rd{}, m_generator(m_rd()),
+          m_distribution{m_min, m_max} {
     }
 
     T generate() override {
@@ -99,12 +104,10 @@ class NoiseTrader {
     NoiseTrader(std::unique_ptr<ProcessGenerator> process_generator,
                 std::unique_ptr<DecisionGenerator<OrderSide>> side_generator,
                 std::unique_ptr<QuantityGenerator<double>> quantity_generator,
-                std::unique_ptr<FixClient> fix_client,
-                std::string ticker)
+                std::unique_ptr<FixClient> fix_client, std::string ticker)
         : m_process_generator{std::move(process_generator)},
           m_side_generator{std::move(decision_generator)},
-          m_quantity_generator{std::move(quantity_generator)},
-          m_fix_client{std::move(fix_client)},
+          m_quantity_generator{std::move(quantity_generator)}, m_fix_client{std::move(fix_client)},
           m_ticker{std::move(ticker)} {
     }
 
@@ -114,7 +117,8 @@ class NoiseTrader {
             double quantity{m_quantity_generator->generate()};
 
             if (m_fix_client && m_fix_client->is_connected()) {
-                m_fix_client->submit_market_order(m_ticker, quantity, buy_or_sell, ++m_client_order_id);
+                m_fix_client->submit_market_order(m_ticker, quantity, buy_or_sell,
+                                                  ++m_client_order_id);
             }
 
             m_process_generator->wait_for_arrival();
