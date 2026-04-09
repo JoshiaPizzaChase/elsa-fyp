@@ -19,9 +19,10 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
                                const std::vector<std::string>& active_symbols,
                                const std::chrono::milliseconds flush_interval,
                                const MatchingEngineDependencyFactory& dependency_factory)
-    : inbound_server{dependency_factory.create_inbound_server(host, port, logger)},
-      flush_interval{flush_interval}, incoming_request_connection_id{},
-      order_response_connection_id{} {
+    : incoming_request_connection_id{-1}, order_response_connection_id{-1},
+      inbound_server{dependency_factory.create_inbound_server(
+          host, port, logger, incoming_request_connection_id, order_response_connection_id)},
+      flush_interval{flush_interval} {
 
     for (const auto& symbol : active_symbols) {
         limit_order_books.emplace(
@@ -52,25 +53,10 @@ void MatchingEngine::init() const {
 }
 
 // Spin locks until matching engine has two connections from OMS
-void MatchingEngine::wait_for_connections() {
-    auto connection_info = inbound_server->get_connection_info();
-    while (connection_info.size() != 2) {
-        connection_info = inbound_server->get_connection_info();
+void MatchingEngine::wait_for_connections() const {
+    while (incoming_request_connection_id == -1 || order_response_connection_id == -1) {
     }
-
-    for (const auto& [id, counter_party] : connection_info) {
-        if (counter_party == "order_request") {
-            incoming_request_connection_id = id;
-            logger->info("[ME] Order request connection established, id: {}",
-                         incoming_request_connection_id);
-        } else if (counter_party == "order_response") {
-            order_response_connection_id = id;
-            logger->info("[ME] Order response connection established, id: {}",
-                         order_response_connection_id);
-        } else {
-            logger->error("[ME] Unexpected connection: {}", counter_party);
-        }
-    }
+    logger->info("Both connections from Order Manager have been established");
 }
 
 void MatchingEngine::run() {

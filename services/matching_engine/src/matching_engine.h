@@ -19,8 +19,8 @@ struct MatchingEngineDependencyFactory {
     std::function<std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>(std::string_view)>
         create_orderbook_snapshot_publisher;
 
-    std::function<std::unique_ptr<transport::InboundServer>(std::string_view, int,
-                                                 std::shared_ptr<spdlog::logger>)>
+    std::function<std::unique_ptr<transport::InboundServer>(
+        std::string_view, int, std::shared_ptr<spdlog::logger>, int&, int&)>
         create_inbound_server;
 };
 
@@ -31,7 +31,7 @@ class MatchingEngine {
                    const MatchingEngineDependencyFactory& dependency_factory);
     void init() const;
     [[noreturn]] void run();
-    void wait_for_connections();
+    void wait_for_connections() const;
 
     [[nodiscard]] const std::unordered_map<std::string, LimitOrderBook>&
     get_limit_order_books() const;
@@ -40,15 +40,14 @@ class MatchingEngine {
     get_snapshot_publishers() const;
 
   private:
+    int incoming_request_connection_id;
+    int order_response_connection_id;
     std::unique_ptr<transport::InboundServer> inbound_server;
 
     std::unordered_map<std::string,
                        std::unique_ptr<Publisher<TopOrderBookLevelAggregates>>>
         orderbook_snapshot_publishers; // One publisher for each symbol
     std::chrono::milliseconds flush_interval;
-
-    int incoming_request_connection_id;
-    int order_response_connection_id;
 
     std::queue<Trade> trade_events; // Container for limit order books to dump trade events
 

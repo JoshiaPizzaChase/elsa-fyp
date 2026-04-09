@@ -158,10 +158,10 @@ struct ConnectionMetadata {
 template <ClientOrServer Endpoint>
 class WebsocketManager {
   protected:
-    using ConnectionMetadata = ConnectionMetadata<Endpoint>;
     using ConnectionHandle = websocketpp::connection_hdl;
 
   public:
+    using ConnectionMetadata = ConnectionMetadata<Endpoint>;
     // Constructor if you already have a logger, usually when a top-level class owns
     // a WebsocketManager object.
     WebsocketManager(std::shared_ptr<spdlog::logger> logger) : m_logger{logger} {
@@ -296,7 +296,8 @@ class WebsocketManager {
     // Useful if you want to iterate over all connections in the map.
     // For example, getting the list of connection names.
     // Since it returns a const reference, use cautiously to avoid dangling references.
-    const std::unordered_map<int, typename ConnectionMetadata::conn_meta_shared_ptr>& get_id_to_connection_map() const {
+    const std::unordered_map<int, typename ConnectionMetadata::conn_meta_shared_ptr>&
+    get_id_to_connection_map() const {
         return m_id_to_connection_map;
     }
 
@@ -315,8 +316,8 @@ class WebsocketManager {
         m_endpoint.set_error_channels(websocketpp::log::elevel::all);
 
         // Redirect endpoint logs to separate file from spdlogs
-        std::ostream* log_stream = new std::ofstream(
-            std::format("{}/logs/{}/{}_endpoint.log", PROJECT_SOURCE_DIR, SERVER_NAME, logger_name));
+        std::ostream* log_stream = new std::ofstream(std::format(
+            "{}/logs/{}/{}_endpoint.log", PROJECT_SOURCE_DIR, SERVER_NAME, logger_name));
         m_endpoint.get_alog().set_ostream(log_stream);
         m_endpoint.get_elog().set_ostream(log_stream);
     }
