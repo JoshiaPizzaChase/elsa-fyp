@@ -15,21 +15,27 @@ class DatabaseClientWrapper : public OrderManagerDatabase {
 
     std::expected<std::vector<DbUserBalanceInfo>, std::string>
     get_all_users_balances_for_server(std::string_view server_name) override {
-        auto raw = client.get_all_users_balances_for_server(server_name);
-        if (!raw.has_value())
-            return std::unexpected(raw.error());
+        return client.get_all_users_balances_for_server(server_name)
+            .transform([](std::vector<database::DatabaseClient::UserBalanceInfo>&& user_bal_info)
+                           -> std::vector<DbUserBalanceInfo> {
+                std::vector<DbUserBalanceInfo> db_user_balance_infos;
+                db_user_balance_infos.reserve(user_bal_info.size());
 
-        std::vector<DbUserBalanceInfo> mapped;
-        mapped.reserve(raw.value().size());
-        for (const auto& u : raw.value()) {
-            DbUserBalanceInfo out{.username = u.username};
-            out.balances.reserve(u.balances.size());
-            for (const auto& b : u.balances) {
-                out.balances.push_back({.symbol = b.symbol, .balance = b.balance});
-            }
-            mapped.push_back(std::move(out));
-        }
-        return mapped;
+                for (const auto& [username, balances] : user_bal_info) {
+                    DbUserBalanceInfo bal_info{.username = username};
+                    bal_info.balances.reserve(balances.size());
+                    for (const auto& [symbol, balance] : balances) {
+                        bal_info.balances.emplace_back(symbol, balance);
+                    }
+                    db_user_balance_infos.push_back(std::move(bal_info));
+                }
+
+                return db_user_balance_infos;
+            })
+            .or_else([](std::string&& err)
+                         -> std::expected<std::vector<DbUserBalanceInfo>, std::string> {
+                return std::unexpected{err};
+            });
     }
 
     std::expected<void, std::string> insert_order(int internal_order_id,

@@ -27,8 +27,7 @@ OrderManager::OrderManager(std::string_view host, int port, int gateway_count,
 }
 
 void OrderManager::init() {
-    const auto inbound_server_start_res = inbound_server->start();
-    std::ignore = inbound_server_start_res
+    std::ignore = inbound_server->start()
                       .transform([] {
                           logger->info("[OM] Order Manager starts accepting connections");
                           logger->flush();
@@ -39,8 +38,7 @@ void OrderManager::init() {
                           std::terminate();
                       });
 
-    const auto order_request_client_start_res = order_request_outbound_client->start();
-    std::ignore = order_request_client_start_res
+    std::ignore = order_request_outbound_client->start()
                       .transform([] {
                           logger->info("[OM] Order Request Client started");
                           logger->flush();
@@ -51,8 +49,7 @@ void OrderManager::init() {
                           std::terminate();
                       });
 
-    const auto order_response_client_start_res = order_response_outbound_client->start();
-    std::ignore = order_response_client_start_res
+    std::ignore = order_response_outbound_client->start()
                       .transform([] {
                           logger->info("[OM] Order Response Client started");
                           logger->flush();
