@@ -141,8 +141,6 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
             if (auto it{m_handle_to_connection_map.find(handle)};
                 it != m_handle_to_connection_map.end()) {
                 it->second->on_close(&m_endpoint, handle);
-                // Added to prevent infinitely growing map size from closed connections.
-                this->m_handle_to_connection_map.erase(it);
             }
         });
         m_endpoint.set_fail_handler([this](ConnectionHandle handle) {
