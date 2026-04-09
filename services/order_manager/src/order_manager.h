@@ -2,7 +2,7 @@
 
 #include "balance_checker.h"
 #include "core/containers.h"
-#include "database/database_client.h"
+#include "order_manager_database.h"
 #include "transport/inbound_server.h"
 #include "transport/outbound_client.h"
 #include "websocket_client.h"
@@ -32,6 +32,8 @@ struct OrderManagerDependencyFactory {
 
     std::function<std::unique_ptr<transport::OutboundClient>(std::shared_ptr<spdlog::logger>)>
         create_outbound_client;
+
+    std::function<std::unique_ptr<OrderManagerDatabase>(bool)> create_database_client;
 };
 
 class OrderManager {
@@ -49,7 +51,7 @@ class OrderManager {
     std::unique_ptr<transport::OutboundClient> order_request_outbound_client;
     std::unique_ptr<transport::OutboundClient> order_response_outbound_client;
     BalanceChecker balance_checker;
-    database::DatabaseClient database_client;
+    std::unique_ptr<OrderManagerDatabase> database_client;
 
     int gateway_count;
     int order_request_connection_id;
@@ -75,7 +77,7 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                        const std::unordered_map<int, OrderInfo>& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
-                       database::DatabaseClient& database_client);
+                       OrderManagerDatabase& database_client);
 
 core::ExecutionReportContainer
 generate_rejection_report_container(const core::Container& container,
@@ -85,7 +87,7 @@ core::ExecutionReportContainer
 generate_success_report_container(const core::Container& container,
                                   const std::unordered_map<int, OrderInfo>& order_info_store);
 
-void update_database(const core::Container& container, database::DatabaseClient& database_client,
+void update_database(const core::Container& container, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container = std::nullopt);
 
 void update_order_info(const core::TradeContainer& trade_container,
@@ -95,7 +97,7 @@ void return_execution_report(const core::Container& container,
                              const boost::bimap<int, int>& order_id_map,
                              const std::unordered_map<int, OrderInfo>& order_info_map,
                              transport::InboundServer& inbound_ws_server,
-                             database::DatabaseClient& database_client);
+                             OrderManagerDatabase& database_client);
 
 std::pair<core::ExecutionReportContainer, core::ExecutionReportContainer>
 generate_matched_order_report_containers(const core::TradeContainer& trade,

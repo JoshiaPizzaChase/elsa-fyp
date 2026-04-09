@@ -1,4 +1,5 @@
 #include "configuration/order_manager_config.h"
+#include "database_client_wrapper.h"
 #include "order_manager.h"
 #include "rfl/toml/load.hpp"
 #include "transport/inbound_websocket_server.h"
@@ -18,12 +19,15 @@ int main(int argc, char* argv[]) {
         .create_outbound_client =
             [](std::shared_ptr<spdlog::logger> logger) {
                 return std::make_unique<transport::OutboundWebsocketClient>(logger);
-            }};
+            },
+        .create_database_client =
+            [](bool ensure_init) { return std::make_unique<DatabaseClientWrapper>(ensure_init); }};
 
     OrderManager order_manager{order_manager_config.order_manager_host,
                                order_manager_config.order_manager_port,
                                order_manager_config.gateway_count, dependency_factory};
 
+    order_manager.init();
     order_manager.connect_matching_engine(order_manager_config.downstream_matching_engine_host,
                                           order_manager_config.downstream_matching_engine_port);
 

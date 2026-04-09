@@ -22,8 +22,8 @@ OrderManager::OrderManager(std::string_view host, int port, int gateway_count,
     : inbound_server{dependency_factory.create_inbound_server(host, port, logger)},
       order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
       order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
-      database_client{true}, gateway_count{gateway_count}, order_request_connection_id{},
-      order_response_connection_id{} {
+      database_client{dependency_factory.create_database_client(true)},
+      gateway_count{gateway_count}, order_request_connection_id{}, order_response_connection_id{} {
 }
 
 void OrderManager::init() {
@@ -37,7 +37,7 @@ void OrderManager::init() {
         std::string server_name(SERVER_NAME);
         logger->info("Initializing balances for server: {}", server_name);
 
-        auto result = database_client.ensure_initial_usd_balances(server_name, 100000);
+        auto result = database_client->ensure_initial_usd_balances(server_name, 100000);
         if (result.has_value()) {
             logger->info("Initialized {} USD balances for server: {}", result.value(), server_name);
         } else {
@@ -46,7 +46,8 @@ void OrderManager::init() {
         }
 
         // Load all user balances into the balance_checker
-        auto users_balances_result = database_client.get_all_users_balances_for_server(server_name);
+        auto users_balances_result =
+            database_client->get_all_users_balances_for_server(server_name);
         if (users_balances_result.has_value()) {
             const auto& users_balances = users_balances_result.value();
             logger->info("Loading balances for {} users into balance_checker",
@@ -117,9 +118,9 @@ std::expected<void, std::string> OrderManager::start() {
 
             forward_and_reply(is_container_valid, container, order_info_map, curr_gateway_id,
                               *order_request_outbound_client, order_request_connection_id,
-                              *inbound_server, database_client);
+                              *inbound_server, *database_client);
 
-            update_database(container, database_client, is_container_valid);
+            update_database(container, *database_client, is_container_valid);
         }
 
         curr_gateway_id = (curr_gateway_id + 1) % gateway_count;
@@ -141,9 +142,9 @@ std::expected<void, std::string> OrderManager::start() {
             }
 
             return_execution_report(container, order_id_map, order_info_map, *inbound_server,
-                                    database_client);
+                                    *database_client);
 
-            update_database(container, database_client);
+            update_database(container, *database_client);
         }
     }
 
@@ -324,7 +325,7 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                        const std::unordered_map<int, OrderInfo>& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
-                       database::DatabaseClient& database_client) {
+                       OrderManagerDatabase& database_client) {
     if (is_container_valid) {
         // Forward validated container to Matching Engine
         // TODO: Handle send error
@@ -469,7 +470,7 @@ generate_success_report_container(const core::Container& container,
                       container);
 }
 
-void update_database(const core::Container& container, database::DatabaseClient& database_client,
+void update_database(const core::Container& container, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
         assert(new_order.order_id.has_value());
@@ -525,7 +526,7 @@ void return_execution_report(const core::Container& container,
                              const boost::bimap<int, int>& order_id_map,
                              const std::unordered_map<int, OrderInfo>& order_info_map,
                              transport::InboundServer& inbound_ws_server,
-                             database::DatabaseClient& database_client) {
+                             OrderManagerDatabase& database_client) {
     auto trade_handler{[&](const core::TradeContainer& trade) {
         const auto [taker_exec_report, maker_exec_report] =
             generate_matched_order_report_containers(trade, order_id_map, order_info_map);
