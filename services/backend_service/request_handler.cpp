@@ -506,27 +506,20 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     }
 
     // TODO: implement machine selection when scaling to multiple machines.
-    std::string machine_name = "localhost";
-    int machine_id = -1;
-    std::string machine_ip = "127.0.0.1";
-
     auto machines_res = m_db_client.query_machines();
     if (!machines_res.has_value()) {
         res["error"] = machines_res.error();
         return res;
     }
-    for (const auto& machine : machines_res.value()) {
-        if (machine.machine_name == machine_name) {
-            machine_id = machine.machine_id;
-            machine_ip = machine.ip;
-            break;
-        }
+    auto machines = machines_res.value();
+    if (machines.empty()) {
+	res["error"] = "No available machines found";
+	return res;
     }
-    if (machine_id < 0) {
-        res["error"] = "No machine found with name: " + machine_name;
-        return res;
-    }
-
+    // use first available machine for now
+    auto machine_id = machines[0].machine_id;
+    auto machine_ip = machines[0].ip;
+    auto machine_name = machines[0].machine_name;
     constexpr int kMinUnreservedPort = 10001;
     auto services_res = m_db_client.query_services(machine_name);
     if (!services_res.has_value()) {
