@@ -50,7 +50,7 @@ MatchingEngineDependencyFactory make_base_test_dependency_factory() {
 TEST(MatchingEngineConstructorTest, ValidConstruction) {
     auto dependency_factory = make_base_test_dependency_factory();
     dependency_factory.create_inbound_server = [](std::string_view, int,
-                                                  std::shared_ptr<spdlog::logger>) {
+                                                  std::shared_ptr<spdlog::logger>, int&, int&) {
         return std::make_unique<MockInboundWebsocketServer>();
     };
 
@@ -75,12 +75,12 @@ class MatchingEngineInitTest : public testing::Test {
 
     MatchingEngineInitTest()
         : dep_factory{make_base_test_dependency_factory()}, test_me{[&]() {
-              dep_factory.create_inbound_server = [this](std::string_view, int,
-                                                         std::shared_ptr<spdlog::logger>) {
-                  auto ws = std::make_unique<NiceMock<MockInboundWebsocketServer>>();
-                  mock_ws = ws.get();
-                  return ws;
-              };
+              dep_factory.create_inbound_server =
+                  [this](std::string_view, int, std::shared_ptr<spdlog::logger>, int&, int&) {
+                      auto ws = std::make_unique<NiceMock<MockInboundWebsocketServer>>();
+                      mock_ws = ws.get();
+                      return ws;
+                  };
               return MatchingEngine{TEST_HOST, TEST_PORT, TEST_SYMBOLS, TEST_FLUSH_INTERVAL,
                                     dep_factory};
           }()} {
@@ -98,34 +98,6 @@ TEST_F(MatchingEngineInitTest, WebsocketStartupSuccess) {
     EXPECT_CALL(*mock_ws, start).WillOnce(Return(std::expected<void, int>{}));
 
     test_me.init();
-}
-
-class WaitConnectionTest : public testing::Test {
-  protected:
-    NiceMock<MockInboundWebsocketServer>* mock_ws = nullptr;
-    MatchingEngineDependencyFactory dep_factory;
-    MatchingEngine test_me;
-
-    WaitConnectionTest()
-        : dep_factory{make_base_test_dependency_factory()}, test_me{[&]() {
-              dep_factory.create_inbound_server = [this](std::string_view, int,
-                                                         std::shared_ptr<spdlog::logger>) {
-                  auto ws = std::make_unique<NiceMock<MockInboundWebsocketServer>>();
-                  mock_ws = ws.get();
-                  return ws;
-              };
-              return MatchingEngine{TEST_HOST, TEST_PORT, TEST_SYMBOLS, TEST_FLUSH_INTERVAL,
-                                    dep_factory};
-          }()} {
-    }
-};
-
-TEST_F(WaitConnectionTest, ConnectionSuccess) {
-    ON_CALL(*mock_ws, get_connection_info)
-        .WillByDefault(Return(std::vector{transport::InboundConnectionInfo{0, "order_request"},
-                                          transport::InboundConnectionInfo{1, "order_response"}}));
-
-    test_me.wait_for_connections();
 }
 
 class ProcessContainerTest : public testing::Test {
