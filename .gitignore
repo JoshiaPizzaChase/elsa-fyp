@@ -1,11 +1,12 @@
 # Project
 build*/
-store/
+store*/
 *.pb.cc
 *.pb.h
 logs/*
 Testing
 deps/
+temp*.cfg
 
 # Usual ignores
 .vscode

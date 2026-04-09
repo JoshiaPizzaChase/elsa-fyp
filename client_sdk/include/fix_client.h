@@ -14,6 +14,7 @@
 #include "quickfix/fix42/OrderCancelRequest.h"
 #include "server_response.h"
 
+#include "spdlog/spdlog.h"
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
 
@@ -22,8 +23,10 @@ class FixClient : FIX::Application, FIX42::MessageCracker {
     FIX::FileStoreFactory _file_store_factory;
     std::unique_ptr<FIX::Initiator> _initiator;
     std::atomic_bool _is_connected = false;
-    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-        "fix_client_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/fix_client.log");
+    inline static std::atomic<int> _client_instance_counter{0};
+    std::string _logger_name = "fix_client_logger_" + std::to_string(++_client_instance_counter);
+    std::shared_ptr<spdlog::logger> logger = spdlog::get(_logger_name) ? spdlog::get(_logger_name) : spdlog::basic_logger_mt<spdlog::async_factory>(
+        _logger_name, std::string{PROJECT_SOURCE_DIR} + "/logs/" + _logger_name + ".log");
 
   public:
     explicit FixClient(const std::string&);

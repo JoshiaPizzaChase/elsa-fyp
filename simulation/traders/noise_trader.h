@@ -104,20 +104,22 @@ class NoiseTrader {
     NoiseTrader(std::unique_ptr<ProcessGenerator> process_generator,
                 std::unique_ptr<DecisionGenerator<OrderSide>> side_generator,
                 std::unique_ptr<QuantityGenerator<double>> quantity_generator,
-                std::unique_ptr<FixClient> fix_client, std::string ticker)
+                std::unique_ptr<FixClient> fix_client,
+                std::vector<std::string> tickers)
         : m_process_generator{std::move(process_generator)},
-          m_side_generator{std::move(decision_generator)},
+          m_side_generator{std::move(side_generator)},
           m_quantity_generator{std::move(quantity_generator)}, m_fix_client{std::move(fix_client)},
-          m_ticker{std::move(ticker)} {
+          m_tickers{std::move(tickers)} {
     }
 
     void run_strategy() {
         while (true) {
             OrderSide buy_or_sell{m_side_generator->generate()};
             double quantity{m_quantity_generator->generate()};
+            std::string ticker = m_tickers[rand() % m_tickers.size()];
 
             if (m_fix_client && m_fix_client->is_connected()) {
-                m_fix_client->submit_market_order(m_ticker, quantity, buy_or_sell,
+                m_fix_client->submit_market_order(ticker, quantity, buy_or_sell,
                                                   ++m_client_order_id);
             }
 
@@ -130,6 +132,7 @@ class NoiseTrader {
     std::unique_ptr<DecisionGenerator<OrderSide>> m_side_generator;
     std::unique_ptr<QuantityGenerator<double>> m_quantity_generator;
     std::unique_ptr<FixClient> m_fix_client;
-    std::string m_ticker;
+    std::vector<std::string> m_tickers;
+
     int m_client_order_id{0};
 };

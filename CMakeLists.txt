@@ -96,6 +96,7 @@ if (BUILD_TESTS)
   include(CTest)
   add_subdirectory(integration_test)
   add_subdirectory(libs/unit_test)
+  add_subdirectory(simulation/tests)
 endif ()
 
 add_subdirectory(client_sdk)
@@ -105,8 +106,6 @@ add_subdirectory(libs/transport/websocket)
 add_subdirectory(
         deps/c-questdb-client
         EXCLUDE_FROM_ALL)
-
-add_subdirectory(simulation/traders)
 
 # Add new services here
 add_subdirectory(services/gateway)
