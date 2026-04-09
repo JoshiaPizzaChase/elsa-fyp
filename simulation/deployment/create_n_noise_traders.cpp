@@ -11,6 +11,8 @@
 #include "test_client.h"
 #include "rfl/toml/load.hpp"
 
+using namespace simulation;
+
 int main() {
     const auto nt_config_path = "nt_config.toml";
     const simulation::NoiseTradersConfig config = rfl::toml::load<simulation::NoiseTradersConfig>(nt_config_path).value();

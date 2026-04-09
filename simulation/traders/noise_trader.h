@@ -18,6 +18,8 @@
 // QuantityGenerator themselves? I'm scared it becomes a God class.
 // TODO 5: Each generator having its own random device is large AF. We may want to share/pass into generator by the owning class.
 // TODO 6: I used rand in run_strategy below, which might be slow.
+
+namespace simulation {
 class ProcessGenerator {
   public:
     virtual void wait_for_arrival() = 0;
@@ -182,3 +184,4 @@ class NoiseTrader {
 
     int m_client_order_id{0};
 };
+}

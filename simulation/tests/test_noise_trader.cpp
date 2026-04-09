@@ -23,6 +23,8 @@
 
 namespace fs = std::filesystem;
 
+using namespace simulation;
+
 class NoiseTraderTest : public ::testing::Test {
 protected:
     void SetUp() override {
