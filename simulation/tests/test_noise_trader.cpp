@@ -115,7 +115,7 @@ BeginString=FIX.4.2
         // Instantiate generators
         auto process_gen = std::make_unique<PoissonProcessGenerator>(20.0); // Fast interval
         auto decision_gen = std::make_unique<BernoulliDecisionGenerator<OrderSide>>(0.5);
-        auto quantity_gen = std::make_unique<UniformQuantityGenerator<double>>(1.0, 100.0);
+        auto quantity_gen = std::make_unique<ParetoQuantityGenerator<double>>(1.0, 2.0);
 
         // Instantiate FixClient
         auto fix_client = std::make_unique<TestClient>(config_path);

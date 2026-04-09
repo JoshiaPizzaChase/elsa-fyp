@@ -107,6 +107,8 @@ add_subdirectory(
         deps/c-questdb-client
         EXCLUDE_FROM_ALL)
 
+add_subdirectory(simulation/deployment)
+
 # Add new services here
 add_subdirectory(services/gateway)
 add_subdirectory(services/order_manager)

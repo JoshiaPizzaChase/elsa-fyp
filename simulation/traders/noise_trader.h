@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <fix_client.h>
+#include <cmath>
 #include <memory>
 #include <order.h>
 #include <random>
@@ -15,6 +16,8 @@
 // other ideas..?
 // TODO 4: Should the NoiseTrader class even own the ProcessGenerator, DecisionGenerator, and
 // QuantityGenerator themselves? I'm scared it becomes a God class.
+// TODO 5: Each generator having its own random device is large AF. We may want to share/pass into generator by the owning class.
+// TODO 6: I used rand in run_strategy below, which might be slow.
 class ProcessGenerator {
   public:
     virtual void wait_for_arrival() = 0;
@@ -97,6 +100,50 @@ class UniformQuantityGenerator : public QuantityGenerator<T> {
     std::random_device m_rd;
     std::mt19937 m_generator;
     std::uniform_real_distribution<T> m_distribution;
+};
+
+template <typename T>
+class ParetoQuantityGenerator : public QuantityGenerator<T> {
+  public:
+    ParetoQuantityGenerator(T scale, T shape)
+        : m_scale{scale}, m_shape{shape}, m_rd{}, m_generator(m_rd()),
+          m_distribution{0.0, 1.0} {
+    }
+
+    T generate() override {
+        T u = m_distribution(m_generator);
+        // Inverse transform sampling for Pareto distribution
+        return m_scale * std::pow(1.0 - u, -1.0 / m_shape);
+    }
+
+  private:
+    T m_scale;
+    T m_shape;
+
+    std::random_device m_rd;
+    std::mt19937 m_generator;
+    std::uniform_real_distribution<T> m_distribution;
+};
+
+template <typename T>
+class LogNormalQuantityGenerator : public QuantityGenerator<T> {
+  public:
+    LogNormalQuantityGenerator(T m, T s)
+        : m_m{m}, m_s{s}, m_rd{}, m_generator(m_rd()),
+          m_distribution{m_m, m_s} {
+    }
+
+    T generate() override {
+        return m_distribution(m_generator);
+    }
+
+  private:
+    T m_m; // Mean of the underlying normal distribution
+    T m_s; // Standard deviation of the underlying normal distribution
+
+    std::random_device m_rd;
+    std::mt19937 m_generator;
+    std::lognormal_distribution<T> m_distribution;
 };
 
 class NoiseTrader {
