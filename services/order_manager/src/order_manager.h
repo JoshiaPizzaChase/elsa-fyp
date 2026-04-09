@@ -63,6 +63,8 @@ class OrderManager {
     std::unordered_map<int, OrderInfo> order_info_map;
 };
 
+void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase& database_client);
+
 std::optional<int> preprocess_container(core::Container& container,
                                         boost::bimap<int, int>& order_id_map,
                                         std::unordered_map<int, OrderInfo>& order_info_map,

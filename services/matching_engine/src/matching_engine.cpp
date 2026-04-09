@@ -47,6 +47,7 @@ void MatchingEngine::init() const {
                       })
                       .or_else([](int) -> std::expected<void, int> {
                           logger->error("[ME] Failed to start inbound websocket server");
+                          logger->flush();
                           std::terminate();
                           return {};
                       });

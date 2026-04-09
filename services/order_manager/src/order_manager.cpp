@@ -27,47 +27,76 @@ OrderManager::OrderManager(std::string_view host, int port, int gateway_count,
 }
 
 void OrderManager::init() {
-    // TODO: Handle start error
-    inbound_server->start();
-    order_request_outbound_client->start();
-    order_response_outbound_client->start();
+    const auto inbound_server_start_res = inbound_server->start();
+    std::ignore = inbound_server_start_res
+                      .transform([] {
+                          logger->info("[OM] Order Manager starts accepting connections");
+                          logger->flush();
+                      })
+                      .or_else([](int) -> std::expected<void, int> {
+                          logger->error("[OM] Failed to start inbound connection server");
+                          logger->flush();
+                          std::terminate();
+                      });
 
-    // Initialize USD balances for users if not already present
+    const auto order_request_client_start_res = order_request_outbound_client->start();
+    std::ignore = order_request_client_start_res
+                      .transform([] {
+                          logger->info("[OM] Order Request Client started");
+                          logger->flush();
+                      })
+                      .or_else([](int) -> std::expected<void, int> {
+                          logger->error("[OM] Order Request Client failed to start");
+                          logger->flush();
+                          std::terminate();
+                      });
+
+    const auto order_response_client_start_res = order_response_outbound_client->start();
+    std::ignore = order_response_client_start_res
+                      .transform([] {
+                          logger->info("[OM] Order Response Client started");
+                          logger->flush();
+                      })
+                      .or_else([](int) -> std::expected<void, int> {
+                          logger->error("[OM] Order Response Client failed to start");
+                          logger->flush();
+                          std::terminate();
+                      });
+
+    init_balance_checker(balance_checker, *database_client);
+}
+
+// Load all user balances into the balance_checker
+void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase& database_client) {
     if (SERVER_NAME != nullptr) {
-        std::string server_name(SERVER_NAME);
-        logger->info("Initializing balances for server: {}", server_name);
+        const std::string_view server_name{SERVER_NAME};
 
-        auto result = database_client->ensure_initial_usd_balances(server_name, 100000);
-        if (result.has_value()) {
-            logger->info("Initialized {} USD balances for server: {}", result.value(), server_name);
-        } else {
-            logger->error("Failed to initialize balances for server {}: {}", server_name,
-                          result.error());
-        }
+        std::ignore =
+            database_client.get_all_users_balances_for_server(server_name)
+                .transform([&](std::vector<DbUserBalanceInfo>&& users_balances) {
+                    logger->info("[OM] Loading balances for {} users into balance_checker",
+                                 users_balances.size());
 
-        // Load all user balances into the balance_checker
-        auto users_balances_result =
-            database_client->get_all_users_balances_for_server(server_name);
-        if (users_balances_result.has_value()) {
-            const auto& users_balances = users_balances_result.value();
-            logger->info("Loading balances for {} users into balance_checker",
-                         users_balances.size());
+                    for (const auto& user_balance : users_balances) {
+                        const std::string& username = user_balance.username;
+                        for (const auto& balance : user_balance.balances) {
+                            // Initialize balance in balance_checker (delta of 0 just sets the
+                            // balance)
+                            balance_checker.update_balance(username, balance.symbol,
+                                                           balance.balance);
+                            logger->info("[OM] Loaded balance for user {}: {} {}", username,
+                                         balance.balance, balance.symbol);
+                        }
+                    }
+                })
+                .or_else([](std::string_view err) -> std::expected<void, std::string> {
+                    logger->error("[OM] Failed to load balances into balance_checker: {}", err);
+                    return {};
+                });
 
-            for (const auto& user_balance : users_balances) {
-                const std::string& username = user_balance.username;
-                for (const auto& balance : user_balance.balances) {
-                    // Initialize balance in balance_checker (delta of 0 just sets the balance)
-                    balance_checker.update_balance(username, balance.symbol, balance.balance);
-                    logger->info("Loaded balance for user {}: {} {}", username, balance.balance,
-                                 balance.symbol);
-                }
-            }
-        } else {
-            logger->error("Failed to load balances into balance_checker: {}",
-                          users_balances_result.error());
-        }
     } else {
-        logger->warn("SERVER_NAME environment variable not set, skipping balance initialization");
+        logger->warn("[OM] SERVER_NAME environment variable not set, skipping balance "
+                     "initialization");
     }
 }
 

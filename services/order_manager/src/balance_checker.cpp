@@ -20,10 +20,8 @@ bool BalanceChecker::broker_owns_ticker(const std::string& broker_id,
 
 void BalanceChecker::update_balance(const std::string& broker_id, const std::string& ticker,
                                     int delta) {
-    boost::contract::check c = boost::contract::public_function(this).precondition([&] {
-        BOOST_CONTRACT_ASSERT(!ticker.empty());
-        BOOST_CONTRACT_ASSERT(delta != 0);
-    });
+    boost::contract::check c = boost::contract::public_function(this).precondition(
+        [&] { BOOST_CONTRACT_ASSERT(!ticker.empty()); });
 
     // Check if broker has record
     if (const auto broker_it = balance_map.find(broker_id); broker_it != balance_map.end()) {
