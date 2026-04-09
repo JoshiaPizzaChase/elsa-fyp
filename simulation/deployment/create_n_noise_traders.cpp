@@ -9,9 +9,11 @@
 #include "noise_trader.h"
 #include "simulation_config.h"
 #include "test_client.h"
+#include "rfl/toml/load.hpp"
 
 int main() {
-    NoiseTradersConfig config; // Assuming defaults from configuration struct
+    const auto nt_config_path = "nt_config.toml";
+    const simulation::NoiseTradersConfig config = rfl::toml::load<simulation::NoiseTradersConfig>(nt_config_path).value();
 
     std::cout << "Deploying " << config.num_noise_traders << " Noise Traders..." << '\n';
 
@@ -20,7 +22,7 @@ int main() {
 
     for (int i = 0; i < config.num_noise_traders; ++i) {
         // Construct the config filename based on the specified prefix and index.
-        std::string config_path = config.cfg_prefix + "_" + std::to_string(i) + ".cfg";
+        std::string config_path = config.cfg_prefix + "_" + std::to_string(i + 1) + ".cfg";
 
         if (!std::filesystem::exists(config_path)) {
             std::cerr << "Warning: Expected FIX client config file does not exist at " << config_path << '\n';
@@ -35,7 +37,7 @@ int main() {
         auto fix_client = std::make_unique<TestClient>(config_path);
 
         try {
-            fix_client->connect(config.server_port);
+            fix_client->connect(5);
         } catch(const std::exception& e) {
             std::cerr << "Error connecting FixClient " << i << ": " << e.what() << '\n';
             continue;

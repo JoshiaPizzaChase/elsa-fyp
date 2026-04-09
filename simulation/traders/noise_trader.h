@@ -166,8 +166,7 @@ class NoiseTrader {
             std::string ticker = m_tickers[rand() % m_tickers.size()];
 
             if (m_fix_client && m_fix_client->is_connected()) {
-                m_fix_client->submit_market_order(ticker, quantity, buy_or_sell,
-                                                  ++m_client_order_id);
+                m_fix_client->submit_market_order(ticker, quantity, buy_or_sell, ++m_client_order_id);
             }
 
             m_process_generator->wait_for_arrival();
