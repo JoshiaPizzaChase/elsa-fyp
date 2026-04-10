@@ -1,7 +1,7 @@
-#include "transport/inbound_websocket_server.h"
 #include "configuration/matching_engine_config.h"
 #include "matching_engine.h"
 #include "rfl/toml/load.hpp"
+#include "transport/inbound_websocket_server.h"
 
 using namespace engine;
 
@@ -27,8 +27,28 @@ int main(int argc, char* argv[]) {
             },
 
         .create_inbound_server =
-            [](std::string_view host, int port, std::shared_ptr<spdlog::logger> logger) {
-                return std::make_unique<transport::InboundWebsocketServer>(host, port, logger);
+            [](std::string_view host, int port, std::shared_ptr<spdlog::logger> logger,
+               int& incoming_request_connection_id, int& order_response_connection_id) {
+                auto on_connection_callback =
+                    [&, logger](WebsocketManagerServer::ConnectionMetadata::conn_meta_shared_ptr
+                                    connection_metadata) {
+                        const auto counter_party = connection_metadata->get_counter_party();
+                        if (counter_party == "order_request") {
+                            incoming_request_connection_id = connection_metadata->get_id();
+                            logger->info("[ME] Order request connection established, id: {}",
+                                         incoming_request_connection_id);
+                        } else if (counter_party == "order_response") {
+                            order_response_connection_id = connection_metadata->get_id();
+                            logger->info("[ME] Order response connection established, id: {}",
+                                         order_response_connection_id);
+                        } else {
+                            logger->error("[ME] Unexpected connection: {}", counter_party);
+                        }
+                        logger->flush();
+                    };
+
+                return std::make_unique<transport::InboundWebsocketServer>(host, port, logger, true,
+                                                                           on_connection_callback);
             }};
 
     MatchingEngine matching_engine{

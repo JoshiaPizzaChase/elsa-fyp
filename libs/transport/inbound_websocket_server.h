@@ -10,9 +10,14 @@ using WebsocketManagerServer = WebsocketManagerServer;
 
 class InboundWebsocketServer : public InboundServer {
   public:
-    explicit InboundWebsocketServer(std::string_view host, int port,
-                                    std::shared_ptr<spdlog::logger> logger)
-        : inbound_ws_server{port, host, std::move(logger)} {};
+    explicit InboundWebsocketServer(
+        std::string_view host, int port, std::shared_ptr<spdlog::logger> logger,
+        bool reuse_addr = true,
+        std::optional<
+            std::function<void(WebsocketManagerServer::ConnectionMetadata::conn_meta_shared_ptr)>>
+            on_connection_callback = std::nullopt)
+        : inbound_ws_server{port, host, std::move(logger), reuse_addr,
+                            std::move(on_connection_callback)} {};
 
     std::expected<void, int> start() override {
         return inbound_ws_server.start();
