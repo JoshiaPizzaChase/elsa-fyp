@@ -13,8 +13,16 @@ int main(int argc, char* argv[]) {
 
     const OrderManagerDependencyFactory dependency_factory{
         .create_inbound_server =
-            [](std::string_view host, int port, std::shared_ptr<spdlog::logger> logger) {
-                return std::make_unique<transport::InboundWebsocketServer>(host, port, logger);
+            [](std::string_view host, int port, std::shared_ptr<spdlog::logger> logger,
+               std::vector<int>& gateway_connection_ids) {
+                const auto on_connection_callback =
+                    [&](transport::WebsocketManagerServer::ConnectionMetadata::conn_meta_shared_ptr
+                            connection_metadata) {
+                        gateway_connection_ids.emplace_back(connection_metadata->get_id());
+                    };
+
+                return std::make_unique<transport::InboundWebsocketServer>(host, port, logger, true,
+                                                                           on_connection_callback);
             },
         .create_outbound_client =
             [](std::shared_ptr<spdlog::logger> logger) {

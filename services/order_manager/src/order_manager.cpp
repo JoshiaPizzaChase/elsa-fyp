@@ -3,7 +3,7 @@
 
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include <boost/contract/core/exception.hpp>
+#include <boost/contract.hpp>
 #include <boost/uuid.hpp>
 
 namespace om {
@@ -17,13 +17,14 @@ static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::as
     "order_manager_logger",
     std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
-OrderManager::OrderManager(std::string_view host, int port, int gateway_count,
+OrderManager::OrderManager(std::string_view host, int port,
                            const OrderManagerDependencyFactory& dependency_factory)
-    : inbound_server{dependency_factory.create_inbound_server(host, port, logger)},
+    : inbound_server{
+          dependency_factory.create_inbound_server(host, port, logger, gateway_connection_ids)},
       order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
       order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
       database_client{dependency_factory.create_database_client(true)},
-      gateway_count{gateway_count}, order_request_connection_id{}, order_response_connection_id{} {
+      order_request_connection_id{-1}, order_response_connection_id{-1} {
 }
 
 void OrderManager::init() {
@@ -65,36 +66,34 @@ void OrderManager::init() {
 
 // Load all user balances into the balance_checker
 void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase& database_client) {
-    if (SERVER_NAME != nullptr) {
-        const std::string_view server_name{SERVER_NAME};
+    boost::contract::check c = boost::contract::function().precondition(
+        [] { BOOST_CONTRACT_ASSERT(SERVER_NAME != nullptr); });
 
-        std::ignore =
-            database_client.get_all_users_balances_for_server(server_name)
-                .transform([&](std::vector<DbUserBalanceInfo>&& users_balances) {
-                    logger->info("[OM] Loading balances for {} users into balance_checker",
-                                 users_balances.size());
+    const std::string_view server_name{SERVER_NAME};
 
-                    for (const auto& user_balance : users_balances) {
-                        const std::string& username = user_balance.username;
-                        for (const auto& balance : user_balance.balances) {
-                            // Initialize balance in balance_checker (delta of 0 just sets the
-                            // balance)
-                            balance_checker.update_balance(username, balance.symbol,
-                                                           balance.balance);
-                            logger->info("[OM] Loaded balance for user {}: {} {}", username,
-                                         balance.balance, balance.symbol);
-                        }
+    std::ignore =
+        database_client.get_all_users_balances_for_server(server_name)
+            .transform([&](std::vector<DbUserBalanceInfo>&& users_balances) {
+                assert(users_balances.size() != 0 && "No user balances loaded from DB");
+                logger->info("[OM] Loading balances for {} users into balance_checker",
+                             users_balances.size());
+
+                for (const auto& user_balance : users_balances) {
+                    const std::string& username = user_balance.username;
+                    for (const auto& balance : user_balance.balances) {
+                        // Initialize balance in balance_checker (delta of 0 just sets the
+                        // balance)
+                        balance_checker.update_balance(username, balance.symbol, balance.balance);
+                        logger->info("[OM] Loaded balance for user {}: {} {}", username,
+                                     balance.balance, balance.symbol);
                     }
-                })
-                .or_else([](std::string_view err) -> std::expected<void, std::string> {
-                    logger->error("[OM] Failed to load balances into balance_checker: {}", err);
-                    return {};
-                });
-
-    } else {
-        logger->warn("[OM] SERVER_NAME environment variable not set, skipping balance "
-                     "initialization");
-    }
+                }
+            })
+            .or_else([](std::string_view err) -> std::expected<void, std::string> {
+                logger->error("[OM] Failed to load balances into balance_checker: {}", err);
+                std::terminate();
+                return {};
+            });
 }
 
 std::expected<void, std::string> OrderManager::connect_matching_engine(std::string host, int port) {
@@ -149,7 +148,7 @@ std::expected<void, std::string> OrderManager::start() {
             update_database(container, *database_client, is_container_valid);
         }
 
-        curr_gateway_id = (curr_gateway_id + 1) % gateway_count;
+        curr_gateway_id = (curr_gateway_id + 1) % gateway_connection_ids.size();
 
         // Process a returned message container
         if (auto new_message =

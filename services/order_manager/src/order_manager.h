@@ -26,8 +26,8 @@ struct OrderInfo {
 };
 
 struct OrderManagerDependencyFactory {
-    std::function<std::unique_ptr<transport::InboundServer>(std::string_view, int,
-                                                            std::shared_ptr<spdlog::logger>)>
+    std::function<std::unique_ptr<transport::InboundServer>(
+        std::string_view, int, std::shared_ptr<spdlog::logger>, std::vector<int>&)>
         create_inbound_server;
 
     std::function<std::unique_ptr<transport::OutboundClient>(std::shared_ptr<spdlog::logger>)>
@@ -38,7 +38,7 @@ struct OrderManagerDependencyFactory {
 
 class OrderManager {
   public:
-    OrderManager(std::string_view host, int port, int gateway_count,
+    OrderManager(std::string_view host, int port,
                  const OrderManagerDependencyFactory& dependency_factory);
     void init();
     std::expected<void, std::string> connect_matching_engine(std::string host, int port);
@@ -47,15 +47,17 @@ class OrderManager {
     typedef boost::bimap<int, int>::value_type order_id_pair;
 
   private:
+    std::vector<int> gateway_connection_ids;
+    int order_request_connection_id;
+    int order_response_connection_id;
+
     std::unique_ptr<transport::InboundServer> inbound_server;
     std::unique_ptr<transport::OutboundClient> order_request_outbound_client;
     std::unique_ptr<transport::OutboundClient> order_response_outbound_client;
-    BalanceChecker balance_checker;
-    std::unique_ptr<OrderManagerDatabase> database_client;
 
-    int gateway_count;
-    int order_request_connection_id;
-    int order_response_connection_id;
+    BalanceChecker balance_checker;
+
+    std::unique_ptr<OrderManagerDatabase> database_client;
 
     // Left is internal order ID, Right is client order ID
     boost::bimap<int, int> order_id_map;
