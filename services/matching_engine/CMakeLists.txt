@@ -26,3 +26,7 @@ target_precompile_headers(matching_engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/pr
 if (BUILD_TESTS)
     add_subdirectory(unit_test)
 endif ()
+
+if (BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif ()

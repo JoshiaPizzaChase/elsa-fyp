@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 
     OrderManager order_manager{order_manager_config.order_manager_host,
                                order_manager_config.order_manager_port,
-                               order_manager_config.gateway_count, dependency_factory};
+                               dependency_factory};
 
     order_manager.init();
     order_manager.connect_matching_engine(order_manager_config.downstream_matching_engine_host,
