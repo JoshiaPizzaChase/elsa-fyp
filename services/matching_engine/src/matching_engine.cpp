@@ -1,7 +1,8 @@
 #include "matching_engine.h"
-
 #include "core/containers.h"
 #include "shared_memory_publisher.h"
+#include "spdlog/cfg/env.h"
+#include "spdlog/spdlog.h"
 #include "transport/messaging.h"
 
 namespace engine {
@@ -11,6 +12,11 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 
+auto _ = [] {
+    spdlog::cfg::load_env_levels();
+    spdlog::flush_every(std::chrono::seconds{5});
+    return 0;
+}();
 static std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
     "matching_engine_logger",
     std::format("{}/logs/{}/matching_engine.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
@@ -35,17 +41,15 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
 }
 
 void MatchingEngine::init() const {
-    std::ignore = inbound_server->start()
-                      .transform([] {
-                          logger->info("[ME] Matching Engine starts accepting connections");
-                          logger->flush();
-                      })
-                      .or_else([](int) -> std::expected<void, int> {
-                          logger->error("[ME] Failed to start inbound websocket server");
-                          logger->flush();
-                          std::terminate();
-                          return {};
-                      });
+    std::ignore =
+        inbound_server->start()
+            .transform([] { logger->info("[ME] Matching Engine starts accepting connections"); })
+            .or_else([](int) -> std::expected<void, int> {
+                logger->error("[ME] Failed to start inbound websocket server");
+
+                std::terminate();
+                return {};
+            });
 }
 
 // Spin locks until matching engine has two connections from OMS
@@ -121,13 +125,11 @@ void process_container(const core::Container& container,
                 inbound_server
                     .send(order_response_connection_id,
                           transport::serialize_container(trade_container))
-                    .transform([&] {
-                        logger->info("[ME] Successfully sent Trade: {}", trade_container);
-                        logger->flush();
-                    })
+                    .transform(
+                        [&] { logger->info("[ME] Successfully sent Trade: {}", trade_container); })
                     .or_else([&](int) -> std::expected<void, int> {
                         logger->error("[ME] Failed to sent Trade: {}", trade_container);
-                        logger->flush();
+
                         return std::unexpected{-1};
                     });
 
@@ -143,7 +145,6 @@ void process_container(const core::Container& container,
             [&] { BOOST_CONTRACT_ASSERT(cancel_request.order_id.has_value()); });
 
         logger->info("[ME] Cancel request received: {}", cancel_request);
-        logger->flush();
 
         auto& limit_order_book = limit_order_books.at(cancel_request.symbol);
 
@@ -164,17 +165,15 @@ void process_container(const core::Container& container,
                 .send(order_response_connection_id, transport::serialize_container(cancel_response))
                 .transform([&] {
                     logger->info("[ME] Successfully sent Cancel Response: {}", cancel_response);
-                    logger->flush();
                 })
                 .or_else([&](int) -> std::expected<void, int> {
                     logger->error("[ME] Failed to sent Cancel Response: {}", cancel_response);
-                    logger->flush();
+
                     return std::unexpected{-1};
                 });
     }};
     auto fill_cost_query_handler{[&](const core::FillCostQueryContainer& fill_cost_query) {
         logger->info("[ME] Fill cost query received: {}", fill_cost_query);
-        logger->flush();
 
         const auto& limit_order_book = limit_order_books.at(fill_cost_query.symbol);
         auto total_cost =
@@ -189,18 +188,15 @@ void process_container(const core::Container& container,
                 .transform([&] {
                     logger->info("[ME] Successfully sent Fill Cost Response: {}",
                                  response_container);
-                    logger->flush();
                 })
                 .or_else([&](int) -> std::expected<void, int> {
                     logger->error("[ME] Failed to sent Fill Cost Response: {}", response_container);
-                    logger->flush();
+
                     return std::unexpected{-1};
                 });
     }};
-    auto catch_all_handler{[](auto&&) {
-        logger->error("Received unexpected request from Order Manager");
-        logger->flush();
-    }};
+    auto catch_all_handler{
+        [](auto&&) { logger->error("Received unexpected request from Order Manager"); }};
 
     std::visit(overloaded{new_order_handler, cancel_order_handler, fill_cost_query_handler,
                           catch_all_handler},
