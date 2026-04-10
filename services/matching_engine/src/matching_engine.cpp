@@ -26,21 +26,16 @@ MatchingEngine::MatchingEngine(std::string_view host, int port,
 
     for (const auto& symbol : active_symbols) {
         limit_order_books.emplace(
-            symbol,
-
-            LimitOrderBook{symbol, this->trade_events,
-                           dependency_factory.create_trade_publisher(symbol)});
+            symbol, LimitOrderBook{symbol, this->trade_events,
+                                   dependency_factory.create_trade_publisher(symbol)});
 
         orderbook_snapshot_publishers.emplace(
-            symbol,
-
-            dependency_factory.create_orderbook_snapshot_publisher(symbol));
+            symbol, dependency_factory.create_orderbook_snapshot_publisher(symbol));
     }
 }
 
 void MatchingEngine::init() const {
-    const auto start_res = inbound_server->start();
-    std::ignore = start_res
+    std::ignore = inbound_server->start()
                       .transform([] {
                           logger->info("[ME] Matching Engine starts accepting connections");
                           logger->flush();
@@ -64,13 +59,16 @@ void MatchingEngine::run() {
     auto last_flush = std::chrono::steady_clock::now();
 
     while (true) {
-        if (auto new_message = inbound_server->dequeue_message(incoming_request_connection_id);
-            new_message.has_value()) {
-            const auto container = transport::deserialize_container(new_message.value());
+        std::ignore =
+            inbound_server->dequeue_message(incoming_request_connection_id)
+                .transform([&](std::string&& new_message) -> std::optional<std::string> {
+                    const auto container = transport::deserialize_container(new_message);
 
-            process_container(container, limit_order_books, trade_events, *inbound_server,
-                              order_response_connection_id, incoming_request_connection_id);
-        }
+                    process_container(container, limit_order_books, trade_events, *inbound_server,
+                                      order_response_connection_id, incoming_request_connection_id);
+
+                    return new_message;
+                });
 
         if (const auto now{std::chrono::steady_clock::now()}; now - last_flush > flush_interval) {
             for (const auto& [symbol, lob] : limit_order_books) {
@@ -182,8 +180,7 @@ void process_container(const core::Container& container,
         auto total_cost =
             limit_order_book.get_fill_cost(fill_cost_query.quantity, fill_cost_query.side);
 
-        const auto response_container = core::FillCostResponseContainer{
-            total_cost.transform([](int v) { return std::optional{v}; }).value_or(std::nullopt)};
+        const auto response_container = core::FillCostResponseContainer{std::move(total_cost)};
 
         std::ignore =
             inbound_server
