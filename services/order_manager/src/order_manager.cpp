@@ -78,54 +78,73 @@ void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase&
                 logger->info("[OM] Loading balances for {} users into balance_checker",
                              users_balances.size());
 
-                for (const auto& user_balance : users_balances) {
-                    const std::string& username = user_balance.username;
-                    for (const auto& balance : user_balance.balances) {
+                for (const auto& [username, balances] : users_balances) {
+                    for (const auto& [symbol, balance] : balances) {
                         // Initialize balance in balance_checker (delta of 0 just sets the
                         // balance)
-                        balance_checker.update_balance(username, balance.symbol, balance.balance);
-                        logger->info("[OM] Loaded balance for user {}: {} {}", username,
-                                     balance.balance, balance.symbol);
+                        balance_checker.update_balance(username, symbol, balance);
+                        logger->info("[OM] Loaded balance for user {}: {} {}", username, balance,
+                                     symbol);
                     }
                 }
             })
             .or_else([](std::string_view err) -> std::expected<void, std::string> {
                 logger->error("[OM] Failed to load balances into balance_checker: {}", err);
                 std::terminate();
-                return {};
             });
 }
 
-std::expected<void, std::string> OrderManager::connect_matching_engine(std::string host, int port) {
-    // TODO: Handle expected
-    const auto order_request_connection_result = order_request_outbound_client->connect(
-        std::format("ws://{}:{}", host, port), "order_request");
+void OrderManager::connect_matching_engine(std::string host, int port, int retry_attempts) {
+    std::expected<int, int> order_request_res{};
+    for (auto i{0}; i < retry_attempts; i++) {
+        order_request_res = order_request_outbound_client
+                                ->connect(std::format("ws://{}:{}", host, port), "order_request")
+                                .transform([this](int connection_id) -> int {
+                                    std::cout << "DIh\n";
+                                    order_request_connection_id = connection_id;
+                                    logger->info("Order Request connection established");
+                                    logger->flush();
+                                    return connection_id;
+                                })
+                                .or_else([=](int err) -> std::expected<int, int> {
+                                    std::cout << "FAH\n";
+                                    logger->error("Failed to establish Order Request connection, "
+                                                  "attempt: {}",
+                                                  i + 1);
+                                    logger->flush();
+                                    return std::unexpected{err};
+                                });
 
-    if (order_request_connection_result.has_value()) {
-        order_request_connection_id = order_request_connection_result.value();
-        logger->info("Order request conection established");
-        logger->flush();
-    } else {
-        logger->error("Failed to establish order request connection");
-        logger->flush();
+        if (order_request_res)
+            break;
     }
+    assert(order_request_res.has_value() && "Order Request connection failed to establish");
 
-    const auto order_response_connection_result = order_response_outbound_client->connect(
-        std::format("ws://{}:{}", host, port), "order_response");
+    std::expected<int, int> order_response_res{};
+    for (auto i{0}; i < retry_attempts; i++) {
+        order_response_res = order_response_outbound_client
+                                 ->connect(std::format("ws://{}:{}", host, port), "order_response")
+                                 .transform([this](int connection_id) -> int {
+                                     order_response_connection_id = connection_id;
+                                     logger->info("Order Response connection established");
+                                     logger->flush();
+                                     return connection_id;
+                                 })
+                                 .or_else([=](int err) -> std::expected<int, int> {
+                                     logger->error("Failed to establish Order Response connection, "
+                                                   "attempt: {}",
+                                                   i + 1);
+                                     logger->flush();
+                                     return std::unexpected{err};
+                                 });
 
-    if (order_response_connection_result.has_value()) {
-        order_response_connection_id = order_response_connection_result.value();
-        logger->info("Order response connection established");
-        logger->flush();
-    } else {
-        logger->error("Failed to establish order response connection");
-        logger->flush();
+        if (order_response_res)
+            break;
     }
-
-    return {};
+    assert(order_response_res.has_value() && "Order Response connection failed to establish");
 }
 
-std::expected<void, std::string> OrderManager::start() {
+void OrderManager::start() {
     int curr_gateway_id = 0;
 
     while (true) {
@@ -172,8 +191,6 @@ std::expected<void, std::string> OrderManager::start() {
             update_database(container, *database_client);
         }
     }
-
-    return {};
 }
 
 std::optional<int> preprocess_container(core::Container& container,

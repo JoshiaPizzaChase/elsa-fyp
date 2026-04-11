@@ -7,6 +7,8 @@
 
 using namespace om;
 
+using testing::_;
+using testing::InSequence;
 using testing::NiceMock;
 using testing::Return;
 
@@ -50,7 +52,7 @@ class MockDatabaseClient : public OrderManagerDatabase {
                 (const core::CancelOrderResponseContainer&), (override));
 };
 
-class OrderManagerInitTest : public testing::Test {
+class BaseOrderManagerTest : public testing::Test {
   protected:
     MockInboundServer* mock_inbound_server;
     MockOutboundClient* mock_order_request_client;
@@ -59,8 +61,9 @@ class OrderManagerInitTest : public testing::Test {
     OrderManagerDependencyFactory dependency_factory;
     OrderManager test_om;
 
-    OrderManagerInitTest()
-        : test_om{[&] {
+    BaseOrderManagerTest()
+        : mock_inbound_server(nullptr), mock_order_request_client(nullptr),
+          mock_order_response_client(nullptr), mock_database_client(nullptr), test_om{[&] {
               dependency_factory.create_inbound_server = [this](std::string_view, int,
                                                                 std::shared_ptr<spdlog::logger>,
                                                                 std::vector<int>&) {
@@ -93,6 +96,8 @@ class OrderManagerInitTest : public testing::Test {
   private:
     int creation_count = 0;
 };
+
+using OrderManagerInitTest = BaseOrderManagerTest;
 using OrderManagerInitDeathTest = OrderManagerInitTest;
 
 TEST_F(OrderManagerInitDeathTest, InboundServerStartFailure) {
@@ -118,9 +123,24 @@ class BalanceCheckerInitTest : public testing::Test {
     BalanceChecker balance_checker;
     NiceMock<MockDatabaseClient> mock_db;
 };
+using BalanceCheckerInitDeathTest = BalanceCheckerInitTest;
+
+TEST_F(BalanceCheckerInitDeathTest, DeathOnEmptyBalanceList) {
+    ON_CALL(mock_db, get_all_users_balances_for_server(_))
+        .WillByDefault(Return(std::vector<DbUserBalanceInfo>{}));
+
+    EXPECT_DEATH(init_balance_checker(balance_checker, mock_db), "");
+}
+
+TEST_F(BalanceCheckerInitDeathTest, DeathOnDatabaseError) {
+    ON_CALL(mock_db, get_all_users_balances_for_server(_))
+        .WillByDefault(Return(std::unexpected<std::string>{"db error"}));
+
+    EXPECT_DEATH(init_balance_checker(balance_checker, mock_db), "");
+}
 
 TEST_F(BalanceCheckerInitTest, LoadsBalancesForSingleUser) {
-    EXPECT_CALL(mock_db, get_all_users_balances_for_server(testing::_))
+    EXPECT_CALL(mock_db, get_all_users_balances_for_server(_))
         .WillOnce(Return(std::vector<DbUserBalanceInfo>{{
             .username = "alice",
             .balances = {{.symbol = "USD", .balance = 1000}, {.symbol = "AAPL", .balance = 25}},
@@ -136,7 +156,7 @@ TEST_F(BalanceCheckerInitTest, LoadsBalancesForSingleUser) {
 }
 
 TEST_F(BalanceCheckerInitTest, LoadsBalancesForMultipleUsersAndTickers) {
-    EXPECT_CALL(mock_db, get_all_users_balances_for_server(testing::_))
+    EXPECT_CALL(mock_db, get_all_users_balances_for_server(_))
         .WillOnce(Return(std::vector<DbUserBalanceInfo>{
             {.username = "alice",
              .balances = {{.symbol = "USD", .balance = 1500}, {.symbol = "TSLA", .balance = 5}}},
@@ -154,16 +174,66 @@ TEST_F(BalanceCheckerInitTest, LoadsBalancesForMultipleUsersAndTickers) {
     EXPECT_FALSE(balance_checker.broker_owns_ticker("bob", "TSLA"));
 }
 
-TEST_F(BalanceCheckerInitTest, DeathOnEmptyBalanceList) {
-    ON_CALL(mock_db, get_all_users_balances_for_server(testing::_))
-        .WillByDefault(Return(std::vector<DbUserBalanceInfo>{}));
+using ConnectMatchingEngineTest = BaseOrderManagerTest;
 
-    EXPECT_DEATH(init_balance_checker(balance_checker, mock_db), "");
+TEST_F(ConnectMatchingEngineTest, ConnectsBothMatchingEngineClientsOnFirstTry) {
+    {
+        InSequence seq;
+        EXPECT_CALL(*mock_order_request_client, connect).WillOnce(Return(11));
+        EXPECT_CALL(*mock_order_response_client, connect).WillOnce(Return(22));
+    }
+
+    test_om.connect_matching_engine(TEST_HOST, TEST_PORT, 1);
 }
 
-TEST_F(BalanceCheckerInitTest, DeathOnDatabaseError) {
-    ON_CALL(mock_db, get_all_users_balances_for_server(testing::_))
-        .WillByDefault(Return(std::unexpected<std::string>{"db error"}));
+TEST_F(ConnectMatchingEngineTest, RetriesOrderRequestConnectionUntilSuccessful) {
+    {
+        InSequence seq;
+        EXPECT_CALL(*mock_order_request_client, connect)
+            .WillOnce(Return(std::unexpected{-1}))
+            .WillOnce(Return(11));
+        EXPECT_CALL(*mock_order_response_client, connect).WillOnce(Return(22));
+    }
 
-    EXPECT_DEATH(init_balance_checker(balance_checker, mock_db), "");
+    test_om.connect_matching_engine(TEST_HOST, TEST_PORT, 2);
+}
+
+TEST_F(ConnectMatchingEngineTest, RetriesOrderResponseConnectionUntilSuccessful) {
+    {
+        InSequence seq;
+        EXPECT_CALL(*mock_order_request_client, connect).WillOnce(Return(11));
+        EXPECT_CALL(*mock_order_response_client, connect)
+            .WillOnce(Return(std::unexpected{-2}))
+            .WillOnce(Return(22));
+    }
+
+    test_om.connect_matching_engine(TEST_HOST, TEST_PORT, 2);
+}
+
+using ConnectMatchingEngineDeathTest = ConnectMatchingEngineTest;
+
+TEST_F(ConnectMatchingEngineDeathTest, DeathOnOrderRequestConnectionExhaustion) {
+    EXPECT_DEATH(
+        {
+            EXPECT_CALL(*mock_order_request_client, connect)
+                .WillRepeatedly(Return(std::unexpected{-1}));
+
+            test_om.connect_matching_engine(TEST_HOST, TEST_PORT, 2);
+        },
+        "");
+}
+
+TEST_F(ConnectMatchingEngineDeathTest, DeathOnOrderResponseConnectionExhaustion) {
+    EXPECT_DEATH(
+        {
+            {
+                InSequence seq;
+                EXPECT_CALL(*mock_order_request_client, connect).WillOnce(Return(0));
+                EXPECT_CALL(*mock_order_response_client, connect)
+                    .WillRepeatedly(Return(std::unexpected{-1}));
+            }
+
+            test_om.connect_matching_engine(TEST_HOST, TEST_PORT, 2);
+        },
+        "");
 }

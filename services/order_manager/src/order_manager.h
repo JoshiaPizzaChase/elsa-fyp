@@ -41,8 +41,8 @@ class OrderManager {
     OrderManager(std::string_view host, int port,
                  const OrderManagerDependencyFactory& dependency_factory);
     void init();
-    std::expected<void, std::string> connect_matching_engine(std::string host, int port);
-    std::expected<void, std::string> start();
+    void connect_matching_engine(std::string host, int port, int retry_attempts = 5);
+    [[noreturn]] void start();
 
     typedef boost::bimap<int, int>::value_type order_id_pair;
 
