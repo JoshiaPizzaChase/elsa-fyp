@@ -28,22 +28,55 @@ void LimitOrderBook::add_order(int order_id, int price, int quantity, Side side,
     });
 
     if (side == Side::bid) {
-        match_order(bids, asks, price, quantity, order_id, side, broker_id);
+        add_order_impl<Side::bid>(order_id, price, quantity, broker_id);
     } else {
-        match_order(asks, bids, price, quantity, order_id, side, broker_id);
+        add_order_impl<Side::ask>(order_id, price, quantity, broker_id);
     }
 }
 
 void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_side, int price,
                                  int remaining_quantity, int order_id, Side side,
                                  std::string_view broker_id) {
+    if (side == Side::bid) {
+        match_order_impl<Side::bid>(near_side, far_side, price, remaining_quantity, order_id,
+                                    broker_id);
+    } else {
+        match_order_impl<Side::ask>(near_side, far_side, price, remaining_quantity, order_id,
+                                    broker_id);
+    }
+}
+
+template <Side side>
+void LimitOrderBook::add_order_impl(int order_id, int price, int quantity, std::string_view broker_id) {
+    if constexpr (side == Side::bid) {
+        match_order_impl<Side::bid>(bids, asks, price, quantity, order_id, broker_id);
+    } else {
+        match_order_impl<Side::ask>(asks, bids, price, quantity, order_id, broker_id);
+    }
+}
+
+template <Side side>
+void LimitOrderBook::match_order_impl(SideContainer& near_side, SideContainer& far_side, int price,
+                                      int remaining_quantity, int order_id,
+                                      std::string_view broker_id) {
     while (!far_side.empty() && remaining_quantity > 0) {
-        const auto best_level = (side == Side::bid) ? far_side.begin() : std::prev(far_side.end());
+        const auto best_level = [&] {
+            if constexpr (side == Side::bid) {
+                return far_side.begin();
+            } else {
+                return std::prev(far_side.end());
+            }
+        }();
 
         const auto& best_level_price = best_level->first;
-        if ((side == Side::bid && price < best_level_price) ||
-            (side == Side::ask && price > best_level_price)) {
-            break;
+        if constexpr (side == Side::bid) {
+            if (price < best_level_price) {
+                break;
+            }
+        } else {
+            if (price > best_level_price) {
+                break;
+            }
         }
 
         auto& best_level_orders = best_level->second;
@@ -105,13 +138,23 @@ void LimitOrderBook::cancel_order(int order_id) {
 }
 
 std::optional<std::reference_wrapper<const Order>> LimitOrderBook::get_best_order(Side side) const {
+    if (side == Side::bid) {
+        return get_best_order_impl<Side::bid>();
+    }
+    return get_best_order_impl<Side::ask>();
+}
+
+template <Side side>
+std::optional<std::reference_wrapper<const Order>> LimitOrderBook::get_best_order_impl() const {
     const auto& side_map = get_side(side);
     if (side_map.empty()) {
         return std::nullopt;
     }
 
-    return (side == Side::bid) ? side_map.rbegin()->second.front()
-                               : side_map.begin()->second.front();
+    if constexpr (side == Side::bid) {
+        return side_map.rbegin()->second.front();
+    }
+    return side_map.begin()->second.front();
 }
 
 bool LimitOrderBook::order_id_exists(int order_id) const {
@@ -146,9 +189,22 @@ LevelAggregate LimitOrderBook::get_level_aggregate(Side side, int level) const {
                                        BOOST_CONTRACT_ASSERT(level_aggregate.quantity > 0);
                                    });
 
+    if (side == Side::bid) {
+        return level_aggregate = get_level_aggregate_impl<Side::bid>(level);
+    }
+    return level_aggregate = get_level_aggregate_impl<Side::ask>(level);
+}
+
+template <Side side>
+LevelAggregate LimitOrderBook::get_level_aggregate_impl(int level) const {
     const auto& side_map = get_side(side);
-    const auto it = (side == Side::bid) ? std::prev(side_map.cend(), level + 1)
-                                        : std::next(side_map.cbegin(), level);
+    const auto it = [&] {
+        if constexpr (side == Side::bid) {
+            return std::prev(side_map.cend(), level + 1);
+        } else {
+            return std::next(side_map.cbegin(), level);
+        }
+    }();
 
     const int level_price = it->first;
 
@@ -157,7 +213,7 @@ LevelAggregate LimitOrderBook::get_level_aggregate(Side side, int level) const {
         level_quantity += order.get_quantity();
     }
 
-    return level_aggregate = LevelAggregate{.price = level_price, .quantity = level_quantity};
+    return LevelAggregate{.price = level_price, .quantity = level_quantity};
 }
 
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {

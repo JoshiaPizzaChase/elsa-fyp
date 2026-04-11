@@ -49,6 +49,19 @@ class LimitOrderBook {
     [[nodiscard]] std::optional<int> get_fill_cost(int quantity, Side side) const;
 
   private:
+    template <Side side>
+    void add_order_impl(int order_id, int price, int quantity, std::string_view broker_id);
+
+    template <Side taker_side>
+    void match_order_impl(SideContainer& near_side, SideContainer& far_side, int price,
+                          int remaining_quantity, int order_id, std::string_view broker_id);
+
+    template <Side side>
+    [[nodiscard]] std::optional<std::reference_wrapper<const Order>> get_best_order_impl() const;
+
+    template <Side side>
+    [[nodiscard]] LevelAggregate get_level_aggregate_impl(int level) const;
+
     std::unique_ptr<Publisher<Trade>> trade_publisher;
 
     std::queue<Trade>& trade_events;
