@@ -44,7 +44,9 @@ class OrderManager {
     void connect_matching_engine(std::string host, int port, int retry_attempts = 5);
     [[noreturn]] void start();
 
-    typedef boost::bimap<int, int>::value_type order_id_pair;
+    using OrderIdMapContainer = boost::bimap<int, int>;
+    using OrderIdPair = OrderIdMapContainer::value_type;
+    using OrderInfoMapContainer = std::unordered_map<int, OrderInfo>;
 
   private:
     std::vector<int> gateway_connection_ids;
@@ -60,16 +62,16 @@ class OrderManager {
     std::unique_ptr<OrderManagerDatabase> database_client;
 
     // Left is internal order ID, Right is client order ID
-    boost::bimap<int, int> order_id_map;
+    OrderIdMapContainer order_id_map;
 
-    std::unordered_map<int, OrderInfo> order_info_map;
+    OrderInfoMapContainer order_info_map;
 };
 
 void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase& database_client);
 
 std::optional<int> preprocess_container(core::Container& container,
-                                        boost::bimap<int, int>& order_id_map,
-                                        std::unordered_map<int, OrderInfo>& order_info_map,
+                                        OrderManager::OrderIdMapContainer& order_id_map,
+                                        OrderManager::OrderInfoMapContainer& order_info_map,
                                         int arrival_gateway_id,
                                         transport::OutboundClient& order_request_ws_client,
                                         int order_request_connection_id);
@@ -78,38 +80,38 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
                         std::optional<int> fill_cost = std::nullopt);
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,
-                       const std::unordered_map<int, OrderInfo>& order_info_map,
+                       const OrderManager::OrderInfoMapContainer& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
                        OrderManagerDatabase& database_client);
 
 core::ExecutionReportContainer
 generate_rejection_report_container(const core::Container& container,
-                                    const std::unordered_map<int, OrderInfo>& order_info_store);
+                                    const OrderManager::OrderInfoMapContainer& order_info_map);
 
 core::ExecutionReportContainer
 generate_success_report_container(const core::Container& container,
-                                  const std::unordered_map<int, OrderInfo>& order_info_store);
+                                  const OrderManager::OrderInfoMapContainer& order_info_map);
 
 void update_database(const core::Container& container, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container = std::nullopt);
 
 void update_order_info(const core::TradeContainer& trade_container,
-                       std::unordered_map<int, OrderInfo>& order_info_map);
+                       OrderManager::OrderInfoMapContainer& order_info_map);
 
 void return_execution_report(const core::Container& container,
-                             const boost::bimap<int, int>& order_id_map,
-                             const std::unordered_map<int, OrderInfo>& order_info_map,
+                             const OrderManager::OrderIdMapContainer& order_id_map,
+                             const OrderManager::OrderInfoMapContainer& order_info_map,
                              transport::InboundServer& inbound_ws_server,
                              OrderManagerDatabase& database_client);
 
 std::pair<core::ExecutionReportContainer, core::ExecutionReportContainer>
 generate_matched_order_report_containers(const core::TradeContainer& trade,
-                                         const boost::bimap<int, int>& order_id_map,
-                                         const std::unordered_map<int, OrderInfo>& order_info_map);
+                                         const OrderManager::OrderIdMapContainer& order_id_map,
+                                         const OrderManager::OrderInfoMapContainer& order_info_map);
 
 core::ExecutionReportContainer
 generate_cancel_response_report_container(const core::CancelOrderResponseContainer& cancel_response,
-                                          const boost::bimap<int, int>& order_id_map,
-                                          const std::unordered_map<int, OrderInfo>& order_info_map);
+                                          const OrderManager::OrderIdMapContainer& order_id_map,
+                                          const OrderManager::OrderInfoMapContainer& order_info_map);
 } // namespace om

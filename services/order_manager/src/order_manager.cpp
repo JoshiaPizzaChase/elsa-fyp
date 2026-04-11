@@ -19,12 +19,12 @@ static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::as
 
 OrderManager::OrderManager(std::string_view host, int port,
                            const OrderManagerDependencyFactory& dependency_factory)
-    : inbound_server{
+    : order_request_connection_id{-1}, order_response_connection_id{-1},
+      inbound_server{
           dependency_factory.create_inbound_server(host, port, logger, gateway_connection_ids)},
       order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
       order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
-      database_client{dependency_factory.create_database_client(true)},
-      order_request_connection_id{-1}, order_response_connection_id{-1} {
+      database_client{dependency_factory.create_database_client(true)} {
 }
 
 void OrderManager::init() {
@@ -194,8 +194,8 @@ void OrderManager::start() {
 }
 
 std::optional<int> preprocess_container(core::Container& container,
-                                        boost::bimap<int, int>& order_id_map,
-                                        std::unordered_map<int, OrderInfo>& order_info_map,
+                                        OrderManager::OrderIdMapContainer& order_id_map,
+                                        OrderManager::OrderInfoMapContainer& order_info_map,
                                         int arrival_gateway_id,
                                         transport::OutboundClient& order_request_ws_client,
                                         int order_request_connection_id) {
@@ -206,8 +206,8 @@ std::optional<int> preprocess_container(core::Container& container,
         if (const auto new_order_container =
                 std::get_if<core::NewOrderSingleContainer>(&container)) {
             new_order_container->order_id = ++latest_assigned_order_id;
-            order_id_map.insert(OrderManager::order_id_pair(new_order_container->order_id.value(),
-                                                            new_order_container->cl_ord_id));
+            order_id_map.insert(OrderManager::OrderIdPair(new_order_container->order_id.value(),
+                                                          new_order_container->cl_ord_id));
 
             order_info_map.emplace(new_order_container->order_id.value(),
                                    OrderInfo{.sender_comp_id = new_order_container->sender_comp_id,
@@ -364,7 +364,7 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 }
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,
-                       const std::unordered_map<int, OrderInfo>& order_info_map,
+                       const OrderManager::OrderInfoMapContainer& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
                        OrderManagerDatabase& database_client) {
@@ -399,7 +399,7 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
 
 core::ExecutionReportContainer
 generate_rejection_report_container(const core::Container& container,
-                                    const std::unordered_map<int, OrderInfo>& order_info_store) {
+                                    const OrderManager::OrderInfoMapContainer& order_info_store) {
     auto new_order_handler{[](const core::NewOrderSingleContainer& new_order) {
         return core::ExecutionReportContainer{
             .sender_comp_id = new_order.sender_comp_id,
@@ -459,7 +459,7 @@ generate_rejection_report_container(const core::Container& container,
 
 core::ExecutionReportContainer
 generate_success_report_container(const core::Container& container,
-                                  const std::unordered_map<int, OrderInfo>& order_info_store) {
+                                  const OrderManager::OrderInfoMapContainer& order_info_store) {
     auto new_order_handler{[](const core::NewOrderSingleContainer& new_order) {
         return core::ExecutionReportContainer{
             .sender_comp_id = new_order.sender_comp_id,
@@ -548,7 +548,7 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
 }
 
 void update_order_info(const core::TradeContainer& trade_container,
-                       std::unordered_map<int, OrderInfo>& order_info_map) {
+                       OrderManager::OrderInfoMapContainer& order_info_map) {
     auto& taker_order_info = order_info_map.at(trade_container.taker_order_id);
     taker_order_info.avg_px = (taker_order_info.avg_px * taker_order_info.cum_qty +
                                trade_container.price * trade_container.quantity) /
@@ -565,8 +565,8 @@ void update_order_info(const core::TradeContainer& trade_container,
 }
 
 void return_execution_report(const core::Container& container,
-                             const boost::bimap<int, int>& order_id_map,
-                             const std::unordered_map<int, OrderInfo>& order_info_map,
+                             const OrderManager::OrderIdMapContainer& order_id_map,
+                             const OrderManager::OrderInfoMapContainer& order_info_map,
                              transport::InboundServer& inbound_ws_server,
                              OrderManagerDatabase& database_client) {
     auto trade_handler{[&](const core::TradeContainer& trade) {
@@ -599,9 +599,9 @@ void return_execution_report(const core::Container& container,
 
 // Generates (Taker Order Execution Report, Maker Order Execution Report)
 std::pair<core::ExecutionReportContainer, core::ExecutionReportContainer>
-generate_matched_order_report_containers(const core::TradeContainer& trade,
-                                         const boost::bimap<int, int>& order_id_map,
-                                         const std::unordered_map<int, OrderInfo>& order_info_map) {
+generate_matched_order_report_containers(
+    const core::TradeContainer& trade, const OrderManager::OrderIdMapContainer& order_id_map,
+    const OrderManager::OrderInfoMapContainer& order_info_map) {
     const core::ExecutionReportContainer taker_order_report_container{
         .sender_comp_id = trade.taker_id,
         .target_comp_id = "",
@@ -649,8 +649,8 @@ generate_matched_order_report_containers(const core::TradeContainer& trade,
 
 core::ExecutionReportContainer generate_cancel_response_report_container(
     const core::CancelOrderResponseContainer& cancel_response,
-    const boost::bimap<int, int>& order_id_map,
-    const std::unordered_map<int, OrderInfo>& order_info_map) {
+    const OrderManager::OrderIdMapContainer& order_id_map,
+    const OrderManager::OrderInfoMapContainer& order_info_map) {
     return core::ExecutionReportContainer{
         .sender_comp_id = order_info_map.at(cancel_response.order_id).sender_comp_id,
         .target_comp_id = "",
