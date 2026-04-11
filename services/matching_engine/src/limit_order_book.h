@@ -8,16 +8,33 @@
 #include <limits>
 #include <list>
 #include <map>
+#include <memory_resource>
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <array>
+#include <cstddef>
 
 namespace engine {
 
 inline constexpr int MARKET_BID_ORDER_PRICE = std::numeric_limits<int>::max();
 inline constexpr int MARKET_ASK_ORDER_PRICE = std::numeric_limits<int>::min();
 
-using SideContainer = std::map<int, std::list<Order>>;
+class LimitOrderBookMemoryPool {
+  public:
+    LimitOrderBookMemoryPool();
+    [[nodiscard]] std::pmr::memory_resource* resource() noexcept;
+
+  private:
+    static constexpr std::size_t INITIAL_BUFFER_SIZE = 8 * 1024 * 1024;
+
+    std::array<std::byte, INITIAL_BUFFER_SIZE> initial_buffer{};
+    std::pmr::monotonic_buffer_resource monotonic_resource;
+};
+
+using OrderList = std::pmr::list<Order>;
+using SideContainer = std::pmr::map<int, OrderList>;
+using OrderIdMap = std::pmr::unordered_map<int, OrderList::const_iterator>;
 
 class LimitOrderBook {
   public:
@@ -55,10 +72,11 @@ class LimitOrderBook {
 
     std::string ticker{};
 
+    std::unique_ptr<LimitOrderBookMemoryPool> memory_pool{};
     SideContainer bids{};
     SideContainer asks{};
 
-    std::unordered_map<int, std::list<Order>::const_iterator> order_id_map{};
+    OrderIdMap order_id_map{};
 
     void match_order(SideContainer& near_side, SideContainer& far_side, int price,
                      int remaining_quantity, int order_id, Side side, std::string_view broker_id);

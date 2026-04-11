@@ -8,9 +8,24 @@
 
 namespace engine {
 
+LimitOrderBookMemoryPool::LimitOrderBookMemoryPool()
+    : monotonic_resource{initial_buffer.data(), initial_buffer.size()} {
+}
+
+std::pmr::memory_resource* LimitOrderBookMemoryPool::resource() noexcept {
+    return &monotonic_resource;
+}
+
 LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
                                std::unique_ptr<Publisher<Trade>> trade_publisher)
-    : trade_publisher{std::move(trade_publisher)}, trade_events{trade_container}, ticker{ticker} {
+    : trade_publisher{std::move(trade_publisher)},
+      trade_events{trade_container},
+      ticker{ticker},
+      memory_pool{std::make_unique<LimitOrderBookMemoryPool>()},
+      bids{memory_pool->resource()},
+      asks{memory_pool->resource()},
+      order_id_map{0, std::hash<int>{}, std::equal_to<int>{}, memory_pool->resource()} {
+    order_id_map.reserve(16'384);
 }
 
 std::string_view LimitOrderBook::get_ticker() const {
@@ -80,8 +95,12 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
 
     if (remaining_quantity > 0 && price != MARKET_BID_ORDER_PRICE &&
         price != MARKET_ASK_ORDER_PRICE) {
-        order_id_map[order_id] = near_side[price].emplace(near_side[price].end(), order_id, price,
-                                                          remaining_quantity, side, broker_id);
+        auto level_result = near_side.try_emplace(price);
+        auto level_it = level_result.first;
+        auto order_it =
+            level_it->second.emplace(level_it->second.end(), order_id, price, remaining_quantity,
+                                     side, broker_id);
+        order_id_map.emplace(order_id, order_it);
     }
 }
 

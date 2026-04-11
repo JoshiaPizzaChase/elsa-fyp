@@ -6,6 +6,15 @@ Order::Order(int order_id, int price, int quantity, Side side, std::string_view 
     : order_id{order_id}, price{price}, quantity{quantity}, side{side}, trader_id{trader_id} {
 }
 
+Order::Order(std::allocator_arg_t, const allocator_type& alloc, int order_id, int price, int quantity,
+             Side side, std::string_view trader_id)
+    : order_id{order_id},
+      price{price},
+      quantity{quantity},
+      side{side},
+      trader_id{trader_id, alloc.resource()} {
+}
+
 int Order::get_order_id() const {
     return order_id;
 }
@@ -22,7 +31,7 @@ Side Order::get_side() const {
     return side;
 }
 
-const std::string& Order::get_trader_id() const {
+const std::pmr::string& Order::get_trader_id() const {
     return trader_id;
 }
 
