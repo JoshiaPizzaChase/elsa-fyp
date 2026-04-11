@@ -1,4 +1,10 @@
-add_executable(matching_engine_test limit_order_book_test.cpp order_test.cpp matching_engine_test.cpp)
+add_executable(matching_engine_test
+        limit_order_book_test.cpp
+        vector_limit_order_book_test.cpp
+        flat_vector_limit_order_book_test.cpp
+        order_test.cpp
+        matching_engine_test.cpp
+)
 
 cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH MATCHING_ENGINE_DIR)
 target_include_directories(matching_engine_test PRIVATE ${MATCHING_ENGINE_DIR}/src)

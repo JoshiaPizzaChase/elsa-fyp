@@ -1,6 +1,8 @@
 add_library(matching_engine_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/src/matching_engine.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/limit_order_book.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/vector_limit_order_book.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/flat_vector_limit_order_book.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/order.cpp
 )
 target_include_directories(matching_engine_lib
