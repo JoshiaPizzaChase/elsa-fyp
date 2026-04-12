@@ -9,7 +9,5 @@ struct OrderManagerConfig {
 
     std::string downstream_matching_engine_host;
     int downstream_matching_engine_port;
-
-    int gateway_count;
 };
 } // namespace om

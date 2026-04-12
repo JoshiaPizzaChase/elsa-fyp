@@ -678,7 +678,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     oms_params["order_manager_port"] = oms_port;
     oms_params["downstream_matching_engine_host"] = machine_ip;
     oms_params["downstream_matching_engine_port"] = me_port;
-    oms_params["gateway_count"] = 1;
+
     auto oms_deploy_result = deploy_service("oms", oms_params);
     if (!oms_deploy_result.has_value()) {
         res["error"] = oms_deploy_result.error();
