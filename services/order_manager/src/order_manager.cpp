@@ -377,34 +377,54 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 void forward_and_reply(bool is_container_valid, const core::Container& container,
                        const OrderManager::OrderInfoMapContainer& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
-                       int order_request_connection_id, transport::InboundServer& inbound_ws_server,
-                       OrderManagerDatabase& database_client) {
+                       int order_request_connection_id,
+                       transport::InboundServer& inbound_ws_server) {
     if (is_container_valid) {
         // Forward validated container to Matching Engine
-        // TODO: Handle send error
         const auto message =
             std::visit([](auto&& c) { return transport::serialize_container(c); }, container);
-        order_request_ws_client.send(order_request_connection_id, message);
-
-        logger->info("Forward a valid container");
-        logger->flush();
+        order_request_ws_client.send(order_request_connection_id, message)
+            .transform([] {
+                logger->info("Forwarded a valid container");
+                logger->flush();
+            })
+            .or_else([](int) -> std::expected<void, int> {
+                logger->error("Failed to forward a valid container");
+                return {};
+            });
 
         // Gives immediate execution report as response back to broker
         const auto execution_report = generate_success_report_container(container, order_info_map);
-        inbound_ws_server.send(arrival_gateway_id, transport::serialize_container(execution_report),
-                               transport::MessageFormat::binary);
 
-        logger->info("Returned success execution report");
-        logger->flush();
+        inbound_ws_server
+            .send(arrival_gateway_id, transport::serialize_container(execution_report),
+                  transport::MessageFormat::binary)
+            .transform([&] {
+                logger->info("Replied a success execution report: {}", execution_report);
+                logger->flush();
+            })
+            .or_else([&](int) -> std::expected<void, int> {
+                logger->error("Failed to reply a success execution report: {}", execution_report);
+                logger->flush();
+                return {};
+            });
     } else {
         // Give immediate execution report as feedback on rejection to broker
         const auto execution_report =
             generate_rejection_report_container(container, order_info_map);
-        inbound_ws_server.send(arrival_gateway_id, transport::serialize_container(execution_report),
-                               transport::MessageFormat::binary);
 
-        logger->info("Returned rejection execution report");
-        logger->flush();
+        inbound_ws_server
+            .send(arrival_gateway_id, transport::serialize_container(execution_report),
+                  transport::MessageFormat::binary)
+            .transform([&] {
+                logger->info("Replied a rejection execution report: {}", execution_report);
+                logger->flush();
+            })
+            .or_else([&](int) -> std::expected<void, int> {
+                logger->error("Failed to reply a rejection execution report: {}", execution_report);
+                logger->flush();
+                return {};
+            });
     }
 }
 

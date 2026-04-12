@@ -50,7 +50,7 @@ struct ExecutionReportContainer {
     std::string symbol;
     Side side;
     std::optional<std::int32_t> price; // Only required in response to limit orders.
-    std::optional<TimeInForce> time_in_force;
+    TimeInForce time_in_force;
     std::int32_t leaves_qty;
     std::int32_t cum_qty;
     std::int32_t avg_px;
@@ -183,5 +183,26 @@ struct std::formatter<core::FillCostResponseContainer> {
     auto format(const core::FillCostResponseContainer& fcrc, FormatContext& ctx) const {
         return std::format_to(ctx.out(), "FillCostResponseContainer{{total_cost: {}}}",
                               fcrc.total_cost.value_or(-1));
+    }
+};
+
+template <>
+struct std::formatter<core::ExecutionReportContainer> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const core::ExecutionReportContainer& erc, FormatContext& ctx) const {
+        return std::format_to(
+            ctx.out(),
+            "ExecutionReportContainer{{sender_comp_id: {}, target_comp_id: {}, order_id: {}, "
+            "cl_order_id: {}, orig_cl_ord_id: {}, exec_id: {}, exec_trans_type: {}, exec_type: {}, "
+            "ord_status: {}, text: {}, symbol: {}, side: {}, price: {}, time_in_force: {}, "
+            "leaves_qty: {}, cum_qty: {}, avg_px: {}}}",
+            erc.sender_comp_id, erc.target_comp_id, erc.order_id, erc.cl_order_id,
+            erc.orig_cl_ord_id.value_or(-1), erc.exec_id, erc.exec_trans_type, erc.exec_type,
+            erc.ord_status, erc.text.value_or("N/A"), erc.symbol, erc.side, erc.price.value_or(-1),
+            erc.time_in_force, erc.leaves_qty, erc.cum_qty, erc.avg_px);
     }
 };

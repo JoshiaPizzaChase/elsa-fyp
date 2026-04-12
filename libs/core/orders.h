@@ -164,8 +164,8 @@ struct std::formatter<core::OrderType> {
 
     template <typename FormatContext>
     auto format(core::OrderType ord_type, FormatContext& ctx) const {
-        return std::format_to(ctx.out(), "{}", ord_type == core::OrderType::limit ? "limit"
-                                                                                  : "market");
+        return std::format_to(ctx.out(), "{}",
+                              ord_type == core::OrderType::limit ? "limit" : "market");
     }
 };
 
@@ -178,5 +178,53 @@ struct std::formatter<core::TimeInForce> {
     template <typename FormatContext>
     auto format(core::TimeInForce tif, FormatContext& ctx) const {
         return std::format_to(ctx.out(), "{}", tif == core::TimeInForce::day ? "day" : "gtc");
+    }
+};
+
+template <>
+struct std::formatter<core::ExecTransType> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(core::ExecTransType exec_trans_type, FormatContext& ctx) const {
+        switch (exec_trans_type) {
+        case core::ExecTransType::exec_trans_new:
+            return std::format_to(ctx.out(), "new");
+        case core::ExecTransType::exec_trans_cancel:
+            return std::format_to(ctx.out(), "cancel");
+        case core::ExecTransType::exec_trans_correct:
+            return std::format_to(ctx.out(), "correct");
+        case core::ExecTransType::exec_trans_status:
+            return std::format_to(ctx.out(), "status");
+        }
+        return std::format_to(ctx.out(), "unknown");
+    }
+};
+
+template <>
+struct std::formatter<core::ExecTypeOrOrderStatus> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(core::ExecTypeOrOrderStatus status, FormatContext& ctx) const {
+        switch (status) {
+        case core::ExecTypeOrOrderStatus::status_new:
+            return std::format_to(ctx.out(), "new");
+        case core::ExecTypeOrOrderStatus::status_partially_filled:
+            return std::format_to(ctx.out(), "partially_filled");
+        case core::ExecTypeOrOrderStatus::status_filled:
+            return std::format_to(ctx.out(), "filled");
+        case core::ExecTypeOrOrderStatus::status_canceled:
+            return std::format_to(ctx.out(), "canceled");
+        case core::ExecTypeOrOrderStatus::status_pending_cancel:
+            return std::format_to(ctx.out(), "pending_cancel");
+        case core::ExecTypeOrOrderStatus::status_rejected:
+            return std::format_to(ctx.out(), "rejected");
+        }
+        return std::format_to(ctx.out(), "unknown");
     }
 };
