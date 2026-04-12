@@ -206,54 +206,56 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
     static int latest_assigned_order_id{-1};
     auto new_order_handler{[&](core::NewOrderSingleContainer& new_order) -> std::optional<int> {
         // Assign an internal order_id to NewOrderSingleContainer
-        if (const auto new_order_container =
-                std::get_if<core::NewOrderSingleContainer>(&container)) {
-            new_order_container->order_id = ++latest_assigned_order_id;
-            order_id_map.insert(OrderManager::OrderIdPair(
-                new_order_container->order_id.value(),
-                new_order_container->cl_ord_id * core::constants::max_user_count +
-                    username_user_id_map.at(new_order.sender_comp_id)));
+        new_order.order_id = ++latest_assigned_order_id;
+        logger->info("New Order Single received: {}", new_order);
 
-            order_info_map.emplace(new_order_container->order_id.value(),
-                                   OrderInfo{.sender_comp_id = new_order_container->sender_comp_id,
-                                             .symbol = new_order_container->symbol,
-                                             .side = new_order_container->side,
-                                             .price = new_order_container->price,
-                                             .time_in_force = new_order_container->time_in_force,
-                                             .leaves_qty = new_order_container->order_qty,
-                                             .cum_qty = 0,
-                                             .avg_px = 0,
-                                             .arrival_gateway_id = arrival_gateway_id});
+        order_id_map.insert(OrderManager::OrderIdPair(
+            new_order.order_id.value(), new_order.cl_ord_id * core::constants::max_user_count +
+                                            username_user_id_map.at(new_order.sender_comp_id)));
 
-            // Market bid requires fill cost before proceeding
-            if (new_order_container->ord_type == core::OrderType::market &&
-                new_order_container->side == core::Side::bid) {
-                // Fetch fill cost from Matching Engine
-                order_request_ws_client.send(
-                    order_request_connection_id,
-                    transport::serialize_container(
-                        core::FillCostQueryContainer{.symbol = new_order_container->symbol,
-                                                     .quantity = new_order_container->order_qty,
-                                                     .side = new_order_container->side}));
+        order_info_map.emplace(new_order.order_id.value(),
+                               OrderInfo{.sender_comp_id = new_order.sender_comp_id,
+                                         .symbol = new_order.symbol,
+                                         .side = new_order.side,
+                                         .price = new_order.price,
+                                         .time_in_force = new_order.time_in_force,
+                                         .leaves_qty = new_order.order_qty,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = arrival_gateway_id});
 
-                auto response_message =
+        // Market bid requires fill cost before proceeding
+        if (new_order.ord_type == core::OrderType::market && new_order.side == core::Side::bid) {
+            // Fetch fill cost from Matching Engine
+            const auto fill_cost_query =
+                core::FillCostQueryContainer{.symbol = new_order.symbol,
+                                             .quantity = new_order.order_qty,
+                                             .side = new_order.side};
+            order_request_ws_client
+                .send(order_request_connection_id, transport::serialize_container(fill_cost_query))
+                .transform([&] {
+                    logger->info("Successfully sent Fill Cost "
+                                 "Query: {}",
+                                 fill_cost_query);
+                    logger->flush();
+                });
+
+            auto response_message =
+                order_request_ws_client.wait_and_dequeue_message(order_request_connection_id);
+            while (!response_message.has_value()) {
+                response_message =
                     order_request_ws_client.wait_and_dequeue_message(order_request_connection_id);
-                while (!response_message.has_value()) {
-                    response_message = order_request_ws_client.wait_and_dequeue_message(
-                        order_request_connection_id);
-                }
-
-                logger->info("Fill cost response received from ME!");
-                logger->flush();
-
-                const auto response_container =
-                    transport::deserialize_container(response_message.value());
-                assert(
-                    std::holds_alternative<core::FillCostResponseContainer>(response_container) &&
-                    "Unexpected container type received from Matching Engine");
-
-                return std::get<core::FillCostResponseContainer>(response_container).total_cost;
             }
+
+            const auto response_container =
+                transport::deserialize_container(response_message.value());
+            assert(std::holds_alternative<core::FillCostResponseContainer>(response_container) &&
+                   "Unexpected container type received from Matching Engine");
+            const auto fill_cost_response =
+                std::get<core::FillCostResponseContainer>(response_container);
+            logger->info("Fill Cost Response received: {}", fill_cost_response);
+
+            return fill_cost_response.total_cost;
         }
 
         return std::nullopt;

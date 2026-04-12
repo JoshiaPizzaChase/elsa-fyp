@@ -276,23 +276,32 @@ TEST_F(PreprocessContainerTest, NonMarketBidNewOrder) {
     preprocess_container(new_order, order_id_map, order_info_map, username_user_id_map, 0,
                          mock_order_request_client, 0);
 
-    EXPECT_EQ(std::get<core::NewOrderSingleContainer>(new_order).order_id, 0);
+    std::ignore =
+        std::get<core::NewOrderSingleContainer>(new_order)
+            .order_id
+            .transform([&](int order_id) {
+                // Assume "CLIENT" has internal user id of 1
+                constexpr auto expected_transformed_cl_ord_id =
+                    100 * core::constants::max_user_count + 1;
+                EXPECT_EQ(order_id_map.left.at(order_id), expected_transformed_cl_ord_id);
+                EXPECT_EQ(order_id_map.right.at(expected_transformed_cl_ord_id), order_id);
 
-    // Assume "CLIENT" has internal user id of 1
-    constexpr auto expected_transformed_cl_ord_id = 100 * core::constants::max_user_count + 1;
-    EXPECT_EQ(order_id_map.left.at(0), expected_transformed_cl_ord_id);
-    EXPECT_EQ(order_id_map.right.at(expected_transformed_cl_ord_id), 0);
-
-    const auto order_info = order_info_map.at(0);
-    EXPECT_EQ(order_info.sender_comp_id, "CLIENT");
-    EXPECT_EQ(order_info.symbol, "AAPL");
-    EXPECT_EQ(order_info.side, core::Side::ask);
-    EXPECT_EQ(order_info.price, 100);
-    EXPECT_EQ(order_info.time_in_force, core::TimeInForce::gtc);
-    EXPECT_EQ(order_info.leaves_qty, 10);
-    EXPECT_EQ(order_info.cum_qty, 0);
-    EXPECT_EQ(order_info.avg_px, 0);
-    EXPECT_EQ(order_info.arrival_gateway_id, 0);
+                const auto order_info = order_info_map.at(order_id);
+                EXPECT_EQ(order_info.sender_comp_id, "CLIENT");
+                EXPECT_EQ(order_info.symbol, "AAPL");
+                EXPECT_EQ(order_info.side, core::Side::ask);
+                EXPECT_EQ(order_info.price, 100);
+                EXPECT_EQ(order_info.time_in_force, core::TimeInForce::gtc);
+                EXPECT_EQ(order_info.leaves_qty, 10);
+                EXPECT_EQ(order_info.cum_qty, 0);
+                EXPECT_EQ(order_info.avg_px, 0);
+                EXPECT_EQ(order_info.arrival_gateway_id, 0);
+                return order_id;
+            })
+            .or_else([] -> std::optional<int> {
+                ADD_FAILURE();
+                return std::nullopt;
+            });
 }
 
 TEST_F(PreprocessContainerTest, MarketBidNewOrder) {
@@ -341,21 +350,31 @@ TEST_F(PreprocessContainerTest, MarketBidNewOrder) {
             return std::nullopt;
         });
 
-    EXPECT_EQ(std::get<core::NewOrderSingleContainer>(new_order).order_id, 0);
+    std::ignore =
+        std::get<core::NewOrderSingleContainer>(new_order)
+            .order_id
+            .transform([&](int order_id) {
+                // Assume "CLIENT" has internal user id of 1
+                const auto expected_transformed_cl_ord_id =
+                    100 * core::constants::max_user_count + 1;
+                EXPECT_EQ(order_id_map.left.at(order_id), expected_transformed_cl_ord_id);
+                EXPECT_EQ(order_id_map.right.at(expected_transformed_cl_ord_id), order_id);
 
-    // Assume "CLIENT" has internal user id of 1
-    constexpr auto expected_transformed_cl_ord_id = 100 * core::constants::max_user_count + 1;
-    EXPECT_EQ(order_id_map.left.at(0), expected_transformed_cl_ord_id);
-    EXPECT_EQ(order_id_map.right.at(expected_transformed_cl_ord_id), 0);
-
-    const auto order_info = order_info_map.at(0);
-    EXPECT_EQ(order_info.sender_comp_id, "CLIENT");
-    EXPECT_EQ(order_info.symbol, "AAPL");
-    EXPECT_EQ(order_info.side, core::Side::bid);
-    EXPECT_EQ(order_info.price, std::nullopt);
-    EXPECT_EQ(order_info.time_in_force, core::TimeInForce::gtc);
-    EXPECT_EQ(order_info.leaves_qty, 10);
-    EXPECT_EQ(order_info.cum_qty, 0);
-    EXPECT_EQ(order_info.avg_px, 0);
-    EXPECT_EQ(order_info.arrival_gateway_id, 0);
+                const auto order_info = order_info_map.at(order_id);
+                EXPECT_EQ(order_info.sender_comp_id, "CLIENT");
+                EXPECT_EQ(order_info.symbol, "AAPL");
+                EXPECT_EQ(order_info.side, core::Side::bid);
+                EXPECT_EQ(order_info.price, std::nullopt);
+                EXPECT_EQ(order_info.time_in_force, core::TimeInForce::gtc);
+                EXPECT_EQ(order_info.leaves_qty, 10);
+                EXPECT_EQ(order_info.cum_qty, 0);
+                EXPECT_EQ(order_info.avg_px, 0);
+                EXPECT_EQ(order_info.arrival_gateway_id, 0);
+                return order_id;
+            })
+            .or_else([] -> std::optional<int> {
+                ADD_FAILURE();
+                return std::nullopt;
+            });
 }
+
