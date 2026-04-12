@@ -19,7 +19,7 @@ MarketDataProcessor::MarketDataProcessor(const MdpConfig& config)
         throw std::runtime_error("websocket server starts failed");
     }
     logger->info("MDP started");
-    logger->flush();
+
     while (true) {
         // publish orderbook snapshot
         for (auto& orderbook_snapshot_ring_buffer : orderbook_snapshot_ring_buffers) {
@@ -30,7 +30,7 @@ MarketDataProcessor::MarketDataProcessor(const MdpConfig& config)
                                                         transport::MessageFormat::text);
                 logger->info(orderbook_snapshot_json.dump());
                 logger->info("Orderbook snapshot sent");
-                logger->flush();
+
                 if (!res.has_value()) {
                     auto failed_ids = res.error();
                     std::string error_msg =
@@ -42,7 +42,6 @@ MarketDataProcessor::MarketDataProcessor(const MdpConfig& config)
                         }
                     }
                     logger->error(error_msg);
-                    logger->flush();
                 }
             }
         }
@@ -63,7 +62,6 @@ MarketDataProcessor::MarketDataProcessor(const MdpConfig& config)
                         }
                     }
                     logger->error(error_msg);
-                    logger->flush();
                 }
             }
         }

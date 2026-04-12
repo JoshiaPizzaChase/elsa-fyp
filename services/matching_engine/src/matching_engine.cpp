@@ -1,8 +1,7 @@
 #include "matching_engine.h"
 #include "core/containers.h"
+#include "logger/logger.h"
 #include "shared_memory_publisher.h"
-#include "spdlog/cfg/env.h"
-#include "spdlog/spdlog.h"
 #include "transport/messaging.h"
 
 namespace engine {
@@ -12,12 +11,7 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 
-auto _ = [] {
-    spdlog::cfg::load_env_levels();
-    spdlog::flush_every(std::chrono::seconds{5});
-    return 0;
-}();
-static std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
+static std::shared_ptr<spdlog::logger> logger = logger::create_logger(
     "matching_engine_logger",
     std::format("{}/logs/{}/matching_engine.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
 
