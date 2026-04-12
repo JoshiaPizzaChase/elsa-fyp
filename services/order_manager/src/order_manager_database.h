@@ -14,6 +14,7 @@ struct DbBalanceRow {
 };
 
 struct DbUserBalanceInfo {
+    int user_id;
     std::string username;
     std::vector<DbBalanceRow> balances;
 };

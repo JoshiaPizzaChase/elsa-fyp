@@ -164,8 +164,8 @@ class AsyncWriter {
 
         try {
             const auto orders_table_name = std::format("orders_{}", SERVER_NAME);
-            const questdb::ingress::table_name_view orders_table{
-                orders_table_name.c_str(), orders_table_name.length()};
+            const questdb::ingress::table_name_view orders_table{orders_table_name.c_str(),
+                                                                 orders_table_name.length()};
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -212,8 +212,8 @@ class AsyncWriter {
 
         try {
             const auto orders_table_name = std::format("orders_{}", SERVER_NAME);
-            const questdb::ingress::table_name_view orders_table{
-                orders_table_name.c_str(), orders_table_name.length()};
+            const questdb::ingress::table_name_view orders_table{orders_table_name.c_str(),
+                                                                 orders_table_name.length()};
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -249,8 +249,8 @@ class AsyncWriter {
         const auto execution_report = exec_report.execution_report;
         try {
             const auto orders_table_name = std::format("orders_{}", SERVER_NAME);
-            const questdb::ingress::table_name_view orders_table{
-                orders_table_name.c_str(), orders_table_name.length()};
+            const questdb::ingress::table_name_view orders_table{orders_table_name.c_str(),
+                                                                 orders_table_name.length()};
             const auto order_id = "order_id"_cn;
             const auto cl_order_id = "cl_order_id"_cn;
             const auto sender_comp_id = "sender_comp_id"_cn;
@@ -295,8 +295,8 @@ class AsyncWriter {
 
         try {
             const auto trades_table_name = std::format("trades_{}", SERVER_NAME);
-            const questdb::ingress::table_name_view trades_table{
-                trades_table_name.c_str(), trades_table_name.length()};
+            const questdb::ingress::table_name_view trades_table{trades_table_name.c_str(),
+                                                                 trades_table_name.length()};
             const auto symbol = "symbol"_cn;
             const auto price = "price"_cn;
             const auto quantity_cn = "quantity"_cn;
@@ -1137,7 +1137,8 @@ class DatabaseClient {
     }
 
     // Assuming these are not in hot path, so synchronous is fine.
-    auto query_orders(const std::string_view& server_name) -> std::expected<std::vector<OrderRow>, std::string> {
+    auto query_orders(const std::string_view& server_name)
+        -> std::expected<std::vector<OrderRow>, std::string> {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
@@ -1176,7 +1177,8 @@ class DatabaseClient {
         return query_orders(SERVER_NAME);
     }
 
-    auto query_trades(const std::string_view& server_name) -> std::expected<std::vector<TradeRow>, std::string> {
+    auto query_trades(const std::string_view& server_name)
+        -> std::expected<std::vector<TradeRow>, std::string> {
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
@@ -1315,6 +1317,7 @@ class DatabaseClient {
     }
 
     struct UserBalanceInfo {
+        int user_id;
         std::string username;
         std::vector<BalanceRow> balances;
     };
@@ -1380,7 +1383,7 @@ class DatabaseClient {
                         BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
                 }
 
-                result.emplace_back(UserBalanceInfo{std::move(username), std::move(balances)});
+                result.emplace_back(user_id, std::move(username), std::move(balances));
             }
 
             txn.commit();

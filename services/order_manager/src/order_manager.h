@@ -47,6 +47,7 @@ class OrderManager {
     using OrderIdMapContainer = boost::bimap<int, int>;
     using OrderIdPair = OrderIdMapContainer::value_type;
     using OrderInfoMapContainer = std::unordered_map<int, OrderInfo>;
+    using UsernameToUserIdMapContainer = std::unordered_map<std::string, int>;
 
   private:
     std::vector<int> gateway_connection_ids;
@@ -58,23 +59,27 @@ class OrderManager {
     std::unique_ptr<transport::OutboundClient> order_response_outbound_client;
 
     BalanceChecker balance_checker;
+    UsernameToUserIdMapContainer username_user_id_map;
 
     std::unique_ptr<OrderManagerDatabase> database_client;
 
-    // Left is internal order ID, Right is client order ID
+    // Left is internal order ID, Right is sender id + client order ID (for preventing a user
+    // having duplicate client order ID)
     OrderIdMapContainer order_id_map;
 
     OrderInfoMapContainer order_info_map;
 };
 
-void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase& database_client);
+void init_balance_checker(BalanceChecker& balance_checker,
+                          OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                          OrderManagerDatabase& database_client);
 
-std::optional<int> preprocess_container(core::Container& container,
-                                        OrderManager::OrderIdMapContainer& order_id_map,
-                                        OrderManager::OrderInfoMapContainer& order_info_map,
-                                        int arrival_gateway_id,
-                                        transport::OutboundClient& order_request_ws_client,
-                                        int order_request_connection_id);
+std::optional<int>
+preprocess_container(core::Container& container, OrderManager::OrderIdMapContainer& order_id_map,
+                     OrderManager::OrderInfoMapContainer& order_info_map,
+                     const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
+                     int order_request_connection_id);
 
 bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
                         std::optional<int> fill_cost = std::nullopt);
@@ -110,8 +115,8 @@ generate_matched_order_report_containers(const core::TradeContainer& trade,
                                          const OrderManager::OrderIdMapContainer& order_id_map,
                                          const OrderManager::OrderInfoMapContainer& order_info_map);
 
-core::ExecutionReportContainer
-generate_cancel_response_report_container(const core::CancelOrderResponseContainer& cancel_response,
-                                          const OrderManager::OrderIdMapContainer& order_id_map,
-                                          const OrderManager::OrderInfoMapContainer& order_info_map);
+core::ExecutionReportContainer generate_cancel_response_report_container(
+    const core::CancelOrderResponseContainer& cancel_response,
+    const OrderManager::OrderIdMapContainer& order_id_map,
+    const OrderManager::OrderInfoMapContainer& order_info_map);
 } // namespace om

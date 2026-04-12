@@ -21,8 +21,8 @@ class DatabaseClientWrapper : public OrderManagerDatabase {
                 std::vector<DbUserBalanceInfo> db_user_balance_infos;
                 db_user_balance_infos.reserve(user_bal_info.size());
 
-                for (const auto& [username, balances] : user_bal_info) {
-                    DbUserBalanceInfo bal_info{.username = username};
+                for (const auto& [user_id, username, balances] : user_bal_info) {
+                    DbUserBalanceInfo bal_info{.user_id = user_id, .username = username};
                     bal_info.balances.reserve(balances.size());
                     for (const auto& [symbol, balance] : balances) {
                         bal_info.balances.emplace_back(symbol, balance);

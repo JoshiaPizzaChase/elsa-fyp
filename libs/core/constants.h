@@ -14,4 +14,5 @@ inline static std::string SELL_STR = "SELL";
 inline static std::string ORDERBOOK_SNAPSHOT_SHM_FILE = "os";
 inline static std::string TRADE_SHM_FILE = "td";
 inline constexpr double decimal_to_int_multiplier{100.0};
+inline constexpr int max_user_count = 1000;
 } // namespace core::constants

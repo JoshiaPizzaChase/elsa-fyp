@@ -61,11 +61,13 @@ void OrderManager::init() {
                           std::terminate();
                       });
 
-    init_balance_checker(balance_checker, *database_client);
+    init_balance_checker(balance_checker, username_user_id_map, *database_client);
 }
 
 // Load all user balances into the balance_checker
-void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase& database_client) {
+void init_balance_checker(BalanceChecker& balance_checker,
+                          OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                          OrderManagerDatabase& database_client) {
     boost::contract::check c = boost::contract::function().precondition(
         [] { BOOST_CONTRACT_ASSERT(SERVER_NAME != nullptr); });
 
@@ -78,13 +80,16 @@ void init_balance_checker(BalanceChecker& balance_checker, OrderManagerDatabase&
                 logger->info("[OM] Loading balances for {} users into balance_checker",
                              users_balances.size());
 
-                for (const auto& [username, balances] : users_balances) {
+                for (const auto& [user_id, username, balances] : users_balances) {
                     for (const auto& [symbol, balance] : balances) {
                         // Initialize balance in balance_checker (delta of 0 just sets the
                         // balance)
                         balance_checker.update_balance(username, symbol, balance);
                         logger->info("[OM] Loaded balance for user {}: {} {}", username, balance,
                                      symbol);
+
+                        // TODO: Refine this temporary patchwork
+                        username_user_id_map.emplace(username, user_id);
                     }
                 }
             })
@@ -153,9 +158,9 @@ void OrderManager::start() {
             new_message.has_value()) {
             auto container = transport::deserialize_container(new_message.value());
 
-            const std::optional<int> market_bid_fill_cost =
-                preprocess_container(container, order_id_map, order_info_map, curr_gateway_id,
-                                     *order_request_outbound_client, order_request_connection_id);
+            const std::optional<int> market_bid_fill_cost = preprocess_container(
+                container, order_id_map, order_info_map, username_user_id_map, curr_gateway_id,
+                *order_request_outbound_client, order_request_connection_id);
 
             const bool is_container_valid =
                 validate_container(container, balance_checker, market_bid_fill_cost);
@@ -193,12 +198,12 @@ void OrderManager::start() {
     }
 }
 
-std::optional<int> preprocess_container(core::Container& container,
-                                        OrderManager::OrderIdMapContainer& order_id_map,
-                                        OrderManager::OrderInfoMapContainer& order_info_map,
-                                        int arrival_gateway_id,
-                                        transport::OutboundClient& order_request_ws_client,
-                                        int order_request_connection_id) {
+std::optional<int>
+preprocess_container(core::Container& container, OrderManager::OrderIdMapContainer& order_id_map,
+                     OrderManager::OrderInfoMapContainer& order_info_map,
+                     const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
+                     int order_request_connection_id) {
     // TODO: Fetch latest_assigned_order_id from DB
     static int latest_assigned_order_id{-1};
     auto new_order_handler{[&](core::NewOrderSingleContainer& new_order) -> std::optional<int> {
@@ -206,8 +211,10 @@ std::optional<int> preprocess_container(core::Container& container,
         if (const auto new_order_container =
                 std::get_if<core::NewOrderSingleContainer>(&container)) {
             new_order_container->order_id = ++latest_assigned_order_id;
-            order_id_map.insert(OrderManager::OrderIdPair(new_order_container->order_id.value(),
-                                                          new_order_container->cl_ord_id));
+            order_id_map.insert(OrderManager::OrderIdPair(
+                new_order_container->order_id.value(),
+                new_order_container->cl_ord_id * core::constants::max_user_count +
+                    username_user_id_map.at(new_order.sender_comp_id)));
 
             order_info_map.emplace(new_order_container->order_id.value(),
                                    OrderInfo{.sender_comp_id = new_order_container->sender_comp_id,
@@ -606,7 +613,7 @@ generate_matched_order_report_containers(
         .sender_comp_id = trade.taker_id,
         .target_comp_id = "",
         .order_id = trade.taker_order_id,
-        .cl_order_id = order_id_map.left.at(trade.taker_order_id),
+        .cl_order_id = order_id_map.left.at(trade.taker_order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
         .exec_trans_type = core::ExecTransType::exec_trans_new,
         .exec_type = (order_info_map.at(trade.taker_order_id).leaves_qty == 0)
@@ -627,7 +634,7 @@ generate_matched_order_report_containers(
         .sender_comp_id = trade.maker_id,
         .target_comp_id = "",
         .order_id = trade.maker_order_id,
-        .cl_order_id = order_id_map.left.at(trade.maker_order_id),
+        .cl_order_id = order_id_map.left.at(trade.maker_order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
         .exec_trans_type = core::ExecTransType::exec_trans_new,
         .exec_type = (order_info_map.at(trade.maker_order_id).leaves_qty == 0)
@@ -656,7 +663,8 @@ core::ExecutionReportContainer generate_cancel_response_report_container(
         .target_comp_id = "",
         .order_id = cancel_response.order_id,
         .cl_order_id = cancel_response.cl_ord_id,
-        .orig_cl_ord_id = order_id_map.left.at(cancel_response.order_id),
+        .orig_cl_ord_id =
+            order_id_map.left.at(cancel_response.order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
         .exec_trans_type = core::ExecTransType::exec_trans_new,
         .exec_type = (cancel_response.success) ? core::ExecType::status_canceled
