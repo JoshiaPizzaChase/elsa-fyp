@@ -263,23 +263,29 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
 
     auto cancel_request_handler{
         [&](core::CancelOrderRequestContainer& cancel_request) -> std::optional<int> {
+            logger->info("Cancel Order Request received: {}", cancel_request);
+            logger->flush();
+
             // If cancel request does not have internal order_id, fill it in
             // But if the cancel request is for a non-existent orig_cl_ord_id, leave order_id blank
-            if (const auto cancel_request_container =
-                    std::get_if<core::CancelOrderRequestContainer>(&container);
-                cancel_request_container && !cancel_request_container->order_id.has_value()) {
-                if (const auto it =
-                        order_id_map.right.find(cancel_request_container->orig_cl_ord_id);
-                    it != order_id_map.right.end()) {
-                    cancel_request_container->order_id.emplace(it->second);
-                }
+            const auto transformed_orig_cl_ord_id =
+                cancel_request.orig_cl_ord_id * core::constants::max_user_count +
+                username_user_id_map.at(cancel_request.sender_comp_id);
+
+            // TODO:: Handle non-existent sender_comp_id
+
+            if (const auto it = order_id_map.right.find(transformed_orig_cl_ord_id);
+                it != order_id_map.right.end()) {
+                cancel_request.order_id.emplace(it->second);
             }
 
             return std::nullopt;
         }};
 
     auto catch_all_handler{[](auto&) -> std::optional<int> {
-        assert(false && "UNREACHABLE");
+        logger->error("UNREACHABLE");
+        logger->flush();
+        std::terminate();
         return std::nullopt;
     }};
 

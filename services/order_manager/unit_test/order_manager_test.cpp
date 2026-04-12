@@ -263,7 +263,7 @@ class PreprocessContainerTest : public testing::Test {
 TEST_F(PreprocessContainerTest, NonMarketBidNewOrder) {
     core::Container new_order =
         core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
-                                      .target_comp_id = "ME",
+                                      .target_comp_id = "OM",
                                       .order_id = std::nullopt,
                                       .cl_ord_id = 100,
                                       .symbol = "AAPL",
@@ -307,7 +307,7 @@ TEST_F(PreprocessContainerTest, NonMarketBidNewOrder) {
 TEST_F(PreprocessContainerTest, MarketBidNewOrder) {
     core::Container new_order =
         core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
-                                      .target_comp_id = "ME",
+                                      .target_comp_id = "OM",
                                       .order_id = std::nullopt,
                                       .cl_ord_id = 100,
                                       .symbol = "AAPL",
@@ -378,3 +378,57 @@ TEST_F(PreprocessContainerTest, MarketBidNewOrder) {
             });
 }
 
+TEST_F(PreprocessContainerTest, ValidCancelRequest) {
+    core::Container cancel_request = core::CancelOrderRequestContainer{.sender_comp_id = "CLIENT",
+                                                                       .target_comp_id = "OM",
+                                                                       .order_id = std::nullopt,
+                                                                       .orig_cl_ord_id = 100,
+                                                                       .cl_ord_id = 1234,
+                                                                       .symbol = "AAPL",
+                                                                       .side = core::Side::bid,
+                                                                       .order_qty = 10};
+
+    order_id_map.insert(OrderManager::OrderIdPair(0, 100 * core::constants::max_user_count + 1));
+    username_user_id_map.emplace("CLIENT", 1);
+
+    preprocess_container(cancel_request, order_id_map, order_info_map, username_user_id_map, 0,
+                         mock_order_request_client, 0);
+
+    std::get<core::CancelOrderRequestContainer>(cancel_request)
+        .order_id
+        .transform([&](int oid) {
+            EXPECT_EQ(oid, 0);
+            return oid;
+        })
+        .or_else([] -> std::optional<int> {
+            ADD_FAILURE();
+            return std::nullopt;
+        });
+}
+
+TEST_F(PreprocessContainerTest, InvalidCancelRequest) {
+    core::Container cancel_request = core::CancelOrderRequestContainer{.sender_comp_id = "CLIENT",
+                                                                       .target_comp_id = "OM",
+                                                                       .order_id = std::nullopt,
+                                                                       .orig_cl_ord_id = 100,
+                                                                       .cl_ord_id = 1234,
+                                                                       .symbol = "AAPL",
+                                                                       .side = core::Side::bid,
+                                                                       .order_qty = 10};
+
+    username_user_id_map.emplace("CLIENT", 1);
+
+    preprocess_container(cancel_request, order_id_map, order_info_map, username_user_id_map, 0,
+                         mock_order_request_client, 0);
+
+    std::get<core::CancelOrderRequestContainer>(cancel_request)
+        .order_id
+        .transform([&](int oid) {
+            ADD_FAILURE();
+            return oid;
+        })
+        .or_else([] -> std::optional<int> {
+            SUCCEED();
+            return std::nullopt;
+        });
+}
