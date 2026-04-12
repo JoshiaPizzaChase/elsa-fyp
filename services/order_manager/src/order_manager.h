@@ -41,7 +41,7 @@ class OrderManager {
     OrderManager(std::string_view host, int port,
                  const OrderManagerDependencyFactory& dependency_factory);
     void init();
-    void connect_matching_engine(std::string host, int port, int retry_attempts = 5);
+    void connect_matching_engine(std::string host, int port, int try_attempts = 5);
     [[noreturn]] void start();
 
     using OrderIdMapContainer = boost::bimap<int, int>;
@@ -74,7 +74,7 @@ void init_balance_checker(BalanceChecker& balance_checker,
                           OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
                           OrderManagerDatabase& database_client);
 
-std::optional<int>
+[[nodiscard]] std::expected<std::optional<int>, std::string>
 preprocess_container(core::Container& container, OrderManager::OrderIdMapContainer& order_id_map,
                      OrderManager::OrderInfoMapContainer& order_info_map,
                      const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
@@ -87,8 +87,8 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 void forward_and_reply(bool is_container_valid, const core::Container& container,
                        const OrderManager::OrderInfoMapContainer& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
-                       int order_request_connection_id,
-                       transport::InboundServer& inbound_ws_server);
+                       int order_request_connection_id, transport::InboundServer& inbound_ws_server,
+                       std::optional<std::string_view> order_reject_reason = std::nullopt);
 
 core::ExecutionReportContainer
 generate_rejection_report_container(const core::Container& container,
