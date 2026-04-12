@@ -699,6 +699,11 @@
     font-style: italic;
 }
 
+.sm-hint-error {
+    color: #ef5350;
+    font-style: normal;
+}
+
 .sm-input {
     background-color: #1e1e2f;
     border: 1px solid #3a3a4a;
