@@ -296,13 +296,7 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
 bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
                         std::optional<int> market_bid_fill_cost) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
-        // logger->info("GME: {}",
-        //              balance_checker.get_balance(new_order.sender_comp_id,
-        //              new_order.symbol));
-        logger->info("USD: {}", balance_checker.get_balance(new_order.sender_comp_id, USD_SYMBOL));
-        logger->info("Price: {}", new_order.price.value_or(-1));
-        logger->info("Quantity: {}", new_order.order_qty);
-        logger->info("fill cost: {}", market_bid_fill_cost.value_or(-1));
+        logger->info("Validating New Order Single: {}", new_order);
         logger->flush();
 
         // A broker must at least have a record for USD at the start
@@ -340,7 +334,9 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
                 break;
             default:
-                assert(false && "Unsupported Order Type");
+                logger->error("Unsupported Order Type");
+                logger->flush();
+                std::terminate();
             }
             break;
         case core::Side::ask:
@@ -358,7 +354,9 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
             break;
         default:
-            assert(false && "UNREACHABLE");
+            logger->error("Unreachable");
+            logger->flush();
+            std::terminate();
         }
 
         return true;

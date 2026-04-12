@@ -432,3 +432,230 @@ TEST_F(PreprocessContainerTest, InvalidCancelRequest) {
             return std::nullopt;
         });
 }
+
+class ValidateContainerTest : public testing::Test {
+  protected:
+    BalanceChecker balance_checker;
+};
+using ValidateContainerDeathTest = ValidateContainerTest;
+
+TEST_F(ValidateContainerTest, ValidLimitBid) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::bid,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
+
+    EXPECT_TRUE(validate_container(new_order, balance_checker));
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
+}
+
+TEST_F(ValidateContainerTest, InvalidLimitBid) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::bid,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 10);
+
+    EXPECT_FALSE(validate_container(new_order, balance_checker));
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 10);
+}
+
+TEST_F(ValidateContainerTest, ValidMarketBid) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::bid,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::market,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
+
+    EXPECT_TRUE(validate_container(new_order, balance_checker, 1000));
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
+}
+
+TEST_F(ValidateContainerTest, InvalidMarketBid) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::bid,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::market,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
+
+    EXPECT_FALSE(validate_container(new_order, balance_checker, 100000));
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
+}
+
+TEST_F(ValidateContainerDeathTest, MissingFillCost) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::bid,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::market,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
+
+    EXPECT_DEATH(validate_container(new_order, balance_checker), "");
+}
+
+TEST_F(ValidateContainerTest, ValidLimitAsk) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", "AAPL", 10);
+
+    EXPECT_TRUE(validate_container(new_order, balance_checker));
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
+}
+
+TEST_F(ValidateContainerTest, InvalidLimitAsk) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", "AAPL", 1);
+
+    EXPECT_FALSE(validate_container(new_order, balance_checker));
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
+}
+
+TEST_F(ValidateContainerTest, ValidMarketAsk) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::market,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", "AAPL", 10);
+
+    EXPECT_TRUE(validate_container(new_order, balance_checker));
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
+}
+
+TEST_F(ValidateContainerTest, InvalidMarketAsk) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::market,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    balance_checker.update_balance("CLIENT", "AAPL", 1);
+
+    EXPECT_FALSE(validate_container(new_order, balance_checker));
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
+}
+
+TEST_F(ValidateContainerTest, NoRecordInBalanceChecker) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    EXPECT_FALSE(validate_container(new_order, balance_checker));
+}
+
+TEST_F(ValidateContainerTest, ValidCancelRequest) {
+    const core::Container cancel_request =
+        core::CancelOrderRequestContainer{.sender_comp_id = "CLIENT",
+                                          .target_comp_id = "OM",
+                                          .order_id = 0,
+                                          .orig_cl_ord_id = 100,
+                                          .cl_ord_id = 1234,
+                                          .symbol = "AAPL",
+                                          .side = core::Side::bid,
+                                          .order_qty = 10};
+
+    EXPECT_TRUE(validate_container(cancel_request, balance_checker));
+}
+
+TEST_F(ValidateContainerTest, InvalidCancelRequest) {
+    const core::Container cancel_request =
+        core::CancelOrderRequestContainer{.sender_comp_id = "CLIENT",
+                                          .target_comp_id = "OM",
+                                          .order_id = std::nullopt,
+                                          .orig_cl_ord_id = 100,
+                                          .cl_ord_id = 1234,
+                                          .symbol = "AAPL",
+                                          .side = core::Side::bid,
+                                          .order_qty = 10};
+
+    EXPECT_FALSE(validate_container(cancel_request, balance_checker));
+}
