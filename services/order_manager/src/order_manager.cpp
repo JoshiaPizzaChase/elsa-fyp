@@ -105,14 +105,12 @@ void OrderManager::connect_matching_engine(std::string host, int port, int retry
         order_request_res = order_request_outbound_client
                                 ->connect(std::format("ws://{}:{}", host, port), "order_request")
                                 .transform([this](int connection_id) -> int {
-                                    std::cout << "DIh\n";
                                     order_request_connection_id = connection_id;
                                     logger->info("Order Request connection established");
                                     logger->flush();
                                     return connection_id;
                                 })
                                 .or_else([=](int err) -> std::expected<int, int> {
-                                    std::cout << "FAH\n";
                                     logger->error("Failed to establish Order Request connection, "
                                                   "attempt: {}",
                                                   i + 1);
