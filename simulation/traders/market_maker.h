@@ -10,6 +10,7 @@
 #include <vector>
 #include <atomic>
 #include <iostream>
+#include <chrono>
 #include <nlohmann/json.hpp>
 
 #include <transport/websocket/websocket_client.h>
@@ -201,6 +202,11 @@ public:
         return m_inventory[ticker];
     }
 
+    void set_inventory(const std::string& ticker, double inventory) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_inventory[ticker] = inventory;
+    }
+
 protected:
     void on_order_update(const ExecutionReport& report) override {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -236,12 +242,14 @@ class MarketMaker {
 public:
     MarketMaker(std::shared_ptr<MarketDataHandler> md_handler,
                 std::shared_ptr<MMFixClient> fix_client,
+                double initial_inventory = 100.0,
                 double lot_size = 1.0,
                 double gamma = 0.1,
                 double k = 1.5,
                 double terminal_time = 1.0)
         : m_md_handler(std::move(md_handler)),
           m_fix_client(std::move(fix_client)),
+          m_initial_inventory(initial_inventory),
           m_lot_size(lot_size),
           m_gamma(gamma),
           m_k(k),
@@ -254,7 +262,11 @@ public:
 
     void start(const std::vector<std::string>& tickers) {
         m_tickers = tickers;
+        for (const auto& ticker : m_tickers) {
+            m_fix_client->set_inventory(ticker, m_initial_inventory);
+        }
         m_running = true;
+        m_start_time = std::chrono::steady_clock::now();
         m_worker_thread = std::thread(&MarketMaker::run_loop, this);
     }
 
@@ -290,7 +302,9 @@ private:
 
         double q = m_fix_client->get_inventory(ticker);
 
-        double time_left = m_terminal_time; // Simplified T - t
+        auto now = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed = now - m_start_time;
+        double time_left = std::max(0.0, m_terminal_time - elapsed.count());
 
         // Calculate Reservation Price (r)
         // r(s, t) = s - q * gamma * sigma^2 * (T - t)
@@ -322,6 +336,7 @@ private:
     std::shared_ptr<MMFixClient> m_fix_client;
 
     // Model parameters
+    double m_initial_inventory;
     double m_lot_size;
     double m_gamma;         // Constant gamma risk parameter
     double m_k;             // Order book liquidity parameter
@@ -331,6 +346,7 @@ private:
 
     std::atomic<bool> m_running;
     std::thread m_worker_thread;
+    std::chrono::time_point<std::chrono::steady_clock> m_start_time;
 };
 
 }
