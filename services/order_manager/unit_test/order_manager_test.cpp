@@ -801,3 +801,86 @@ TEST_F(GenerateRejectionReportContainerTest,
     EXPECT_EQ(rejection.cum_qty, 0);
     EXPECT_EQ(rejection.avg_px, 0);
 }
+
+class GenerateSuccessReportContainerTest : public testing::Test {
+  protected:
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(GenerateSuccessReportContainerTest, NewOrderSuccessBuildsExpectedExecutionReport) {
+    const core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 123,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    const auto success = generate_success_report_container(new_order, order_info_map);
+
+    EXPECT_EQ(success.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(success.target_comp_id, "CLIENT");
+    EXPECT_EQ(success.order_id, 42);
+    EXPECT_EQ(success.cl_order_id, 100);
+    EXPECT_EQ(success.orig_cl_ord_id, std::nullopt);
+    EXPECT_EQ(success.exec_trans_type, core::ExecTransType::exec_trans_new);
+    EXPECT_EQ(success.exec_type, core::ExecType::status_new);
+    EXPECT_EQ(success.ord_status, core::OrderStatus::status_new);
+    EXPECT_EQ(success.text, std::nullopt);
+    EXPECT_EQ(success.symbol, "AAPL");
+    EXPECT_EQ(success.side, core::Side::ask);
+    EXPECT_EQ(success.price, 123);
+    EXPECT_EQ(success.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(success.leaves_qty, 10);
+    EXPECT_EQ(success.cum_qty, 0);
+    EXPECT_EQ(success.avg_px, 0);
+    EXPECT_FALSE(success.exec_id.empty());
+}
+
+TEST_F(GenerateSuccessReportContainerTest,
+       CancelRequestSuccessUsesOriginalOrderInfoForExecutionReport) {
+    order_info_map.emplace(42, OrderInfo{.sender_comp_id = "CLIENT",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 124,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 7,
+                                         .cum_qty = 3,
+                                         .avg_px = 125,
+                                         .arrival_gateway_id = 0});
+
+    const core::Container cancel_request =
+        core::CancelOrderRequestContainer{.sender_comp_id = "CLIENT",
+                                          .target_comp_id = "OM",
+                                          .order_id = 42,
+                                          .orig_cl_ord_id = 101,
+                                          .cl_ord_id = 102,
+                                          .symbol = "AAPL",
+                                          .side = core::Side::ask,
+                                          .order_qty = 9};
+
+    const auto success = generate_success_report_container(cancel_request, order_info_map);
+
+    EXPECT_EQ(success.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(success.target_comp_id, "CLIENT");
+    EXPECT_EQ(success.order_id, 42);
+    EXPECT_EQ(success.cl_order_id, 102);
+    EXPECT_EQ(success.orig_cl_ord_id, 101);
+    EXPECT_EQ(success.exec_trans_type, core::ExecTransType::exec_trans_new);
+    EXPECT_EQ(success.exec_type, core::ExecType::status_pending_cancel);
+    EXPECT_EQ(success.ord_status, core::OrderStatus::status_pending_cancel);
+    EXPECT_EQ(success.text, std::nullopt);
+    EXPECT_EQ(success.symbol, "AAPL");
+    EXPECT_EQ(success.side, core::Side::bid);
+    EXPECT_EQ(success.price, 124);
+    EXPECT_EQ(success.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(success.leaves_qty, 7);
+    EXPECT_EQ(success.cum_qty, 3);
+    EXPECT_EQ(success.avg_px, 125);
+    EXPECT_FALSE(success.exec_id.empty());
+}
+
