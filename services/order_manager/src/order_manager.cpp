@@ -158,38 +158,47 @@ void OrderManager::start() {
 
     while (true) {
         // Process an incoming request
-        if (auto new_message = inbound_server->dequeue_message(curr_gateway_id);
-            new_message.has_value()) {
-            auto container = transport::deserialize_container(new_message.value());
+        std::ignore =
+            inbound_server->dequeue_message(curr_gateway_id)
+                .transform([&](std::string&& new_message) {
+                    auto container = transport::deserialize_container(new_message);
 
-            std::ignore =
-                preprocess_container(container, order_id_map, order_info_map, username_user_id_map,
-                                     curr_gateway_id, *order_request_outbound_client,
-                                     order_request_connection_id)
-                    .transform([&](std::optional<int>&& market_bid_fill_cost) {
-                        const std::string validation_result =
-                            validate_container(container, balance_checker, market_bid_fill_cost);
+                    std::ignore =
+                        preprocess_container(container, order_id_map, order_info_map,
+                                             username_user_id_map, curr_gateway_id,
+                                             *order_request_outbound_client,
+                                             order_request_connection_id)
+                            .transform([&](std::optional<int>&& market_bid_fill_cost) {
+                                const std::string validation_result = validate_container(
+                                    container, balance_checker, market_bid_fill_cost);
 
-                        if (validation_result == "ok") {
-                            forward_and_reply(true, container, order_info_map, curr_gateway_id,
-                                              *order_request_outbound_client,
-                                              order_request_connection_id, *inbound_server);
-                        } else {
-                            forward_and_reply(false, container, order_info_map, curr_gateway_id,
-                                              *order_request_outbound_client,
-                                              order_request_connection_id, *inbound_server,
-                                              validation_result);
-                        }
+                                if (validation_result == "ok") {
+                                    forward_and_reply(true, container, order_info_map,
+                                                      curr_gateway_id,
+                                                      *order_request_outbound_client,
+                                                      order_request_connection_id, *inbound_server);
+                                } else {
+                                    forward_and_reply(
+                                        false, container, order_info_map, curr_gateway_id,
+                                        *order_request_outbound_client, order_request_connection_id,
+                                        *inbound_server, validation_result);
+                                }
 
-                        update_database(container, *database_client, validation_result == "ok");
-                    })
-                    .transform_error([&](std::string&& err) {
-                        forward_and_reply(false, container, order_info_map, curr_gateway_id,
-                                          *order_request_outbound_client,
-                                          order_request_connection_id, *inbound_server, err);
-                        return err;
-                    });
-        }
+                                update_database(container, *database_client,
+                                                validation_result == "ok");
+                            })
+                            .transform_error([&](std::string&& err) {
+                                forward_and_reply(false, container, order_info_map, curr_gateway_id,
+                                                  *order_request_outbound_client,
+                                                  order_request_connection_id, *inbound_server,
+                                                  err);
+
+                                update_database(container, *database_client, false);
+                                return err;
+                            });
+
+                    return new_message;
+                });
 
         curr_gateway_id = (curr_gateway_id + 1) % gateway_connection_ids.size();
 
@@ -597,14 +606,19 @@ generate_success_report_container(const core::Container& container,
 void update_database(const core::Container& container, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
-        assert(new_order.order_id.has_value());
-        assert(valid_container.has_value());
+        boost::contract::check c = boost::contract::function().precondition([&] {
+            BOOST_CONTRACT_ASSERT(new_order.order_id.has_value());
+            BOOST_CONTRACT_ASSERT(valid_container.has_value());
+        });
+
         database_client.insert_order(new_order.order_id.value(), new_order,
                                      valid_container.value());
     }};
 
     auto cancel_request_handler{[&](const core::CancelOrderRequestContainer& cancel_request) {
-        assert(valid_container.has_value());
+        boost::contract::check c = boost::contract::function().precondition(
+            [&] { BOOST_CONTRACT_ASSERT(valid_container.has_value()); });
+
         database_client.insert_cancel_request(cancel_request, valid_container.value());
     }};
 

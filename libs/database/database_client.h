@@ -268,9 +268,7 @@ class AsyncWriter {
                 .symbol(symbol, execution_report.symbol)
                 .symbol(side, to_string(execution_report.side))
                 .symbol(order_status, to_string(execution_report.ord_status))
-                .symbol(time_in_force, execution_report.time_in_force
-                                           ? to_string(*execution_report.time_in_force)
-                                           : std::string_view{"UNKNOWN"})
+                .symbol(time_in_force, to_string(execution_report.time_in_force))
                 .column(sender_comp_id, execution_report.sender_comp_id)
                 .column(order_id, static_cast<std::int64_t>(execution_report.order_id))
                 .column(cl_order_id, static_cast<std::int64_t>(execution_report.cl_order_id))
