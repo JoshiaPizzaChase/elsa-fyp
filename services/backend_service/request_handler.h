@@ -4,6 +4,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/json.hpp>
 #include <boost/url.hpp>
+#include <core/constants.h>
 #include <database/database_client.h>
 #include <string>
 

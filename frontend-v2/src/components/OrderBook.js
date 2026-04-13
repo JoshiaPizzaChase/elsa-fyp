@@ -1,4 +1,4 @@
-import React, {useRef, useEffect} from 'react';
+import React from 'react';
 
 const ROW_HEIGHT_PX = 22; // approximate height per row
 const VISIBLE_LEVELS = 10;
@@ -8,17 +8,14 @@ const OrderBook = ({bids, asks, lastPrice}) => {
     const formatQty = (qty) => qty?.toFixed(4) ?? '-';
 
     // asks sorted ascending (lowest ask first).
-    // Display highest ask at top, best (lowest) ask just above the mid price.
-    const displayAsks = [...asks].reverse();
+    // Display: lowest ask at bottom (closest to last price), higher asks above it
+    // We want to show only the top VISIBLE_LEVELS asks, with best ask at bottom
+    const visibleAsks = asks.slice(0, VISIBLE_LEVELS);
+    const displayAsks = [...visibleAsks].reverse();
 
-    const asksRef = useRef(null);
-
-    // Scroll asks to bottom after every render so best (lowest) ask is visible
-    useEffect(() => {
-        if (asksRef.current) {
-            asksRef.current.scrollTop = asksRef.current.scrollHeight;
-        }
-    });
+    // bids sorted descending (highest bid first).
+    // Display: highest bid at top (closest to last price), lower bids below it
+    const visibleBids = bids.slice(0, VISIBLE_LEVELS);
 
     return (
         <div className="orderbook-container">
@@ -27,11 +24,17 @@ const OrderBook = ({bids, asks, lastPrice}) => {
                 <span>Quantity</span>
             </div>
 
-            {/* Asks: highest price at top, best (lowest) ask at bottom */}
+            {/* Asks: best (lowest) ask at bottom, closest to last price */}
             <div
-                ref={asksRef}
                 className="orderbook-asks"
-                style={{maxHeight: VISIBLE_LEVELS * ROW_HEIGHT_PX}}
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    minHeight: VISIBLE_LEVELS * ROW_HEIGHT_PX,
+                    maxHeight: VISIBLE_LEVELS * ROW_HEIGHT_PX,
+                    overflow: 'hidden'
+                }}
             >
                 {displayAsks.map((ask, idx) => (
                     <div key={`ask-${idx}`} className="orderbook-row">
@@ -45,12 +48,16 @@ const OrderBook = ({bids, asks, lastPrice}) => {
                 {lastPrice ? formatPrice(lastPrice) : '—'}
             </div>
 
-            {/* Bids: best (highest) bid at top */}
+            {/* Bids: best (highest) bid at top, closest to last price */}
             <div
                 className="orderbook-bids"
-                style={{maxHeight: VISIBLE_LEVELS * ROW_HEIGHT_PX}}
+                style={{
+                    minHeight: VISIBLE_LEVELS * ROW_HEIGHT_PX,
+                    maxHeight: VISIBLE_LEVELS * ROW_HEIGHT_PX,
+                    overflow: 'hidden'
+                }}
             >
-                {bids.map((bid, idx) => (
+                {visibleBids.map((bid, idx) => (
                     <div key={`bid-${idx}`} className="orderbook-row">
                         <span style={{color: '#26a69a'}}>{formatPrice(bid.price)}</span>
                         <span>{formatQty(bid.quantity)}</span>
