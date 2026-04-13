@@ -11,6 +11,7 @@ import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend} from 'rechart
 import './AccountPage.css';
 
 const DEFAULT_INITIAL_USD = 100000;
+const SERVER_NAME_MAX_LENGTH = 11;
 
 const PIE_COLORS = [
     '#a29bfe', '#6c5ce7', '#74b9ff', '#0984e3',
@@ -18,20 +19,32 @@ const PIE_COLORS = [
 ];
 
 // ── TagInput ──────────────────────────────────────────────────────────────────
-// A small reusable tag-input: press Enter or comma to add, click × to remove.
+// A small reusable tag-input: split by comma/space/Enter, click × to remove.
 function TagInput({label, tags, onChange, placeholder}) {
     const [draft, setDraft] = useState('');
 
-    const addTag = (raw) => {
-        const val = raw.trim().toUpperCase();
-        if (!val || tags.includes(val)) return;
-        onChange([...tags, val]);
+    const addTags = (raw) => {
+        const parsed = raw
+            .split(/[,\s]+/)
+            .map(v => v.trim().toUpperCase())
+            .filter(Boolean);
+        if (parsed.length === 0) return;
+
+        const existing = new Set(tags);
+        const next = [...tags];
+        for (const val of parsed) {
+            if (!existing.has(val)) {
+                existing.add(val);
+                next.push(val);
+            }
+        }
+        if (next.length !== tags.length) onChange(next);
     };
 
     const handleKey = (e) => {
-        if (e.key === 'Enter' || e.key === ',') {
+        if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
             e.preventDefault();
-            addTag(draft);
+            addTags(draft);
             setDraft('');
         } else if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
             onChange(tags.slice(0, -1));
@@ -40,7 +53,7 @@ function TagInput({label, tags, onChange, placeholder}) {
 
     const handleBlur = () => {
         if (draft.trim()) {
-            addTag(draft);
+            addTags(draft);
             setDraft('');
         }
     };
@@ -59,7 +72,15 @@ function TagInput({label, tags, onChange, placeholder}) {
                 <input
                     className="sm-tag-input"
                     value={draft}
-                    onChange={e => setDraft(e.target.value)}
+                    onChange={e => {
+                        const nextDraft = e.target.value;
+                        if (/[,\s]/.test(nextDraft)) {
+                            addTags(nextDraft);
+                            setDraft('');
+                            return;
+                        }
+                        setDraft(nextDraft);
+                    }}
                     onKeyDown={handleKey}
                     onBlur={handleBlur}
                     placeholder={tags.length === 0 ? placeholder : ''}
@@ -70,20 +91,32 @@ function TagInput({label, tags, onChange, placeholder}) {
 }
 
 // ── AllowlistInput ────────────────────────────────────────────────────────────
-// Same as TagInput but preserves original casing (usernames are case-sensitive)
+// Same as TagInput but preserves original casing (usernames are case-sensitive).
 function AllowlistInput({label, tags, onChange, placeholder}) {
     const [draft, setDraft] = useState('');
 
-    const addTag = (raw) => {
-        const val = raw.trim();
-        if (!val || tags.includes(val)) return;
-        onChange([...tags, val]);
+    const addTags = (raw) => {
+        const parsed = raw
+            .split(/[,\s]+/)
+            .map(v => v.trim())
+            .filter(Boolean);
+        if (parsed.length === 0) return;
+
+        const existing = new Set(tags);
+        const next = [...tags];
+        for (const val of parsed) {
+            if (!existing.has(val)) {
+                existing.add(val);
+                next.push(val);
+            }
+        }
+        if (next.length !== tags.length) onChange(next);
     };
 
     const handleKey = (e) => {
-        if (e.key === 'Enter' || e.key === ',') {
+        if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
             e.preventDefault();
-            addTag(draft);
+            addTags(draft);
             setDraft('');
         } else if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
             onChange(tags.slice(0, -1));
@@ -92,7 +125,7 @@ function AllowlistInput({label, tags, onChange, placeholder}) {
 
     const handleBlur = () => {
         if (draft.trim()) {
-            addTag(draft);
+            addTags(draft);
             setDraft('');
         }
     };
@@ -111,7 +144,15 @@ function AllowlistInput({label, tags, onChange, placeholder}) {
                 <input
                     className="sm-tag-input"
                     value={draft}
-                    onChange={e => setDraft(e.target.value)}
+                    onChange={e => {
+                        const nextDraft = e.target.value;
+                        if (/[,\s]/.test(nextDraft)) {
+                            addTags(nextDraft);
+                            setDraft('');
+                            return;
+                        }
+                        setDraft(nextDraft);
+                    }}
                     onKeyDown={handleKey}
                     onBlur={handleBlur}
                     placeholder={tags.length === 0 ? placeholder : ''}
@@ -124,6 +165,16 @@ function AllowlistInput({label, tags, onChange, placeholder}) {
 // ── ServerModal ───────────────────────────────────────────────────────────────
 function ServerModal({server, username, onClose, onSaved}) {
     const isNew = server === null;
+    const getServerNameError = (value) => {
+        if (!value) return '';
+        if (value.length > SERVER_NAME_MAX_LENGTH) {
+            return 'Server name must be less than 12 characters.';
+        }
+        if (/\s/.test(value)) {
+            return 'Server name cannot contain spaces.';
+        }
+        return '';
+    };
 
     // Pre-populate fields when editing
     const [serverName, setServerName] = useState(isNew ? '' : (server.server_name ?? ''));
@@ -137,6 +188,7 @@ function ServerModal({server, username, onClose, onSaved}) {
 
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState(null); // {type:'success'|'error', msg}
+    const serverNameError = isNew ? getServerNameError(serverName) : '';
 
     const showToast = (type, msg) => {
         setToast({type, msg});
@@ -149,10 +201,14 @@ function ServerModal({server, username, onClose, onSaved}) {
             showToast('error', 'Server name is required.');
             return;
         }
+        if (serverNameError) {
+            showToast('error', serverNameError);
+            return;
+        }
 
         setSaving(true);
         const payload = {
-            server_name: serverName.trim(),
+            server_name: serverName,
             description: description.trim(),
             active_symbols: symbols,
             allowlist,
@@ -220,9 +276,15 @@ function ServerModal({server, username, onClose, onSaved}) {
                             value={serverName}
                             onChange={e => setServerName(e.target.value)}
                             placeholder="e.g. hk01"
+                            pattern="\S{1,11}"
+                            title="1-11 characters, no spaces"
+                            aria-invalid={serverNameError ? 'true' : 'false'}
                             disabled={!isNew}
                             required
                         />
+                        {isNew && serverNameError && (
+                            <span className="sm-hint sm-hint-error">{serverNameError}</span>
+                        )}
                         {!isNew && (
                             <span className="sm-hint">Server name cannot be changed after creation.</span>
                         )}
@@ -261,7 +323,7 @@ function ServerModal({server, username, onClose, onSaved}) {
                         label="Active Symbols"
                         tags={symbols}
                         onChange={setSymbols}
-                        placeholder="Type a symbol and press Enter…"
+                        placeholder="Type symbols separated by space or comma…"
                     />
 
                     {/* Allowlist */}
@@ -269,7 +331,7 @@ function ServerModal({server, username, onClose, onSaved}) {
                         label="Allowed Users (Allowlist)"
                         tags={allowlist}
                         onChange={setAllowlist}
-                        placeholder="Type a username and press Enter…"
+                        placeholder="Type usernames separated by space or comma…"
                     />
 
                     {/* Actions */}

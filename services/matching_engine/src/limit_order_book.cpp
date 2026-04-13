@@ -1,51 +1,42 @@
 #include "limit_order_book.h"
+
 #include "core/constants.h"
-#include <boost/uuid.hpp>
+#include "uuid/uuid.h"
+#include <boost/contract.hpp>
 #include <chrono>
-#include <expected>
-#include <format>
 #include <queue>
 
 namespace engine {
-LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container, TradeRingBuffer shm_trade)
-    : ticker{ticker}, shm_trade{std::move(shm_trade)}, trade_container{trade_container} {
-}
 
-LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container)
-    : ticker{ticker}, shm_trade{TradeRingBuffer::create("dummy", true)}, trade_container{trade_container} {
+LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
+                               std::unique_ptr<Publisher<Trade>> trade_publisher)
+    : trade_publisher{std::move(trade_publisher)}, trade_events{trade_container}, ticker{ticker} {
 }
 
 std::string_view LimitOrderBook::get_ticker() const {
     return ticker;
 }
 
-std::expected<void, std::string> LimitOrderBook::add_order(int order_id, int price, int quantity,
-                                                           Side side, std::string_view trader_id) {
-    if (order_id_map.contains(order_id)) {
-        return std::unexpected(std::format("Order ID {} already exists in order book", order_id));
-    }
-
-    if (price != MARKET_ASK_ORDER_PRICE && price <= 0) {
-        return std::unexpected("Price must be positive integers or int min");
-    }
-
-    if (quantity <= 0) {
-        return std::unexpected("Quantity must be positive integers");
-    }
+void LimitOrderBook::add_order(int order_id, int price, int quantity, Side side,
+                               std::string_view broker_id) {
+    boost::contract::check c = boost::contract::public_function(this).precondition([&] {
+        BOOST_CONTRACT_ASSERT(order_id >= 0);
+        BOOST_CONTRACT_ASSERT(!order_id_map.contains(order_id));
+        BOOST_CONTRACT_ASSERT(price == MARKET_ASK_ORDER_PRICE || price > 0);
+        BOOST_CONTRACT_ASSERT(quantity > 0);
+        BOOST_CONTRACT_ASSERT(!broker_id.empty());
+    });
 
     if (side == Side::bid) {
-        match_order(bids, asks, price, quantity, order_id, side, trader_id);
+        match_order(bids, asks, price, quantity, order_id, side, broker_id);
     } else {
-        match_order(asks, bids, price, quantity, order_id, side, trader_id);
+        match_order(asks, bids, price, quantity, order_id, side, broker_id);
     }
-
-    return {};
 }
 
-void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
-                                 std::map<int, std::list<Order>>& far_side, int price,
+void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_side, int price,
                                  int remaining_quantity, int order_id, Side side,
-                                 std::string_view trader_id) {
+                                 std::string_view broker_id) {
     while (!far_side.empty() && remaining_quantity > 0) {
         const auto best_level = (side == Side::bid) ? far_side.begin() : std::prev(far_side.end());
 
@@ -59,34 +50,25 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
         while (remaining_quantity > 0 && !best_level_orders.empty()) {
             auto& front_order = best_level_orders.front();
 
-            const int matched_price =
-                (price == MARKET_BID_ORDER_PRICE || price == MARKET_ASK_ORDER_PRICE)
-                    ? front_order.get_price()
-                    : price;
-
             if (const auto order_quantity = front_order.get_quantity();
                 remaining_quantity >= order_quantity) {
                 remaining_quantity -= order_quantity;
-                Trade new_trade =
-                    create_trade(order_id, front_order.get_order_id(), trader_id,
-                                 front_order.get_trader_id(), matched_price, order_quantity, side)
-                        .value();
-                shm_trade.try_push(new_trade);
-                trade_container.emplace(new_trade);
-
-                std::cout << "New trade: " << new_trade << std::endl;
+                Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
+                                               front_order.get_trader_id(), ticker,
+                                               front_order.get_price(), order_quantity, side);
+                trade_publisher->try_publish(new_trade);
+                trade_events.emplace(std::move(new_trade));
 
                 order_id_map.erase(best_level_orders.front().get_order_id());
                 best_level_orders.pop_front();
             } else {
                 front_order.fill(remaining_quantity);
 
-                Trade new_trade =
-                    create_trade(order_id, front_order.get_order_id(), trader_id,
-                                 front_order.get_trader_id(), price, remaining_quantity, side)
-                        .value();
-                shm_trade.try_push(new_trade);
-                trade_container.emplace(new_trade);
+                Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
+                                               front_order.get_trader_id(), ticker,
+                                               front_order.get_price(), remaining_quantity, side);
+                trade_publisher->try_publish(new_trade);
+                trade_events.emplace(std::move(new_trade));
                 remaining_quantity = 0;
             }
         }
@@ -98,24 +80,21 @@ void LimitOrderBook::match_order(std::map<int, std::list<Order>>& near_side,
 
     if (remaining_quantity > 0 && price != MARKET_BID_ORDER_PRICE &&
         price != MARKET_ASK_ORDER_PRICE) {
-        std::cout << "In order object creation, trader_id: " << trader_id << std::endl;
         order_id_map[order_id] = near_side[price].emplace(near_side[price].end(), order_id, price,
-                                                          remaining_quantity, side, trader_id);
+                                                          remaining_quantity, side, broker_id);
     }
 }
 
-std::expected<void, std::string> LimitOrderBook::cancel_order(int order_id) {
-    const auto it = order_id_map.find(order_id);
-    if (it == order_id_map.end()) {
-        return std::unexpected(std::format("Order ID {} not found in order book", order_id));
-    }
+void LimitOrderBook::cancel_order(int order_id) {
+    boost::contract::check c = boost::contract::public_function(this).precondition(
+        [&] { BOOST_CONTRACT_ASSERT(order_id_map.contains(order_id)); });
 
-    const auto& order_it = it->second;
+    const auto order_it = order_id_map.find(order_id)->second;
     const int price = order_it->get_price();
     const Side side = order_it->get_side();
 
     auto& side_map = get_side_mut(side);
-    auto& orders_at_price = side_map[price];
+    auto& orders_at_price = side_map.at(price);
     orders_at_price.erase(order_it);
 
     if (orders_at_price.empty()) {
@@ -123,56 +102,51 @@ std::expected<void, std::string> LimitOrderBook::cancel_order(int order_id) {
     }
 
     order_id_map.erase(order_id);
-
-    return {};
 }
 
-std::expected<std::reference_wrapper<const Order>, std::string>
-LimitOrderBook::get_best_order(Side side) const {
+std::optional<std::reference_wrapper<const Order>> LimitOrderBook::get_best_order(Side side) const {
     const auto& side_map = get_side(side);
     if (side_map.empty()) {
-        return std::unexpected(
-            std::format("No {} orders in order book", (side == Side::bid) ? "bid" : "ask"));
+        return std::nullopt;
     }
 
     return (side == Side::bid) ? side_map.rbegin()->second.front()
                                : side_map.begin()->second.front();
 }
 
-bool LimitOrderBook::has_order_id(int order_id) const {
+bool LimitOrderBook::order_id_exists(int order_id) const {
     return order_id_map.contains(order_id);
 }
 
-std::expected<std::reference_wrapper<const Order>, std::string>
-LimitOrderBook::get_order_by_id(int order_id) const {
-    const auto iter = order_id_map.find(order_id);
-    if (iter == order_id_map.end()) {
-        return std::unexpected(std::format("Order ID {} not found in order book", order_id));
-    }
-    return *(iter->second);
+const Order& LimitOrderBook::get_order_by_id(int order_id) const {
+    boost::contract::check c = boost::contract::public_function(this).precondition(
+        [&] { BOOST_CONTRACT_ASSERT(order_id_map.contains(order_id)); });
+
+    return *(order_id_map.find(order_id)->second);
 }
 
-const std::map<int, std::list<Order>>& LimitOrderBook::get_side(Side side) const {
+const SideContainer& LimitOrderBook::get_side(Side side) const {
     return (side == Side::bid) ? bids : asks;
 }
 
-std::map<int, std::list<Order>>& LimitOrderBook::get_side_mut(Side side) {
+SideContainer& LimitOrderBook::get_side_mut(Side side) {
     return (side == Side::bid) ? bids : asks;
 }
 
-std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(Side side,
-                                                                               int level) const {
+LevelAggregate LimitOrderBook::get_level_aggregate(Side side, int level) const {
+    LevelAggregate level_aggregate{};
+    boost::contract::check c = boost::contract::public_function(this)
+                                   .precondition([&] {
+                                       const auto& side_map = get_side(side);
+                                       BOOST_CONTRACT_ASSERT(!get_side(side).empty());
+                                       BOOST_CONTRACT_ASSERT(level >= 0 && level < side_map.size());
+                                   })
+                                   .postcondition([&] {
+                                       BOOST_CONTRACT_ASSERT(level_aggregate.price > 0);
+                                       BOOST_CONTRACT_ASSERT(level_aggregate.quantity > 0);
+                                   });
+
     const auto& side_map = get_side(side);
-    if (side_map.empty()) {
-        return std::unexpected(
-            std::format("No {} orders in order book", (side == Side::bid) ? "bid" : "ask"));
-    }
-
-    if (level >= side_map.size()) {
-        return std::unexpected(std::format("Level {} does not exist in {} side", level,
-                                           (side == Side::bid) ? "bid" : "ask"));
-    }
-
     const auto it = (side == Side::bid) ? std::prev(side_map.cend(), level + 1)
                                         : std::next(side_map.cbegin(), level);
 
@@ -183,7 +157,7 @@ std::expected<LevelAggregate, std::string> LimitOrderBook::get_level_aggregate(S
         level_quantity += order.get_quantity();
     }
 
-    return LevelAggregate{.price = level_price, .quantity = level_quantity};
+    return level_aggregate = LevelAggregate{.price = level_price, .quantity = level_quantity};
 }
 
 TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate() const {
@@ -193,86 +167,78 @@ TopOrderBookLevelAggregates LimitOrderBook::get_top_order_book_level_aggregate()
 
     TopOrderBookLevelAggregates top_aggregate{ticker.data(), now_ts_ms};
 
-    for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
-        if (const auto level_aggregate = get_level_aggregate(Side::bid, i);
-            level_aggregate.has_value()) {
-            top_aggregate.bid_level_aggregates.at(i) = level_aggregate.value();
-        } else {
-            break;
-        }
+    const auto bid_level_count = bids.size();
+    for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS && i < bid_level_count; i++) {
+        top_aggregate.bid_level_aggregates.at(i) = get_level_aggregate(Side::bid, i);
     }
 
-    for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS; i++) {
-        if (const auto level_aggregate = get_level_aggregate(Side::ask, i);
-            level_aggregate.has_value()) {
-            top_aggregate.ask_level_aggregates.at(i) = level_aggregate.value();
-        } else {
-            break;
-        }
+    const auto ask_level_count = asks.size();
+    for (int i{0}; i < core::constants::ORDER_BOOK_AGGREGATE_LEVELS && i < ask_level_count; i++) {
+        top_aggregate.ask_level_aggregates.at(i) = get_level_aggregate(Side::ask, i);
     }
 
     return top_aggregate;
 }
 
-std::expected<Trade, std::string>
-LimitOrderBook::create_trade(int taker_order_id, int maker_order_id, std::string_view taker_id,
-                             std::string_view maker_id, int price, int quantity, Side taker_side) {
-    if (price <= 0) {
-        return std::unexpected("Price must be positive integers");
-    }
-
-    if (quantity <= 0) {
-        return std::unexpected("Quantity must be positive integers");
-    }
+Trade create_trade(int taker_order_id, int maker_order_id, std::string_view taker_id,
+                   std::string_view maker_id, std::string_view ticker, int price, int quantity,
+                   Side taker_side) {
+    boost::contract::check c = boost::contract::function().precondition([&] {
+        BOOST_CONTRACT_ASSERT(taker_order_id >= 0);
+        BOOST_CONTRACT_ASSERT(maker_order_id >= 0);
+        BOOST_CONTRACT_ASSERT(taker_order_id != maker_order_id);
+        BOOST_CONTRACT_ASSERT(!taker_id.empty());
+        BOOST_CONTRACT_ASSERT(!maker_id.empty());
+        BOOST_CONTRACT_ASSERT(!ticker.empty());
+        BOOST_CONTRACT_ASSERT(price > 0);
+        BOOST_CONTRACT_ASSERT(quantity > 0);
+    });
 
     uint64_t now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                              std::chrono::system_clock::now().time_since_epoch())
                              .count();
+    char trade_id[core::constants::UUID_LENGTH]{};
+    core::uuid::UUIDGeneratorWrapper::instance().generate(trade_id);
 
-    // TODO: Add random trade_id generation
-    // TODO: add back taker and maker id
-    return Trade{ticker.data(),
-                 price,
-                 quantity,
-                 boost::uuids::to_string(boost::uuids::time_generator_v7()()).data(),
-                 taker_id.data(),
-                 maker_id.data(),
-                 taker_order_id,
-                 maker_order_id,
-                 taker_side == Side::bid,
-                 now_ts_ms};
+    return Trade{ticker.data(),           price,           quantity,       trade_id,
+                 taker_id.data(),         maker_id.data(), taker_order_id, maker_order_id,
+                 taker_side == Side::bid, now_ts_ms};
 }
 
-std::expected<int, std::string> LimitOrderBook::get_fill_cost(int quantity, Side side) const {
-    if (quantity <= 0) {
-        return std::unexpected("Quantity must be positive integer");
+// Calculates the total cost of filling required quantity starting from best orders. If there is
+// insufficient liquidity, returns the total cost of fillable quantity.
+std::optional<int> LimitOrderBook::get_fill_cost(int quantity, Side side) const {
+    std::optional<int> total_cost{std::nullopt};
+    boost::contract::check c = boost::contract::public_function(this)
+                                   .precondition([&] { BOOST_CONTRACT_ASSERT(quantity > 0); })
+                                   .postcondition([&] {
+                                       std::ignore = total_cost.transform([](int c) -> int {
+                                           BOOST_CONTRACT_ASSERT(c > 0);
+                                           return c;
+                                       });
+                                   });
+
+    const auto& side_map = get_side(side);
+    if (side_map.empty()) {
+        return std::nullopt;
     }
 
-    const auto far_side = (side == Side::bid) ? Side::ask : Side::bid;
-    const auto& far_side_map = get_side(far_side);
-    if (far_side_map.empty()) {
-        return std::unexpected(
-            std::format("No {} orders in order book", (side == Side::bid) ? "bid" : "ask"));
-    }
-
-    int total_cost{0};
-
-    for (int i{0}; i < far_side_map.size(); i++) {
+    total_cost = 0;
+    for (int i{0}; i < side_map.size(); i++) {
         if (quantity == 0) {
             break;
         }
 
-        auto level_aggregate = get_level_aggregate(far_side, i).value();
+        auto level_aggregate = get_level_aggregate(side, i);
 
         if (level_aggregate.quantity <= quantity) {
-            total_cost += level_aggregate.price * level_aggregate.quantity;
+            total_cost.value() += level_aggregate.price * level_aggregate.quantity;
             quantity -= level_aggregate.quantity;
         } else {
-            total_cost += level_aggregate.price * quantity;
+            total_cost.value() += level_aggregate.price * quantity;
             quantity = 0;
         }
     }
-
     return total_cost;
 }
 } // namespace engine

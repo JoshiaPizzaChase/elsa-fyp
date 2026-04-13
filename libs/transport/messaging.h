@@ -265,9 +265,7 @@ inline std::string serialize_container(const core::ExecutionReportContainer& con
     if (container.price.has_value()) {
         container_proto.set_price(container.price.value());
     }
-    if (container.time_in_force.has_value()) {
-        container_proto.set_time_in_force(convert_to_proto(container.time_in_force.value()));
-    }
+    container_proto.set_time_in_force(convert_to_proto(container.time_in_force));
     container_proto.set_leaves_qty(container.leaves_qty);
     container_proto.set_cum_qty(container.cum_qty);
     container_proto.set_avg_px(container.avg_px);
@@ -338,9 +336,7 @@ inline core::Container deserialize_container(const std::string& data) {
         if (proto.has_price()) {
             container.price = proto.price();
         }
-        if (proto.has_time_in_force()) {
-            container.time_in_force = convert_to_internal(proto.time_in_force());
-        }
+        container.time_in_force = convert_to_internal(proto.time_in_force());
         container.leaves_qty = proto.leaves_qty();
         container.cum_qty = proto.cum_qty();
         container.avg_px = proto.avg_px();

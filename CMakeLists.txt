@@ -6,6 +6,8 @@ set(CMAKE_BUILD_RPATH "/usr/local/lib") # This sets runtime path for dynamic lin
 
 project(elsa_fyp)
 
+option(BUILD_BENCHMARKS "Build benchmark targets" OFF)
+
 # For injection of build information at build time
 configure_file(
         "${PROJECT_SOURCE_DIR}/config.h.in"
@@ -65,6 +67,19 @@ if (BUILD_TESTS)
             URL https://github.com/google/googletest/archive/52eb8108c5bdec04579160ae17225d66034bd723.zip
     )
     FetchContent_MakeAvailable(googletest)
+    include(GoogleTest)
+endif ()
+
+# Google Benchmark
+if (BUILD_BENCHMARKS)
+    include(FetchContent)
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark's tests" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable benchmark gtest tests" FORCE)
+    FetchContent_Declare(
+            googlebenchmark
+            URL https://github.com/google/benchmark/archive/refs/tags/v1.9.1.zip
+    )
+    FetchContent_MakeAvailable(googlebenchmark)
 endif ()
 
 set(PostgreSQL_ROOT "/opt/homebrew/Cellar/libpq/18.3")
@@ -96,6 +111,10 @@ if (BUILD_TESTS)
     include(CTest)
     add_subdirectory(integration_test)
     add_subdirectory(libs/unit_test)
+endif ()
+
+if (BUILD_BENCHMARKS)
+    add_subdirectory(libs/benchmarks)
 endif ()
 
 add_subdirectory(client_sdk)

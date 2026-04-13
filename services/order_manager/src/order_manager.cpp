@@ -3,6 +3,7 @@
 
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
+#include <boost/contract.hpp>
 #include <boost/uuid.hpp>
 
 namespace om {
@@ -13,81 +14,206 @@ struct overloaded : Ts... {
 };
 
 static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::async_factory>(
-    "order_manager_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/order_manager.log")};
+    "order_manager_logger",
+    std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
-OrderManager::OrderManager(std::string_view host, int port, int gateway_count)
-    : inbound_ws_server{port, host, logger}, order_request_ws_client{logger},
-      order_response_ws_client{logger}, database_client{true}, gateway_count{gateway_count},
-      order_request_connection_id{}, order_response_connection_id{}, current_order_id{0} {
-    // TODO: Handle start error
-    inbound_ws_server.start();
-    order_request_ws_client.start();
-    order_response_ws_client.start();
-
-    logger->info("Order Manager constructed");
-    logger->flush();
-
-    balance_checker.update_balance("CLIENT_1", "USD", 50000000);
-    balance_checker.update_balance("CLIENT_1", "TSLA", 50000);
+OrderManager::OrderManager(std::string_view host, int port,
+                           const OrderManagerDependencyFactory& dependency_factory)
+    : order_request_connection_id{-1}, order_response_connection_id{-1},
+      inbound_server{
+          dependency_factory.create_inbound_server(host, port, logger, gateway_connection_ids)},
+      order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
+      order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
+      database_client{dependency_factory.create_database_client(true)} {
 }
 
-std::expected<void, std::string> OrderManager::connect_matching_engine(std::string host, int port) {
-    // TODO: Handle expected
-    const auto order_request_connection_result =
-        order_request_ws_client.connect(std::format("ws://{}:{}", host, port), "order_request");
+void OrderManager::init() {
+    std::ignore = inbound_server->start()
+                      .transform([] {
+                          logger->info("[OM] Order Manager starts accepting connections");
+                          logger->flush();
+                      })
+                      .or_else([](int) -> std::expected<void, int> {
+                          logger->error("[OM] Failed to start inbound connection server");
+                          logger->flush();
+                          std::terminate();
+                      });
 
-    if (order_request_connection_result.has_value()) {
-        order_request_connection_id = order_request_connection_result.value();
-        logger->info("Order request conection established");
-        logger->flush();
-    } else {
-        logger->error("Failed to establish order request connection");
-        logger->flush();
-    }
+    std::ignore = order_request_outbound_client->start()
+                      .transform([] {
+                          logger->info("[OM] Order Request Client started");
+                          logger->flush();
+                      })
+                      .or_else([](int) -> std::expected<void, int> {
+                          logger->error("[OM] Order Request Client failed to start");
+                          logger->flush();
+                          std::terminate();
+                      });
 
-    const auto order_response_connection_result =
-        order_response_ws_client.connect(std::format("ws://{}:{}", host, port), "order_response");
+    std::ignore = order_response_outbound_client->start()
+                      .transform([] {
+                          logger->info("[OM] Order Response Client started");
+                          logger->flush();
+                      })
+                      .or_else([](int) -> std::expected<void, int> {
+                          logger->error("[OM] Order Response Client failed to start");
+                          logger->flush();
+                          std::terminate();
+                      });
 
-    if (order_response_connection_result.has_value()) {
-        order_response_connection_id = order_response_connection_result.value();
-        logger->info("Order response connection established");
-        logger->flush();
-    } else {
-        logger->error("Failed to establish order response connection");
-        logger->flush();
-    }
-
-    return {};
+    init_balance_checker(balance_checker, username_user_id_map, *database_client);
 }
 
-std::expected<void, std::string> OrderManager::start() {
+// Load all user balances into the balance_checker
+void init_balance_checker(BalanceChecker& balance_checker,
+                          OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                          OrderManagerDatabase& database_client) {
+    boost::contract::check c = boost::contract::function().precondition(
+        [] { BOOST_CONTRACT_ASSERT(SERVER_NAME != nullptr); });
+
+    const std::string_view server_name{SERVER_NAME};
+
+    std::ignore =
+        database_client.get_all_users_balances_for_server(server_name)
+            .transform([&](std::vector<DbUserBalanceInfo>&& users_balances) {
+                assert(users_balances.size() != 0 && "No user balances loaded from DB");
+                logger->info("[OM] Loading balances for {} users into balance_checker",
+                             users_balances.size());
+
+                for (const auto& [user_id, username, balances] : users_balances) {
+                    for (const auto& [symbol, balance] : balances) {
+                        // Initialize balance in balance_checker (delta of 0 just sets the
+                        // balance)
+                        balance_checker.update_balance(username, symbol, balance);
+                        logger->info("[OM] Loaded balance for user {}: {} {}", username, balance,
+                                     symbol);
+
+                        // TODO: Refine this temporary patchwork
+                        username_user_id_map.emplace(username, user_id);
+                    }
+                }
+            })
+            .or_else([](std::string_view err) -> std::expected<void, std::string> {
+                logger->error("[OM] Failed to load balances into balance_checker: {}", err);
+                std::terminate();
+            });
+}
+
+// Spin locks until Order Manager is connected from at least one Gateway
+void OrderManager::wait_for_connections() const {
+    while (gateway_connection_ids.size() == 0) {
+        logger->info("Waiting for connections from Gateway");
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+    logger->info("At least one connection from Gateway have been established");
+}
+
+void OrderManager::connect_matching_engine(std::string host, int port, int try_attempts) {
+    boost::contract::check c = boost::contract::public_function(this).precondition(
+        [&] { BOOST_CONTRACT_ASSERT(try_attempts > 0); });
+
+    std::expected<int, int> order_request_res{};
+    for (auto i{0}; i < try_attempts; i++) {
+        order_request_res = order_request_outbound_client
+                                ->connect(std::format("ws://{}:{}", host, port), "order_request")
+                                .transform([this](int connection_id) -> int {
+                                    order_request_connection_id = connection_id;
+                                    logger->info("[OM] Order Request connection established");
+                                    logger->flush();
+                                    return connection_id;
+                                })
+                                .or_else([=](int err) -> std::expected<int, int> {
+                                    logger->error("[OM] Failed to establish Order Request "
+                                                  "connection, "
+                                                  "attempt: {}",
+                                                  i + 1);
+                                    logger->flush();
+                                    return std::unexpected{err};
+                                });
+
+        if (order_request_res)
+            break;
+    }
+    assert(order_request_res.has_value() && "Order Request connection failed to establish");
+
+    std::expected<int, int> order_response_res{};
+    for (auto i{0}; i < try_attempts; i++) {
+        order_response_res = order_response_outbound_client
+                                 ->connect(std::format("ws://{}:{}", host, port), "order_response")
+                                 .transform([this](int connection_id) -> int {
+                                     order_response_connection_id = connection_id;
+                                     logger->info("[OM] Order Response connection established");
+                                     logger->flush();
+                                     return connection_id;
+                                 })
+                                 .or_else([=](int err) -> std::expected<int, int> {
+                                     logger->error("[OM] Failed to establish Order Response "
+                                                   "connection, "
+                                                   "attempt: {}",
+                                                   i + 1);
+                                     logger->flush();
+                                     return std::unexpected{err};
+                                 });
+
+        if (order_response_res)
+            break;
+    }
+    assert(order_response_res.has_value() && "Order Response connection failed to establish");
+}
+
+void OrderManager::start() {
+    // TODO: Fix curr_gateway_id to adapt to skipping ids
     int curr_gateway_id = 0;
 
     while (true) {
         // Process an incoming request
-        if (auto new_message = inbound_ws_server.dequeue_message(curr_gateway_id);
-            new_message.has_value()) {
-            auto container = transport::deserialize_container(new_message.value());
+        std::ignore =
+            inbound_server->dequeue_message(curr_gateway_id)
+                .transform([&](std::string&& new_message) {
+                    auto container = transport::deserialize_container(new_message);
 
-            const std::optional<int> market_bid_fill_cost =
-                preprocess_container(container, order_id_map, order_info_map, curr_gateway_id,
-                                     order_request_ws_client, order_request_connection_id);
+                    std::ignore =
+                        preprocess_container(container, order_id_map, order_info_map,
+                                             username_user_id_map, curr_gateway_id,
+                                             *order_request_outbound_client,
+                                             order_request_connection_id)
+                            .transform([&](std::optional<int>&& market_bid_fill_cost) {
+                                const std::string validation_result = validate_container(
+                                    container, balance_checker, market_bid_fill_cost);
 
-            const bool is_container_valid =
-                validate_container(container, balance_checker, market_bid_fill_cost);
+                                if (validation_result == "ok") {
+                                    forward_and_reply(true, container, order_info_map,
+                                                      curr_gateway_id,
+                                                      *order_request_outbound_client,
+                                                      order_request_connection_id, *inbound_server);
+                                } else {
+                                    forward_and_reply(
+                                        false, container, order_info_map, curr_gateway_id,
+                                        *order_request_outbound_client, order_request_connection_id,
+                                        *inbound_server, validation_result);
+                                }
 
-            forward_and_reply(is_container_valid, container, order_info_map, curr_gateway_id,
-                              order_request_ws_client, order_request_connection_id,
-                              inbound_ws_server, database_client);
+                                update_database(container, *database_client,
+                                                validation_result == "ok");
+                            })
+                            .transform_error([&](std::string&& err) {
+                                forward_and_reply(false, container, order_info_map, curr_gateway_id,
+                                                  *order_request_outbound_client,
+                                                  order_request_connection_id, *inbound_server,
+                                                  err);
 
-            update_database(container, database_client, is_container_valid);
-        }
+                                update_database(container, *database_client, false);
+                                return err;
+                            });
 
-        curr_gateway_id = (curr_gateway_id + 1) % gateway_count;
+                    return new_message;
+                });
+
+        curr_gateway_id = (curr_gateway_id + 1) % gateway_connection_ids.size();
 
         // Process a returned message container
         if (auto new_message =
-                order_response_ws_client.dequeue_message(order_response_connection_id);
+                order_response_outbound_client->dequeue_message(order_response_connection_id);
             new_message.has_value()) {
             auto container = transport::deserialize_container(new_message.value());
 
@@ -101,124 +227,138 @@ std::expected<void, std::string> OrderManager::start() {
                 update_order_info(*trade_container, order_info_map);
             }
 
-            return_execution_report(container, order_id_map, order_info_map, inbound_ws_server,
-                                    database_client);
+            return_execution_report(container, order_id_map, order_info_map, *inbound_server,
+                                    *database_client);
 
-            update_database(container, database_client);
+            update_database(container, *database_client);
         }
     }
-
-    return {};
 }
 
-std::optional<int> preprocess_container(core::Container& container,
-                                        boost::bimap<int, int>& order_id_map,
-                                        std::unordered_map<int, OrderInfo>& order_info_map,
-                                        int arrival_gateway_id,
-                                        WebsocketManagerClient& order_request_ws_client,
-                                        int order_request_connection_id) {
+std::expected<std::optional<int>, std::string>
+preprocess_container(core::Container& container, OrderManager::OrderIdMapContainer& order_id_map,
+                     OrderManager::OrderInfoMapContainer& order_info_map,
+                     const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
+                     int order_request_connection_id) {
     // TODO: Fetch latest_assigned_order_id from DB
     static int latest_assigned_order_id{-1};
-    auto new_order_handler{[&](core::NewOrderSingleContainer& new_order) -> std::optional<int> {
+    auto new_order_handler{[&](core::NewOrderSingleContainer& new_order)
+                               -> std::expected<std::optional<int>, std::string> {
         // Assign an internal order_id to NewOrderSingleContainer
-        if (const auto new_order_container =
-                std::get_if<core::NewOrderSingleContainer>(&container)) {
-            new_order_container->order_id = ++latest_assigned_order_id;
-            order_id_map.insert(OrderManager::order_id_pair(new_order_container->order_id.value(),
-                                                            new_order_container->cl_ord_id));
+        new_order.order_id = ++latest_assigned_order_id;
+        logger->info("[OM] New Order Single received: {}", new_order);
+        logger->flush();
 
-            order_info_map.emplace(new_order_container->order_id.value(),
-                                   OrderInfo{.sender_comp_id = new_order_container->sender_comp_id,
-                                             .symbol = new_order_container->symbol,
-                                             .side = new_order_container->side,
-                                             .price = new_order_container->price,
-                                             .time_in_force = new_order_container->time_in_force,
-                                             .leaves_qty = new_order_container->order_qty,
-                                             .cum_qty = 0,
-                                             .avg_px = 0,
-                                             .arrival_gateway_id = arrival_gateway_id});
+        if (!username_user_id_map.contains(new_order.sender_comp_id)) {
+            return std::unexpected{std::string{"Order request contains unknown username"}};
+        }
 
-            // Market bid requires fill cost before proceeding
-            if (new_order_container->ord_type == core::OrderType::market &&
-                new_order_container->side == core::Side::bid) {
-                // Fetch fill cost from Matching Engine
-                order_request_ws_client.send(
-                    order_request_connection_id,
-                    transport::serialize_container(
-                        core::FillCostQueryContainer{.symbol = new_order_container->symbol,
-                                                     .quantity = new_order_container->order_qty,
-                                                     .side = new_order_container->side}));
+        order_id_map.insert(OrderManager::OrderIdPair(
+            new_order.order_id.value(), new_order.cl_ord_id * core::constants::max_user_count +
+                                            username_user_id_map.at(new_order.sender_comp_id)));
 
-                auto response_message =
-                    order_request_ws_client.wait_and_dequeue_message(order_request_connection_id);
-                while (!response_message.has_value()) {
-                    response_message = order_request_ws_client.wait_and_dequeue_message(
+        order_info_map.emplace(new_order.order_id.value(),
+                               OrderInfo{.sender_comp_id = new_order.sender_comp_id,
+                                         .symbol = new_order.symbol,
+                                         .side = new_order.side,
+                                         .price = new_order.price,
+                                         .time_in_force = new_order.time_in_force,
+                                         .leaves_qty = new_order.order_qty,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = arrival_gateway_id});
+
+        // Market bid requires fill cost before proceeding
+        if (new_order.ord_type == core::OrderType::market && new_order.side == core::Side::bid) {
+            // Fetch fill cost from Matching Engine
+            const auto fill_cost_query =
+                core::FillCostQueryContainer{.symbol = new_order.symbol,
+                                             .quantity = new_order.order_qty,
+                                             .side = new_order.side};
+            return order_request_ws_client
+                .send(order_request_connection_id, transport::serialize_container(fill_cost_query))
+                .transform([&] -> std::optional<int> {
+                    logger->info("[OM] Successfully sent Fill Cost Query: {}", fill_cost_query);
+                    logger->flush();
+
+                    auto response_message = order_request_ws_client.wait_and_dequeue_message(
                         order_request_connection_id);
-                }
+                    while (!response_message.has_value()) {
+                        response_message = order_request_ws_client.wait_and_dequeue_message(
+                            order_request_connection_id);
+                    }
 
-                logger->info("Fill cost response received from ME!");
-                logger->flush();
+                    const auto response_container =
+                        transport::deserialize_container(response_message.value());
+                    assert(std::holds_alternative<core::FillCostResponseContainer>(
+                               response_container) &&
+                           "Unexpected container type received from Matching Engine");
+                    const auto fill_cost_response =
+                        std::get<core::FillCostResponseContainer>(response_container);
+                    logger->info("[OM] Fill Cost Response received: {}", fill_cost_response);
+                    logger->flush();
 
-                const auto response_container =
-                    transport::deserialize_container(response_message.value());
-                assert(
-                    std::holds_alternative<core::FillCostResponseContainer>(response_container) &&
-                    "Unexpected container type received from Matching Engine");
-
-                return std::get<core::FillCostResponseContainer>(response_container).total_cost;
-            }
+                    return fill_cost_response.total_cost;
+                })
+                .transform_error([&](int) -> std::string {
+                    logger->error("[OM] Failed to send Fill Cost Query: {}", fill_cost_query);
+                    logger->flush();
+                    return std::string{"Order request dropped due to internal reasons"};
+                });
         }
 
         return std::nullopt;
     }};
 
-    auto cancel_request_handler{
-        [&](core::CancelOrderRequestContainer& cancel_request) -> std::optional<int> {
-            // If cancel request does not have internal order_id, fill it in
-            // But if the cancel request is for a non-existent orig_cl_ord_id, leave order_id blank
-            if (const auto cancel_request_container =
-                    std::get_if<core::CancelOrderRequestContainer>(&container);
-                cancel_request_container && !cancel_request_container->order_id.has_value()) {
-                if (const auto it =
-                        order_id_map.right.find(cancel_request_container->orig_cl_ord_id);
-                    it != order_id_map.right.end()) {
-                    cancel_request_container->order_id.emplace(it->second);
-                }
-            }
+    auto cancel_request_handler{[&](core::CancelOrderRequestContainer& cancel_request)
+                                    -> std::expected<std::optional<int>, std::string> {
+        logger->info("[OM] Cancel Order Request received: {}", cancel_request);
+        logger->flush();
 
-            return std::nullopt;
-        }};
+        if (!username_user_id_map.contains(cancel_request.sender_comp_id)) {
+            return std::unexpected{std::string{"Cancel request contains unknown username"}};
+        }
 
-    auto catch_all_handler{[](auto&) -> std::optional<int> {
-        assert(false && "UNREACHABLE");
+        // If cancel request does not have internal order_id, fill it in
+        // But if the cancel request is for a non-existent orig_cl_ord_id, leave order_id blank
+        const auto transformed_orig_cl_ord_id =
+            cancel_request.orig_cl_ord_id * core::constants::max_user_count +
+            username_user_id_map.at(cancel_request.sender_comp_id);
+
+        if (const auto it = order_id_map.right.find(transformed_orig_cl_ord_id);
+            it != order_id_map.right.end()) {
+            cancel_request.order_id.emplace(it->second);
+        }
+
         return std::nullopt;
+    }};
+
+    auto catch_all_handler{[](auto&) -> std::expected<std::optional<int>, std::string> {
+        logger->error("[OM] UNREACHABLE");
+        logger->flush();
+        std::terminate();
     }};
 
     return std::visit(overloaded{new_order_handler, cancel_request_handler, catch_all_handler},
                       container);
 }
 
-bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
-                        std::optional<int> market_bid_fill_cost) {
-    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
-        // logger->info("GME: {}",
-        //              balance_checker.get_balance(new_order.sender_comp_id,
-        //              new_order.symbol));
-        logger->info("USD: {}", balance_checker.get_balance(new_order.sender_comp_id, USD_SYMBOL));
-        logger->info("Price: {}", new_order.price.value_or(-1));
-        logger->info("Quantity: {}", new_order.order_qty);
-        logger->info("fill cost: {}", market_bid_fill_cost.value_or(-1));
+std::string validate_container(const core::Container& container, BalanceChecker& balance_checker,
+                               std::optional<int> market_bid_fill_cost) {
+    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) -> std::string {
+        logger->info("[OM] Validating New Order Single: {}", new_order);
         logger->flush();
 
         // A broker must at least have a record for USD at the start
         if (!balance_checker.broker_id_exists(new_order.sender_comp_id)) {
-            return false;
+            return "Balance record for not found during validation";
         }
 
         switch (new_order.side) {
         case core::Side::bid:
             if (!balance_checker.broker_owns_ticker(new_order.sender_comp_id, USD_SYMBOL)) {
-                return false;
+                return "User has no USD balance record";
             }
 
             switch (new_order.ord_type) {
@@ -226,7 +366,7 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
                 if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, USD_SYMBOL,
                                                             -new_order.price.value() *
                                                                 new_order.order_qty)) {
-                    return false;
+                    return "User has insufficient USD balance";
                 }
 
                 balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
@@ -237,7 +377,7 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
                 if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, USD_SYMBOL,
                                                             -market_bid_fill_cost.value())) {
-                    return false;
+                    return "User has insufficient USD balance";
                 }
 
                 balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
@@ -245,17 +385,19 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
                 break;
             default:
-                assert(false && "Unsupported Order Type");
+                logger->error("[OM] Unsupported Order Type");
+                logger->flush();
+                std::terminate();
             }
             break;
         case core::Side::ask:
             if (!balance_checker.broker_owns_ticker(new_order.sender_comp_id, new_order.symbol)) {
-                return false;
+                return std::format("User has no {} record", new_order.symbol);
             }
 
             if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, new_order.symbol,
                                                         -new_order.order_qty)) {
-                return false;
+                return std::format("User has insufficient {} balance", new_order.symbol);
             }
 
             balance_checker.update_balance(new_order.sender_comp_id, new_order.symbol,
@@ -263,18 +405,23 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
             break;
         default:
-            assert(false && "UNREACHABLE");
+            logger->error("[OM] Unreachable");
+            logger->flush();
+            std::terminate();
         }
 
-        return true;
+        return "ok";
     }};
-    auto cancel_request_handler{[](const core::CancelOrderRequestContainer& cancel_request) {
-        return cancel_request.order_id.has_value();
-    }};
-    auto catch_all_handler{[](const auto&) {
-        logger->error("Received unexpected request from Gateway");
+    auto cancel_request_handler{
+        [](const core::CancelOrderRequestContainer& cancel_request) -> std::string {
+            return cancel_request.order_id.has_value()
+                       ? "ok"
+                       : "Cancel request original client order ID not found";
+        }};
+    auto catch_all_handler{[](const auto&) -> std::string {
+        logger->error("[OM] Received unexpected request from Gateway");
         logger->flush();
-        return false;
+        return "Unsupported request type";
     }};
 
     return std::visit(overloaded{new_order_handler, cancel_request_handler, catch_all_handler},
@@ -282,46 +429,79 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 }
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,
-                       const std::unordered_map<int, OrderInfo>& order_info_map,
-                       int arrival_gateway_id, WebsocketManagerClient& order_request_ws_client,
-                       int order_request_connection_id, WebsocketManagerServer& inbound_ws_server,
-                       database::DatabaseClient& database_client) {
+                       const OrderManager::OrderInfoMapContainer& order_info_map,
+                       int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
+                       int order_request_connection_id, transport::InboundServer& inbound_ws_server,
+                       const std::optional<std::string_view>& order_reject_reason) {
+    boost::contract::check c = boost::contract::function().precondition([&] {
+        // Only provide reject reason when the container is invalid
+        if (is_container_valid) {
+            BOOST_CONTRACT_ASSERT(!order_reject_reason.has_value());
+        } else {
+            BOOST_CONTRACT_ASSERT(order_reject_reason.has_value());
+        }
+    });
+
     if (is_container_valid) {
         // Forward validated container to Matching Engine
-        // TODO: Handle send error
         const auto message =
             std::visit([](auto&& c) { return transport::serialize_container(c); }, container);
-        order_request_ws_client.send(order_request_connection_id, message);
-
-        logger->info("Forward a valid container");
-        logger->flush();
+        order_request_ws_client.send(order_request_connection_id, message)
+            .transform([] {
+                logger->info("[OM] Forwarded a valid container");
+                logger->flush();
+            })
+            .transform_error([](int err) -> int {
+                logger->error("[OM] Failed to forward a valid container");
+                logger->flush();
+                return err;
+            });
 
         // Gives immediate execution report as response back to broker
         const auto execution_report = generate_success_report_container(container, order_info_map);
-        inbound_ws_server.send(arrival_gateway_id, transport::serialize_container(execution_report),
-                               transport::MessageFormat::binary);
 
-        logger->info("Returned success execution report");
-        logger->flush();
+        inbound_ws_server
+            .send(arrival_gateway_id, transport::serialize_container(execution_report),
+                  transport::MessageFormat::binary)
+            .transform([&] {
+                logger->info("[OM] Replied a success execution report: {}", execution_report);
+                logger->flush();
+            })
+            .transform_error([&](int err) -> int {
+                logger->error("[OM] Failed to reply a success execution report: {}",
+                              execution_report);
+                logger->flush();
+                return err;
+            });
     } else {
-        // Give immediate exeuction report as feedback on rejection to broker
-        const auto execution_report =
-            generate_rejection_report_container(container, order_info_map);
-        inbound_ws_server.send(arrival_gateway_id, transport::serialize_container(execution_report),
-                               transport::MessageFormat::binary);
+        // Give immediate execution report as feedback on rejection to broker
+        const auto execution_report = generate_rejection_report_container(
+            container, order_info_map, order_reject_reason.value());
 
-        logger->info("Returned rejection execution report");
-        logger->flush();
+        inbound_ws_server
+            .send(arrival_gateway_id, transport::serialize_container(execution_report),
+                  transport::MessageFormat::binary)
+            .transform([&] {
+                logger->info("[OM] Replied a rejection execution report: {}", execution_report);
+                logger->flush();
+            })
+            .transform_error([&](int err) -> int {
+                logger->error("[OM] Failed to reply a rejection execution report: {}",
+                              execution_report);
+                logger->flush();
+                return err;
+            });
     }
 }
 
 core::ExecutionReportContainer
 generate_rejection_report_container(const core::Container& container,
-                                    const std::unordered_map<int, OrderInfo>& order_info_store) {
-    auto new_order_handler{[](const core::NewOrderSingleContainer& new_order) {
+                                    const OrderManager::OrderInfoMapContainer& order_info_store,
+                                    std::string_view order_reject_reason) {
+    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
         return core::ExecutionReportContainer{
-            .sender_comp_id = new_order.sender_comp_id,
-            .target_comp_id = "",
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = new_order.sender_comp_id,
             .order_id = new_order.order_id.value(),
             .cl_order_id = new_order.cl_ord_id,
             .orig_cl_ord_id = std::nullopt,
@@ -329,7 +509,7 @@ generate_rejection_report_container(const core::Container& container,
             .exec_trans_type = core::ExecTransType::exec_trans_new,
             .exec_type = core::ExecType::status_rejected,
             .ord_status = core::OrderStatus::status_rejected,
-            .text = "TODO",
+            .text = static_cast<std::string>(order_reject_reason),
             .symbol = new_order.symbol,
             .side = new_order.side,
             .price = new_order.price,
@@ -347,8 +527,8 @@ generate_rejection_report_container(const core::Container& container,
                 .value();
 
         return core::ExecutionReportContainer{
-            .sender_comp_id = cancel_request.sender_comp_id,
-            .target_comp_id = "",
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = cancel_request.sender_comp_id,
             .order_id = cancel_request.order_id.value_or(-1),
             .cl_order_id = cancel_request.cl_ord_id,
             .orig_cl_ord_id = cancel_request.orig_cl_ord_id,
@@ -356,18 +536,20 @@ generate_rejection_report_container(const core::Container& container,
             .exec_trans_type = core::ExecTransType::exec_trans_new,
             .exec_type = core::ExecType::status_rejected,
             .ord_status = core::OrderStatus::status_rejected,
-            .text = "TODO",
+            .text = static_cast<std::string>(order_reject_reason),
             .symbol = order_info.symbol,
             .side = order_info.side,
             .price = order_info.price,
             .time_in_force = order_info.time_in_force,
             .leaves_qty = 0,
-            .cum_qty = 0,
-            .avg_px = 0};
+            .cum_qty = order_info.cum_qty,
+            .avg_px = order_info.avg_px};
     }};
 
     auto catch_all_handler{[](const auto&) {
-        assert(false && "Unreachable");
+        logger->error("Unreachable");
+        logger->flush();
+        std::terminate();
         return core::ExecutionReportContainer{};
     }};
 
@@ -377,11 +559,11 @@ generate_rejection_report_container(const core::Container& container,
 
 core::ExecutionReportContainer
 generate_success_report_container(const core::Container& container,
-                                  const std::unordered_map<int, OrderInfo>& order_info_store) {
+                                  const OrderManager::OrderInfoMapContainer& order_info_map) {
     auto new_order_handler{[](const core::NewOrderSingleContainer& new_order) {
         return core::ExecutionReportContainer{
-            .sender_comp_id = new_order.sender_comp_id,
-            .target_comp_id = "",
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = new_order.sender_comp_id,
             .order_id = new_order.order_id.value(),
             .cl_order_id = new_order.cl_ord_id,
             .orig_cl_ord_id = std::nullopt,
@@ -400,10 +582,10 @@ generate_success_report_container(const core::Container& container,
     }};
 
     auto cancel_request_handler{[&](const core::CancelOrderRequestContainer& cancel_request) {
-        const auto& order_info = order_info_store.at(cancel_request.order_id.value());
+        const auto& order_info = order_info_map.at(cancel_request.order_id.value());
         return core::ExecutionReportContainer{
-            .sender_comp_id = cancel_request.sender_comp_id,
-            .target_comp_id = "",
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = cancel_request.sender_comp_id,
             .order_id = cancel_request.order_id.value(),
             .cl_order_id = cancel_request.cl_ord_id,
             .orig_cl_ord_id = cancel_request.orig_cl_ord_id,
@@ -430,17 +612,22 @@ generate_success_report_container(const core::Container& container,
                       container);
 }
 
-void update_database(const core::Container& container, database::DatabaseClient& database_client,
+void update_database(const core::Container& container, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
-        assert(new_order.order_id.has_value());
-        assert(valid_container.has_value());
+        boost::contract::check c = boost::contract::function().precondition([&] {
+            BOOST_CONTRACT_ASSERT(new_order.order_id.has_value());
+            BOOST_CONTRACT_ASSERT(valid_container.has_value());
+        });
+
         database_client.insert_order(new_order.order_id.value(), new_order,
                                      valid_container.value());
     }};
 
     auto cancel_request_handler{[&](const core::CancelOrderRequestContainer& cancel_request) {
-        assert(valid_container.has_value());
+        boost::contract::check c = boost::contract::function().precondition(
+            [&] { BOOST_CONTRACT_ASSERT(valid_container.has_value()); });
+
         database_client.insert_cancel_request(cancel_request, valid_container.value());
     }};
 
@@ -466,7 +653,7 @@ void update_database(const core::Container& container, database::DatabaseClient&
 }
 
 void update_order_info(const core::TradeContainer& trade_container,
-                       std::unordered_map<int, OrderInfo>& order_info_map) {
+                       OrderManager::OrderInfoMapContainer& order_info_map) {
     auto& taker_order_info = order_info_map.at(trade_container.taker_order_id);
     taker_order_info.avg_px = (taker_order_info.avg_px * taker_order_info.cum_qty +
                                trade_container.price * trade_container.quantity) /
@@ -483,10 +670,10 @@ void update_order_info(const core::TradeContainer& trade_container,
 }
 
 void return_execution_report(const core::Container& container,
-                             const boost::bimap<int, int>& order_id_map,
-                             const std::unordered_map<int, OrderInfo>& order_info_map,
-                             WebsocketManagerServer& inbound_ws_server,
-                             database::DatabaseClient& database_client) {
+                             const OrderManager::OrderIdMapContainer& order_id_map,
+                             const OrderManager::OrderInfoMapContainer& order_info_map,
+                             transport::InboundServer& inbound_ws_server,
+                             OrderManagerDatabase& database_client) {
     auto trade_handler{[&](const core::TradeContainer& trade) {
         const auto [taker_exec_report, maker_exec_report] =
             generate_matched_order_report_containers(trade, order_id_map, order_info_map);
@@ -517,14 +704,14 @@ void return_execution_report(const core::Container& container,
 
 // Generates (Taker Order Execution Report, Maker Order Execution Report)
 std::pair<core::ExecutionReportContainer, core::ExecutionReportContainer>
-generate_matched_order_report_containers(const core::TradeContainer& trade,
-                                         const boost::bimap<int, int>& order_id_map,
-                                         const std::unordered_map<int, OrderInfo>& order_info_map) {
+generate_matched_order_report_containers(
+    const core::TradeContainer& trade, const OrderManager::OrderIdMapContainer& order_id_map,
+    const OrderManager::OrderInfoMapContainer& order_info_map) {
     const core::ExecutionReportContainer taker_order_report_container{
-        .sender_comp_id = trade.taker_id,
-        .target_comp_id = "",
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = trade.taker_id,
         .order_id = trade.taker_order_id,
-        .cl_order_id = order_id_map.left.at(trade.taker_order_id),
+        .cl_order_id = order_id_map.left.at(trade.taker_order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
         .exec_trans_type = core::ExecTransType::exec_trans_new,
         .exec_type = (order_info_map.at(trade.taker_order_id).leaves_qty == 0)
@@ -542,10 +729,10 @@ generate_matched_order_report_containers(const core::TradeContainer& trade,
         .avg_px = order_info_map.at(trade.taker_order_id).avg_px};
 
     const core::ExecutionReportContainer maker_order_report_container{
-        .sender_comp_id = trade.maker_id,
-        .target_comp_id = "",
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = trade.maker_id,
         .order_id = trade.maker_order_id,
-        .cl_order_id = order_id_map.left.at(trade.maker_order_id),
+        .cl_order_id = order_id_map.left.at(trade.maker_order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
         .exec_trans_type = core::ExecTransType::exec_trans_new,
         .exec_type = (order_info_map.at(trade.maker_order_id).leaves_qty == 0)
@@ -567,14 +754,15 @@ generate_matched_order_report_containers(const core::TradeContainer& trade,
 
 core::ExecutionReportContainer generate_cancel_response_report_container(
     const core::CancelOrderResponseContainer& cancel_response,
-    const boost::bimap<int, int>& order_id_map,
-    const std::unordered_map<int, OrderInfo>& order_info_map) {
+    const OrderManager::OrderIdMapContainer& order_id_map,
+    const OrderManager::OrderInfoMapContainer& order_info_map) {
     return core::ExecutionReportContainer{
-        .sender_comp_id = order_info_map.at(cancel_response.order_id).sender_comp_id,
-        .target_comp_id = "",
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = order_info_map.at(cancel_response.order_id).sender_comp_id,
         .order_id = cancel_response.order_id,
         .cl_order_id = cancel_response.cl_ord_id,
-        .orig_cl_ord_id = order_id_map.left.at(cancel_response.order_id),
+        .orig_cl_ord_id =
+            order_id_map.left.at(cancel_response.order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
         .exec_trans_type = core::ExecTransType::exec_trans_new,
         .exec_type = (cancel_response.success) ? core::ExecType::status_canceled

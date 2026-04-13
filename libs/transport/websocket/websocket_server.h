@@ -13,18 +13,23 @@ namespace transport {
 class WebsocketManagerServer : public WebsocketManager<Server> {
 
   public:
-    WebsocketManagerServer(int port, std::string_view uri, std::shared_ptr<spdlog::logger> logger,
-                           bool reuse_addr = true)
+    WebsocketManagerServer(
+        int port, std::string_view uri, std::shared_ptr<spdlog::logger> logger,
+        bool reuse_addr = true,
+        std::optional<std::function<void(ConnectionMetadata::conn_meta_shared_ptr)>> callback =
+            std::nullopt)
         : m_port{port}, WebsocketManager{logger} {
-        init_handlers(uri, reuse_addr);
+        init_handlers(uri, reuse_addr, callback);
         m_logger->info("Websocket server initialized on port {}, uri {}", m_port, uri);
     }
 
-    WebsocketManagerServer(int port, std::string_view uri,
-                           std::string_view logger_name = "server_websocket_logger",
-                           bool reuse_addr = true)
+    WebsocketManagerServer(
+        int port, std::string_view uri, std::string_view logger_name = "server_websocket_logger",
+        bool reuse_addr = true,
+        std::optional<std::function<void(ConnectionMetadata::conn_meta_shared_ptr)>> callback =
+            std::nullopt)
         : m_port{port}, WebsocketManager{logger_name} {
-        init_handlers(uri, reuse_addr);
+        init_handlers(uri, reuse_addr, callback);
         m_logger->info("Websocket server initialized on port {}, uri {}", m_port, uri);
     }
 
@@ -116,15 +121,20 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
     int m_port;
     handle_to_connection_map m_handle_to_connection_map;
 
-    void init_handlers(std::string_view uri, bool reuse_addr) {
+    void init_handlers(std::string_view uri, bool reuse_addr,
+                       std::optional<std::function<void(ConnectionMetadata::conn_meta_shared_ptr)>>
+                           update_callback) {
         m_endpoint.set_reuse_addr(reuse_addr);
 
-        m_endpoint.set_open_handler([this, uri](ConnectionHandle handle) {
+        m_endpoint.set_open_handler([this, uri, update_callback](ConnectionHandle handle) {
             int new_id = m_next_id++;
             ConnectionMetadata::conn_meta_shared_ptr metadata_ptr{
                 std::make_shared<ConnectionMetadata>(new_id, handle, uri)};
 
             metadata_ptr->on_open(&m_endpoint, handle);
+            if (update_callback) {
+                (*update_callback)(metadata_ptr);
+            }
             m_id_to_connection_map.emplace(new_id, metadata_ptr);
             m_handle_to_connection_map.emplace(handle, std::move(metadata_ptr));
         });
