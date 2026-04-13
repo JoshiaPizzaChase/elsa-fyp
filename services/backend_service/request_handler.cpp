@@ -1,8 +1,8 @@
 #include "request_handler.h"
+#include <algorithm>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
-#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <format>
@@ -24,14 +24,13 @@ bool is_server_name_valid(const std::string& server_name) {
     if (server_name.empty() || server_name.size() > kServerNameMaxLength) {
         return false;
     }
-    return std::ranges::none_of(server_name, [](unsigned char c) {
-        return std::isspace(c) != 0;
-    });
+    return std::ranges::none_of(server_name, [](unsigned char c) { return std::isspace(c) != 0; });
 }
 
 } // namespace
 
-http::response<http::string_body> RequestHandler::handle(const http::request<http::string_body>& req) {
+http::response<http::string_body>
+RequestHandler::handle(const http::request<http::string_body>& req) {
     // Handle CORS preflight
     if (req.method() == http::verb::options) {
         http::response<http::string_body> response{http::status::no_content, req.version()};
@@ -67,7 +66,8 @@ http::response<http::string_body> RequestHandler::handle(const http::request<htt
             res = handle_historical_trades(params);
         } else if (path == "/server_mdp_endpoint") {
             res = handle_server_mdp_endpoint(params);
-            if (res.contains("error")) status = http::status::bad_request;
+            if (res.contains("error"))
+                status = http::status::bad_request;
         } else {
             status = http::status::not_found;
             res["error"] = "Unknown endpoint";
@@ -75,16 +75,22 @@ http::response<http::string_body> RequestHandler::handle(const http::request<htt
     } else if (req.method() == http::verb::post) {
         if (path == "/create_server") {
             res = handle_create_server(req);
-            if (res.contains("error")) status = http::status::bad_request;
-            if (res.contains("auth_error")) status = http::status::unauthorized;
+            if (res.contains("error"))
+                status = http::status::bad_request;
+            if (res.contains("auth_error"))
+                status = http::status::unauthorized;
         } else if (path == "/configure_server") {
             res = handle_configure_server(req);
-            if (res.contains("error")) status = http::status::bad_request;
-            if (res.contains("auth_error")) status = http::status::unauthorized;
+            if (res.contains("error"))
+                status = http::status::bad_request;
+            if (res.contains("auth_error"))
+                status = http::status::unauthorized;
         } else if (path == "/remove_server") {
             res = handle_remove_server(req);
-            if (res.contains("error")) status = http::status::bad_request;
-            if (res.contains("auth_error")) status = http::status::unauthorized;
+            if (res.contains("error"))
+                status = http::status::bad_request;
+            if (res.contains("auth_error"))
+                status = http::status::unauthorized;
         } else {
             status = http::status::not_found;
             res["error"] = "Unknown endpoint";
@@ -106,7 +112,7 @@ bj::object RequestHandler::handle_login(const boost::urls::params_view& params) 
     bj::object res;
 
     auto user_name_it = params.find("user_name");
-    auto password_it  = params.find("password");
+    auto password_it = params.find("password");
     if (user_name_it == params.end() || password_it == params.end()) {
         res["success"] = false;
         res["err_msg"] = "Missing user_name or password";
@@ -114,7 +120,7 @@ bj::object RequestHandler::handle_login(const boost::urls::params_view& params) 
     }
 
     const std::string user_name = (*user_name_it).value;
-    const std::string password  = (*password_it).value;
+    const std::string password = (*password_it).value;
 
     auto result = m_db_client.authenticate_user(user_name, password);
     if (!result.has_value()) {
@@ -138,7 +144,7 @@ bj::object RequestHandler::handle_signup(const boost::urls::params_view& params)
     bj::object res;
 
     auto user_name_it = params.find("user_name");
-    auto password_it  = params.find("password");
+    auto password_it = params.find("password");
     if (user_name_it == params.end() || password_it == params.end()) {
         res["success"] = false;
         res["err_msg"] = "Missing user_name or password";
@@ -146,7 +152,7 @@ bj::object RequestHandler::handle_signup(const boost::urls::params_view& params)
     }
 
     const std::string user_name = (*user_name_it).value;
-    const std::string password  = (*password_it).value;
+    const std::string password = (*password_it).value;
 
     auto result = m_db_client.create_user(user_name, password);
     if (!result.has_value()) {
@@ -174,9 +180,9 @@ bj::object RequestHandler::handle_active_servers() {
     bj::array arr;
     for (const auto& srv : result.value()) {
         bj::object obj;
-        obj["server_id"]   = srv.server_id;
+        obj["server_id"] = srv.server_id;
         obj["server_name"] = srv.server_name;
-        obj["admin_name"]  = srv.admin_name;
+        obj["admin_name"] = srv.admin_name;
         obj["description"] = srv.description;
 
         auto mdp_endpoint_result = m_db_client.get_service_endpoint(srv.server_name, Service::mdp);
@@ -195,7 +201,8 @@ bj::object RequestHandler::handle_active_servers() {
         }
 
         bj::array symbols;
-        for (const auto& s : srv.active_tickers) symbols.emplace_back(s);
+        for (const auto& s : srv.active_tickers)
+            symbols.emplace_back(s);
         obj["active_symbols"] = std::move(symbols);
 
         arr.emplace_back(std::move(obj));
@@ -253,7 +260,8 @@ bj::object RequestHandler::handle_active_symbols(const boost::urls::params_view&
     }
 
     bj::array symbols;
-    for (const auto& s : result.value()) symbols.emplace_back(s);
+    for (const auto& s : result.value())
+        symbols.emplace_back(s);
     res["symbols"] = std::move(symbols);
     return res;
 }
@@ -289,24 +297,26 @@ bj::object RequestHandler::handle_user_servers(const boost::urls::params_view& p
     bj::array arr;
     const int balance_multiplier = static_cast<int>(core::constants::decimal_to_int_multiplier);
     const int balance_multiplier_squared = balance_multiplier * balance_multiplier;
-    
+
     for (const auto& srv : result.value()) {
         bj::object obj;
-        obj["server_id"]   = srv.server_id;
+        obj["server_id"] = srv.server_id;
         obj["server_name"] = srv.server_name;
-        obj["role"]        = srv.role;
+        obj["role"] = srv.role;
         obj["description"] = srv.description;
         obj["initial_usd"] = srv.initial_usd;
 
         bj::array symbols;
-        for (const auto& s : srv.active_tickers) symbols.emplace_back(s);
+        for (const auto& s : srv.active_tickers)
+            symbols.emplace_back(s);
         obj["active_symbols"] = std::move(symbols);
 
         bj::array bal_arr;
         for (const auto& b : srv.balances) {
             bj::object bo;
-            bo["symbol"]  = b.symbol;
-            const int divisor = (b.symbol == "USD") ? balance_multiplier_squared : balance_multiplier;
+            bo["symbol"] = b.symbol;
+            const int divisor =
+                (b.symbol == "USD") ? balance_multiplier_squared : balance_multiplier;
             bo["balance"] = static_cast<double>(b.balance) / divisor;
             bal_arr.emplace_back(std::move(bo));
         }
@@ -335,8 +345,12 @@ bj::object RequestHandler::handle_historical_trades(const boost::urls::params_vi
     std::expected<std::vector<database::DatabaseClient::HistoricalTradeRow>, std::string> result;
     if (after_ts_it != params.end()) {
         long long after_ts_ms{};
-        try { after_ts_ms = std::stoll(std::string((*after_ts_it).value)); }
-        catch (...) { res["error"] = "Invalid after_ts_ms"; return res; }
+        try {
+            after_ts_ms = std::stoll(std::string((*after_ts_it).value));
+        } catch (...) {
+            res["error"] = "Invalid after_ts_ms";
+            return res;
+        }
         result = m_db_client.query_trades(server_name, symbol, after_ts_ms);
     } else {
         res["error"] = "No after_ts_ms specified";
@@ -351,10 +365,10 @@ bj::object RequestHandler::handle_historical_trades(const boost::urls::params_vi
     bj::array trades;
     for (const auto& t : result.value()) {
         bj::object trade;
-        trade["trade_id"]         = t.trade_id;
-        trade["ticker"]           = t.symbol;
-        trade["price"]            = t.price;
-        trade["quantity"]         = t.quantity;
+        trade["trade_id"] = t.trade_id;
+        trade["ticker"] = t.symbol;
+        trade["price"] = t.price;
+        trade["quantity"] = t.quantity;
         trade["create_timestamp"] = t.ts_ms;
         trades.emplace_back(std::move(trade));
     }
@@ -366,14 +380,14 @@ bj::object RequestHandler::handle_historical_trades(const boost::urls::params_vi
 bj::object RequestHandler::handle_account_details(const boost::urls::params_view& params) {
     bj::object res;
 
-    auto user_name_it   = params.find("user_name");
+    auto user_name_it = params.find("user_name");
     auto server_name_it = params.find("server_name");
     if (user_name_it == params.end() || server_name_it == params.end()) {
         res["error"] = "Missing user_name or server_name";
         return res;
     }
 
-    const std::string user_name   = (*user_name_it).value;
+    const std::string user_name = (*user_name_it).value;
     const std::string server_name = (*server_name_it).value;
 
     auto result = m_db_client.get_account_details(user_name, server_name);
@@ -390,14 +404,15 @@ bj::object RequestHandler::handle_account_details(const boost::urls::params_view
     const auto& details = result.value().value();
 
     bj::object server_obj;
-    server_obj["server_id"]   = details.server_id;
+    server_obj["server_id"] = details.server_id;
     server_obj["server_name"] = details.server_name;
     server_obj["description"] = details.description;
-    server_obj["admin_name"]  = details.admin_name;
+    server_obj["admin_name"] = details.admin_name;
     server_obj["initial_usd"] = details.initial_usd;
 
     bj::array ticker_arr;
-    for (const auto& t : details.active_tickers) ticker_arr.emplace_back(t);
+    for (const auto& t : details.active_tickers)
+        ticker_arr.emplace_back(t);
     server_obj["active_symbols"] = std::move(ticker_arr);
     res["server"] = std::move(server_obj);
 
@@ -405,24 +420,24 @@ bj::object RequestHandler::handle_account_details(const boost::urls::params_view
 
     const int balance_multiplier = static_cast<int>(core::constants::decimal_to_int_multiplier);
     const int balance_multiplier_squared = balance_multiplier * balance_multiplier;
-    
+
     bj::array bal_arr;
     double total_value = 0.0;
     for (const auto& b : details.balances) {
         bj::object bo;
-        bo["symbol"]  = b.symbol;
+        bo["symbol"] = b.symbol;
         const int divisor = (b.symbol == "USD") ? balance_multiplier_squared : balance_multiplier;
         const double scaled_balance = static_cast<double>(b.balance) / divisor;
         bo["balance"] = scaled_balance;
         bal_arr.emplace_back(std::move(bo));
         total_value += scaled_balance;
     }
-    res["balances"]    = std::move(bal_arr);
+    res["balances"] = std::move(bal_arr);
     res["total_value"] = total_value;
 
     const int initial_usd = details.initial_usd;
     res["initial_usd"] = initial_usd;
-    res["pnl"]     = total_value - initial_usd;
+    res["pnl"] = total_value - initial_usd;
     res["pnl_pct"] = initial_usd != 0
                          ? static_cast<double>(total_value - initial_usd) / initial_usd * 100.0
                          : 0.0;
@@ -434,15 +449,18 @@ bj::object RequestHandler::handle_account_details(const boost::urls::params_view
 // This lets us identify who is making the request without a real JWT stack.
 int RequestHandler::authenticate_admin(const http::request<http::string_body>& req) {
     auto it = req.find(http::field::authorization);
-    if (it == req.end()) return -1;
+    if (it == req.end())
+        return -1;
 
     std::string value = std::string(it->value());
     const std::string prefix = "Bearer ";
-    if (value.rfind(prefix, 0) != 0) return -1;
+    if (value.rfind(prefix, 0) != 0)
+        return -1;
 
     const std::string username = value.substr(prefix.size());
     auto result = m_db_client.get_user(username);
-    if (!result.has_value() || !result.value().has_value()) return -1;
+    if (!result.has_value() || !result.value().has_value())
+        return -1;
     return result.value()->user_id;
 }
 
@@ -500,13 +518,15 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     std::vector<std::string> symbols;
     if (auto it = body.find("active_symbols"); it != body.end() && it->value().is_array()) {
         for (const auto& s : it->value().as_array())
-            if (s.is_string()) symbols.emplace_back(std::string(s.as_string()));
+            if (s.is_string())
+                symbols.emplace_back(std::string(s.as_string()));
     }
 
     std::vector<std::string> allowlist_names;
     if (auto it = body.find("allowlist"); it != body.end() && it->value().is_array()) {
         for (const auto& s : it->value().as_array())
-            if (s.is_string()) allowlist_names.emplace_back(std::string(s.as_string()));
+            if (s.is_string())
+                allowlist_names.emplace_back(std::string(s.as_string()));
     }
     if (symbols.empty()) {
         res["error"] = "active_symbols must contain at least one symbol";
@@ -532,8 +552,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     }
     auto machines = machines_res.value();
     if (machines.empty()) {
-	res["error"] = "No available machines found";
-	return res;
+        res["error"] = "No available machines found";
+        return res;
     }
     // use first available machine for now
     auto machine_id = machines[0].machine_id;
@@ -571,15 +591,16 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     auto join_csv = [](const std::vector<std::string>& values) {
         std::string out;
         for (size_t i = 0; i < values.size(); ++i) {
-            if (i > 0) out += ",";
+            if (i > 0)
+                out += ",";
             out += values[i];
         }
         return out;
     };
 
     int deployment_port = 10000; // assuming all deployment servers use port 10000
-    auto deploy_service = [&](const std::string& service_name, const bj::object& params)
-        -> std::expected<void, std::string> {
+    auto deploy_service = [&](const std::string& service_name,
+                              const bj::object& params) -> std::expected<void, std::string> {
         try {
             net::io_context ioc;
             tcp::resolver resolver{ioc};
@@ -609,46 +630,66 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
 
             if (deploy_res.result() != http::status::ok) {
                 return std::unexpected{
-                    std::format("deployment_server {}:{} returned status {} for {}: {}",
-                        machine_ip, deployment_port, static_cast<unsigned>(deploy_res.result_int()),
-                        service_name, deploy_res.body())
-                };
+                    std::format("deployment_server {}:{} returned status {} for {}: {}", machine_ip,
+                                deployment_port, static_cast<unsigned>(deploy_res.result_int()),
+                                service_name, deploy_res.body())};
             }
 
             bj::value parsed = bj::parse(deploy_res.body());
             if (!parsed.is_object()) {
-                return std::unexpected{std::format(
-                    "Invalid response body from deployment_server for {}: {}", service_name, deploy_res.body())};
+                return std::unexpected{
+                    std::format("Invalid response body from deployment_server for {}: {}",
+                                service_name, deploy_res.body())};
             }
             const auto& obj = parsed.as_object();
             if (!obj.contains("status") || !obj.at("status").is_string() ||
                 obj.at("status").as_string() != "deployed") {
-                return std::unexpected{std::format(
-                    "Deployment failed for {}: {}", service_name, deploy_res.body())};
+                return std::unexpected{
+                    std::format("Deployment failed for {}: {}", service_name, deploy_res.body())};
             }
             return {};
         } catch (const std::exception& e) {
-            return std::unexpected{
-                std::format("Error calling deployment_server {}:{} for {}: {}",
-                    machine_ip, deployment_port, service_name, e.what())};
+            return std::unexpected{std::format("Error calling deployment_server {}:{} for {}: {}",
+                                               machine_ip, deployment_port, service_name,
+                                               e.what())};
         }
     };
 
     // Create server and allowlist in database BEFORE deploying services
     // This ensures OMS can initialize balances when it starts
     std::vector<database::DatabaseClient::ServiceInsertRow> service_rows;
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::mdp, mdp_port});
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::me, me_port});
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::oms, oms_port});
-    service_rows.push_back(database::DatabaseClient::ServiceInsertRow{machine_id, Service::gateway, gateway_port});
+    service_rows.push_back(
+        database::DatabaseClient::ServiceInsertRow{machine_id, Service::mdp, mdp_port});
+    service_rows.push_back(
+        database::DatabaseClient::ServiceInsertRow{machine_id, Service::me, me_port});
+    service_rows.push_back(
+        database::DatabaseClient::ServiceInsertRow{machine_id, Service::oms, oms_port});
+    service_rows.push_back(
+        database::DatabaseClient::ServiceInsertRow{machine_id, Service::gateway, gateway_port});
 
-    auto create_result = m_db_client.create_server_with_services(
-        server_name, caller_id, description, symbols, ids_result.value(), service_rows, initial_usd);
+    auto create_result =
+        m_db_client.create_server_with_services(server_name, caller_id, description, symbols,
+                                                ids_result.value(), service_rows, initial_usd);
     if (!create_result.has_value()) {
         res["error"] = create_result.error();
         return res;
     }
     int server_id = create_result.value();
+
+    std::vector<int> balance_user_ids = ids_result.value();
+    if (std::ranges::find(balance_user_ids, caller_id) == balance_user_ids.end()) {
+        balance_user_ids.push_back(caller_id);
+    }
+    for (const int user_id : balance_user_ids) {
+        auto balance_result = m_db_client.insert_balance(
+            user_id, server_id, "USD",
+            static_cast<double>(initial_usd) * core::constants::decimal_to_int_multiplier *
+                core::constants::decimal_to_int_multiplier);
+        if (!balance_result.has_value()) {
+            res["error"] = balance_result.error();
+            return res;
+        }
+    }
 
     // Now deploy the services - OMS can now read the server and allowlist from DB
     bj::object mdp_params;
@@ -703,19 +744,21 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         return res;
     }
 
-    res["success"]    = true;
-    res["server_id"]  = server_id;
+    res["success"] = true;
+    res["server_id"] = server_id;
     res["server_name"] = server_name;
-    res["admin_id"]   = caller_id;
+    res["admin_id"] = caller_id;
     res["description"] = description;
     res["initial_usd"] = initial_usd;
 
     bj::array sym_arr;
-    for (const auto& s : symbols) sym_arr.emplace_back(s);
+    for (const auto& s : symbols)
+        sym_arr.emplace_back(s);
     res["active_symbols"] = std::move(sym_arr);
 
     bj::array al_arr;
-    for (const auto& u : allowlist_names) al_arr.emplace_back(u);
+    for (const auto& u : allowlist_names)
+        al_arr.emplace_back(u);
     res["allowlist"] = std::move(al_arr);
 
     return res;
@@ -779,14 +822,16 @@ bj::object RequestHandler::handle_configure_server(const http::request<http::str
     if (auto it = body.find("active_symbols"); it != body.end() && it->value().is_array()) {
         symbols.clear();
         for (const auto& s : it->value().as_array())
-            if (s.is_string()) symbols.emplace_back(std::string(s.as_string()));
+            if (s.is_string())
+                symbols.emplace_back(std::string(s.as_string()));
     }
 
     // Allowlist: use provided list, or keep existing by querying current members
     std::vector<std::string> allowlist_names;
     if (auto it = body.find("allowlist"); it != body.end() && it->value().is_array()) {
         for (const auto& s : it->value().as_array())
-            if (s.is_string()) allowlist_names.emplace_back(std::string(s.as_string()));
+            if (s.is_string())
+                allowlist_names.emplace_back(std::string(s.as_string()));
     }
 
     auto ids_result = m_db_client.resolve_user_ids(allowlist_names);
@@ -795,23 +840,25 @@ bj::object RequestHandler::handle_configure_server(const http::request<http::str
         return res;
     }
 
-    auto cfg_result = m_db_client.configure_server(
-        server_name, caller_id, description, symbols, ids_result.value());
+    auto cfg_result = m_db_client.configure_server(server_name, caller_id, description, symbols,
+                                                   ids_result.value());
     if (!cfg_result.has_value()) {
         res["error"] = cfg_result.error();
         return res;
     }
 
-    res["success"]     = true;
+    res["success"] = true;
     res["server_name"] = server_name;
     res["description"] = description;
 
     bj::array sym_arr;
-    for (const auto& s : symbols) sym_arr.emplace_back(s);
+    for (const auto& s : symbols)
+        sym_arr.emplace_back(s);
     res["active_symbols"] = std::move(sym_arr);
 
     bj::array al_arr;
-    for (const auto& u : allowlist_names) al_arr.emplace_back(u);
+    for (const auto& u : allowlist_names)
+        al_arr.emplace_back(u);
     res["allowlist"] = std::move(al_arr);
 
     return res;
@@ -867,15 +914,16 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
     }
 
     constexpr int deployment_port = 10000;
-    auto remove_service =
-        [&](const std::string& service_type, Service service_enum) -> std::expected<void, std::string> {
-        auto deployment_endpoint_result = m_db_client.get_service_endpoint(server_name, service_enum);
+    auto remove_service = [&](const std::string& service_type,
+                              Service service_enum) -> std::expected<void, std::string> {
+        auto deployment_endpoint_result =
+            m_db_client.get_service_endpoint(server_name, service_enum);
         if (!deployment_endpoint_result.has_value()) {
             return std::unexpected{deployment_endpoint_result.error()};
         }
         if (!deployment_endpoint_result.value().has_value()) {
-            return std::unexpected{std::format(
-                "Service endpoint not found for {} on server {}", service_type, server_name)};
+            return std::unexpected{std::format("Service endpoint not found for {} on server {}",
+                                               service_type, server_name)};
         }
         const auto& endpoint = deployment_endpoint_result.value().value();
 
@@ -906,31 +954,30 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
             stream.socket().shutdown(tcp::socket::shutdown_both, ec);
 
             if (remove_res.result() != http::status::ok) {
-                return std::unexpected{
-                    std::format("deployment_server {}:{} returned status {} for remove {}: {}",
-                        endpoint.ip, deployment_port, static_cast<unsigned>(remove_res.result_int()),
-                        service_type, remove_res.body())
-                };
+                return std::unexpected{std::format(
+                    "deployment_server {}:{} returned status {} for remove {}: {}", endpoint.ip,
+                    deployment_port, static_cast<unsigned>(remove_res.result_int()), service_type,
+                    remove_res.body())};
             }
 
             bj::value parsed = bj::parse(remove_res.body());
             if (!parsed.is_object()) {
-                return std::unexpected{std::format(
-                    "Invalid response body from deployment_server for remove {}: {}",
-                    service_type, remove_res.body())};
+                return std::unexpected{
+                    std::format("Invalid response body from deployment_server for remove {}: {}",
+                                service_type, remove_res.body())};
             }
             const auto& obj = parsed.as_object();
             if (!obj.contains("status") || !obj.at("status").is_string() ||
                 obj.at("status").as_string() != "removed") {
-                return std::unexpected{std::format(
-                    "Remove failed for {}: {}", service_type, remove_res.body())};
+                return std::unexpected{
+                    std::format("Remove failed for {}: {}", service_type, remove_res.body())};
             }
             m_db_client.drop_quest_tables(server_name);
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{
-                std::format("Error calling deployment_server {}:{} for remove {}: {}",
-                    endpoint.ip, deployment_port, service_type, e.what())};
+                std::format("Error calling deployment_server {}:{} for remove {}: {}", endpoint.ip,
+                            deployment_port, service_type, e.what())};
         }
     };
 
