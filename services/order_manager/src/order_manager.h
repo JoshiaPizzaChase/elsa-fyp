@@ -88,7 +88,7 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                        const OrderManager::OrderInfoMapContainer& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
-                       std::optional<std::string_view> order_reject_reason = std::nullopt);
+                       const std::optional<std::string_view>& order_reject_reason = std::nullopt);
 
 core::ExecutionReportContainer
 generate_rejection_report_container(const core::Container& container,

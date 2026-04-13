@@ -884,3 +884,225 @@ TEST_F(GenerateSuccessReportContainerTest,
     EXPECT_FALSE(success.exec_id.empty());
 }
 
+class ForwardAndReplyTest : public testing::Test {
+  protected:
+    MockOutboundClient mock_order_request_client;
+    MockInboundServer mock_inbound_server;
+    OrderManager::OrderInfoMapContainer order_info_map;
+    int arrival_gateway_id = 0;
+    int order_request_connection_id = 11;
+};
+
+TEST_F(ForwardAndReplyTest, ValidContainerForwardsAndRepliesWithSuccess) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_order_request_client, send(order_request_connection_id, _, _))
+            .WillOnce(Return(std::expected<void, int>{}));
+        EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+            .WillOnce(Return(std::expected<void, int>{}));
+    }
+
+    forward_and_reply(true, new_order, order_info_map, arrival_gateway_id,
+                      mock_order_request_client, order_request_connection_id, mock_inbound_server);
+}
+
+TEST_F(ForwardAndReplyTest, ValidContainerForwardFails) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_order_request_client, send(order_request_connection_id, _, _))
+            .WillOnce(Return(std::unexpected{-1}));
+        // Should still attempt to send the success reply despite forward failure
+        EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+            .WillOnce(Return(std::expected<void, int>{}));
+    }
+
+    forward_and_reply(true, new_order, order_info_map, arrival_gateway_id,
+                      mock_order_request_client, order_request_connection_id, mock_inbound_server);
+}
+
+TEST_F(ForwardAndReplyTest, ValidContainerReplyFails) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_order_request_client, send(order_request_connection_id, _, _))
+            .WillOnce(Return(std::expected<void, int>{}));
+        EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+            .WillOnce(Return(std::unexpected{-1}));
+    }
+
+    forward_and_reply(true, new_order, order_info_map, arrival_gateway_id,
+                      mock_order_request_client, order_request_connection_id, mock_inbound_server);
+}
+
+TEST_F(ForwardAndReplyTest, InvalidContainerRepliesWithRejection) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    // Should NOT call forward when container is invalid
+    EXPECT_CALL(mock_order_request_client, send).Times(0);
+
+    EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+        .WillOnce(Return(std::expected<void, int>{}));
+
+    forward_and_reply(false, new_order, order_info_map, arrival_gateway_id,
+                      mock_order_request_client, order_request_connection_id, mock_inbound_server,
+                      "Insufficient balance");
+}
+
+TEST_F(ForwardAndReplyTest, InvalidContainerReplyFails) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    // Should NOT call forward when container is invalid
+    EXPECT_CALL(mock_order_request_client, send).Times(0);
+
+    EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+        .WillOnce(Return(std::unexpected{-1}));
+
+    forward_and_reply(false, new_order, order_info_map, arrival_gateway_id,
+                      mock_order_request_client, order_request_connection_id, mock_inbound_server,
+                      "Unknown sender");
+}
+
+TEST_F(ForwardAndReplyTest, InvalidCancelRequestOrderNotFound) {
+    // Cancel request with nullopt order_id (order was not found during preprocessing)
+    core::Container cancel_request = core::CancelOrderRequestContainer{.sender_comp_id = "CLIENT",
+                                                                       .target_comp_id = "OM",
+                                                                       .order_id = std::nullopt,
+                                                                       .orig_cl_ord_id = 100,
+                                                                       .cl_ord_id = 101,
+                                                                       .symbol = "AAPL",
+                                                                       .side = core::Side::bid,
+                                                                       .order_qty = 5};
+
+    // No order_info_map entry since the order doesn't exist
+    EXPECT_CALL(mock_order_request_client, send).Times(0);
+    EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+        .WillOnce(Return(std::expected<void, int>{}));
+
+    forward_and_reply(false, cancel_request, order_info_map, arrival_gateway_id,
+                      mock_order_request_client, order_request_connection_id, mock_inbound_server,
+                      "Cancel request original client order ID not found");
+}
+
+TEST_F(ForwardAndReplyTest, ValidContainerWithMultipleGatewayIds) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 50,
+                                      .cl_ord_id = 150,
+                                      .symbol = "MSFT",
+                                      .side = core::Side::ask,
+                                      .order_qty = 20,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 300,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    const int gateway_id = 5;
+
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_order_request_client, send(order_request_connection_id, _, _))
+            .WillOnce(Return(std::expected<void, int>{}));
+        EXPECT_CALL(mock_inbound_server, send(gateway_id, _, _))
+            .WillOnce(Return(std::expected<void, int>{}));
+    }
+
+    forward_and_reply(true, new_order, order_info_map, gateway_id, mock_order_request_client,
+                      order_request_connection_id, mock_inbound_server);
+}
+
+using ForwardAndReplyDeathTest = ForwardAndReplyTest;
+
+TEST_F(ForwardAndReplyDeathTest, PreconditionViolationInvalidWithoutReason) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    // This violates the precondition: is_container_valid is false but no reason provided
+    EXPECT_DEATH(forward_and_reply(false, new_order, order_info_map, arrival_gateway_id,
+                                   mock_order_request_client, order_request_connection_id,
+                                   mock_inbound_server),
+                 "");
+}
+
+TEST_F(ForwardAndReplyDeathTest, PreconditionViolationValidWithReason) {
+    core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    // This violates the precondition: is_container_valid is true but reason is provided
+    EXPECT_DEATH(forward_and_reply(true, new_order, order_info_map, arrival_gateway_id,
+                                   mock_order_request_client, order_request_connection_id,
+                                   mock_inbound_server, "Should not provide reason"),
+                 "");
+}

@@ -414,9 +414,15 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                        const OrderManager::OrderInfoMapContainer& order_info_map,
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
-                       std::optional<std::string_view> order_reject_reason) {
-    boost::contract::check c = boost::contract::function().precondition(
-        [&] { BOOST_CONTRACT_ASSERT(is_container_valid && order_reject_reason.has_value()); });
+                       const std::optional<std::string_view>& order_reject_reason) {
+    boost::contract::check c = boost::contract::function().precondition([&] {
+        // Only provide reject reason when the container is invalid
+        if (is_container_valid) {
+            BOOST_CONTRACT_ASSERT(!order_reject_reason.has_value());
+        } else {
+            BOOST_CONTRACT_ASSERT(order_reject_reason.has_value());
+        }
+    });
 
     if (is_container_valid) {
         // Forward validated container to Matching Engine
@@ -427,9 +433,10 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                 logger->info("[OM] Forwarded a valid container");
                 logger->flush();
             })
-            .or_else([](int) -> std::expected<void, int> {
+            .transform_error([](int err) -> int {
                 logger->error("[OM] Failed to forward a valid container");
-                return {};
+                logger->flush();
+                return err;
             });
 
         // Gives immediate execution report as response back to broker
@@ -442,11 +449,11 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                 logger->info("[OM] Replied a success execution report: {}", execution_report);
                 logger->flush();
             })
-            .or_else([&](int) -> std::expected<void, int> {
+            .transform_error([&](int err) -> int {
                 logger->error("[OM] Failed to reply a success execution report: {}",
                               execution_report);
                 logger->flush();
-                return {};
+                return err;
             });
     } else {
         // Give immediate execution report as feedback on rejection to broker
@@ -460,11 +467,11 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                 logger->info("[OM] Replied a rejection execution report: {}", execution_report);
                 logger->flush();
             })
-            .or_else([&](int) -> std::expected<void, int> {
+            .transform_error([&](int err) -> int {
                 logger->error("[OM] Failed to reply a rejection execution report: {}",
                               execution_report);
                 logger->flush();
-                return {};
+                return err;
             });
     }
 }
