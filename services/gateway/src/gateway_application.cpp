@@ -195,12 +195,71 @@ void GatewayApplication::process_report() {
     if (const auto new_message = m_websocketClient.dequeue_message(0); new_message.has_value()) {
         logger->info("Execution report message received");
 
-        const auto container = transport::deserialize_container(new_message.value());
+        try {
+            auto container = transport::deserialize_container(new_message.value());
+            
+            std::visit([this](auto&& arg) {
+                using T = std::decay_t<decltype(arg)>;
+                if constexpr (std::is_same_v<T, core::ExecutionReportContainer>) {
+                    FIX::TargetCompID targetCompID(arg.sender_comp_id);
+                    FIX::SenderCompID senderCompID(arg.target_comp_id);
+                    
+                    FIX::OrderID orderId(std::to_string(arg.order_id));
+                    FIX::ExecID execId(arg.exec_id);
+                    
+                    // Simple translation mappings
+                    char execTransType = FIX::ExecTransType_NEW;
+                    char execType = FIX::ExecType_NEW;
+                    if (arg.exec_type == core::ExecType::status_filled) execType = FIX::ExecType_FILL;
+                    else if (arg.exec_type == core::ExecType::status_partially_filled) execType = FIX::ExecType_PARTIAL_FILL;
+                    else if (arg.exec_type == core::ExecType::status_canceled) execType = FIX::ExecType_CANCELED;
+                    else if (arg.exec_type == core::ExecType::status_rejected) execType = FIX::ExecType_REJECTED;
+                    
+                    char ordStatus = FIX::OrdStatus_NEW;
+                    if (arg.ord_status == core::OrderStatus::status_filled) ordStatus = FIX::OrdStatus_FILLED;
+                    else if (arg.ord_status == core::OrderStatus::status_partially_filled) ordStatus = FIX::OrdStatus_PARTIALLY_FILLED;
+                    else if (arg.ord_status == core::OrderStatus::status_canceled) ordStatus = FIX::OrdStatus_CANCELED;
+                    else if (arg.ord_status == core::OrderStatus::status_rejected) ordStatus = FIX::OrdStatus_REJECTED;
+                    
+                    FIX::Symbol symbol(arg.symbol);
+                    FIX::Side side = (arg.side == core::Side::bid) ? FIX::Side_BUY : FIX::Side_SELL;
+                    
+                    FIX::LeavesQty leavesQty(arg.leaves_qty / (double)core::constants::decimal_to_int_multiplier);
+                    FIX::CumQty cumQty(arg.cum_qty / (double)core::constants::decimal_to_int_multiplier);
+                    FIX::AvgPx avgPx(arg.avg_px / (double)core::constants::decimal_to_int_multiplier);
+                    
+                    FIX42::ExecutionReport execReport(orderId, execId, FIX::ExecTransType(execTransType), 
+                                                      FIX::ExecType(execType), FIX::OrdStatus(ordStatus),
+                                                      symbol, side, leavesQty, cumQty, avgPx);
+                                                      
+                    execReport.setField(FIX::ClOrdID(std::to_string(arg.cl_order_id)));
+                    execReport.setField(FIX::OrderQty((arg.leaves_qty + arg.cum_qty) / (double)core::constants::decimal_to_int_multiplier));
+                    execReport.setField(FIX::LastPx(0));
+                    
+                    if (arg.orig_cl_ord_id.has_value()) {
+                        execReport.setField(FIX::OrigClOrdID(std::to_string(arg.orig_cl_ord_id.value())));
+                    }
+                    
+                    if (arg.price.has_value()) {
+                        execReport.setField(FIX::Price(arg.price.value() / (double)core::constants::decimal_to_int_multiplier));
+                    }
+                    
+                    if (arg.text.has_value()) {
+                        execReport.setField(FIX::Text(arg.text.value()));
+                    }
 
-        assert(std::holds_alternative<core::ExecutionReportContainer>(container));
-        const auto& r = std::get<core::ExecutionReportContainer>(container);
-
-        logger->info("Received execution report: {}", r);
+                    try {
+                        FIX::Session::sendToTarget(execReport, senderCompID, targetCompID);
+                    } catch (const FIX::SessionNotFound& e) {
+                        logger->error("[Gateway] Session Not Found Error: {}", e.what());
+                        logger->flush();
+                    }
+                }
+            }, container);
+        } catch (const std::exception& e) {
+            logger->error("[Gateway] Deserialization Error: {}", e.what());
+            logger->flush();
+        }
     }
 }
 
