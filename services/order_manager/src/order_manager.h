@@ -81,8 +81,8 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
                      int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                      int order_request_connection_id);
 
-bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
-                        std::optional<int> fill_cost = std::nullopt);
+std::string validate_container(const core::Container& container, BalanceChecker& balance_checker,
+                               std::optional<int> fill_cost = std::nullopt);
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,
                        const OrderManager::OrderInfoMapContainer& order_info_map,

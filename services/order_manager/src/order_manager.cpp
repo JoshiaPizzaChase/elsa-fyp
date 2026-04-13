@@ -102,7 +102,7 @@ void init_balance_checker(BalanceChecker& balance_checker,
 void OrderManager::connect_matching_engine(std::string host, int port, int try_attempts) {
     boost::contract::check c = boost::contract::public_function(this).precondition(
         [&] { BOOST_CONTRACT_ASSERT(try_attempts > 0); });
- std::expected<int, int> order_request_res{};
+    std::expected<int, int> order_request_res{};
     for (auto i{0}; i < try_attempts; i++) {
         order_request_res = order_request_outbound_client
                                 ->connect(std::format("ws://{}:{}", host, port), "order_request")
@@ -165,14 +165,21 @@ void OrderManager::start() {
                                      curr_gateway_id, *order_request_outbound_client,
                                      order_request_connection_id)
                     .transform([&](std::optional<int>&& market_bid_fill_cost) {
-                        const bool is_container_valid =
+                        const std::string validation_result =
                             validate_container(container, balance_checker, market_bid_fill_cost);
 
-                        forward_and_reply(is_container_valid, container, order_info_map,
-                                          curr_gateway_id, *order_request_outbound_client,
-                                          order_request_connection_id, *inbound_server);
+                        if (validation_result == "ok") {
+                            forward_and_reply(true, container, order_info_map, curr_gateway_id,
+                                              *order_request_outbound_client,
+                                              order_request_connection_id, *inbound_server);
+                        } else {
+                            forward_and_reply(false, container, order_info_map, curr_gateway_id,
+                                              *order_request_outbound_client,
+                                              order_request_connection_id, *inbound_server,
+                                              validation_result);
+                        }
 
-                        update_database(container, *database_client, is_container_valid);
+                        update_database(container, *database_client, validation_result == "ok");
                     })
                     .transform_error([&](std::string&& err) {
                         forward_and_reply(false, container, order_info_map, curr_gateway_id,
@@ -317,21 +324,21 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
                       container);
 }
 
-bool validate_container(const core::Container& container, BalanceChecker& balance_checker,
-                        std::optional<int> market_bid_fill_cost) {
-    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
+std::string validate_container(const core::Container& container, BalanceChecker& balance_checker,
+                               std::optional<int> market_bid_fill_cost) {
+    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) -> std::string {
         logger->info("[OM] Validating New Order Single: {}", new_order);
         logger->flush();
 
         // A broker must at least have a record for USD at the start
         if (!balance_checker.broker_id_exists(new_order.sender_comp_id)) {
-            return false;
+            return "Balance record for not found during validation";
         }
 
         switch (new_order.side) {
         case core::Side::bid:
             if (!balance_checker.broker_owns_ticker(new_order.sender_comp_id, USD_SYMBOL)) {
-                return false;
+                return "User has no USD balance record";
             }
 
             switch (new_order.ord_type) {
@@ -339,7 +346,7 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
                 if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, USD_SYMBOL,
                                                             -new_order.price.value() *
                                                                 new_order.order_qty)) {
-                    return false;
+                    return "User has insufficient USD balance";
                 }
 
                 balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
@@ -350,7 +357,7 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
 
                 if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, USD_SYMBOL,
                                                             -market_bid_fill_cost.value())) {
-                    return false;
+                    return "User has insufficient USD balance";
                 }
 
                 balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
@@ -365,12 +372,12 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
             break;
         case core::Side::ask:
             if (!balance_checker.broker_owns_ticker(new_order.sender_comp_id, new_order.symbol)) {
-                return false;
+                return std::format("User has no {} record", new_order.symbol);
             }
 
             if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, new_order.symbol,
                                                         -new_order.order_qty)) {
-                return false;
+                return std::format("User has insufficient {} balance", new_order.symbol);
             }
 
             balance_checker.update_balance(new_order.sender_comp_id, new_order.symbol,
@@ -383,15 +390,18 @@ bool validate_container(const core::Container& container, BalanceChecker& balanc
             std::terminate();
         }
 
-        return true;
+        return "ok";
     }};
-    auto cancel_request_handler{[](const core::CancelOrderRequestContainer& cancel_request) {
-        return cancel_request.order_id.has_value();
-    }};
-    auto catch_all_handler{[](const auto&) {
+    auto cancel_request_handler{
+        [](const core::CancelOrderRequestContainer& cancel_request) -> std::string {
+            return cancel_request.order_id.has_value()
+                       ? "ok"
+                       : "Cancel request original client order ID not found";
+        }};
+    auto catch_all_handler{[](const auto&) -> std::string {
         logger->error("[OM] Received unexpected request from Gateway");
         logger->flush();
-        return false;
+        return "Unsupported request type";
     }};
 
     return std::visit(overloaded{new_order_handler, cancel_request_handler, catch_all_handler},

@@ -522,7 +522,7 @@ TEST_F(ValidateContainerTest, ValidLimitBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_TRUE(validate_container(new_order, balance_checker));
+    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
 }
@@ -542,7 +542,7 @@ TEST_F(ValidateContainerTest, InvalidLimitBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 10);
 
-    EXPECT_FALSE(validate_container(new_order, balance_checker));
+    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 10);
 }
@@ -562,7 +562,7 @@ TEST_F(ValidateContainerTest, ValidMarketBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_TRUE(validate_container(new_order, balance_checker, 1000));
+    EXPECT_EQ(validate_container(new_order, balance_checker, 1000), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
 }
@@ -582,7 +582,7 @@ TEST_F(ValidateContainerTest, InvalidMarketBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_FALSE(validate_container(new_order, balance_checker, 100000));
+    EXPECT_NE(validate_container(new_order, balance_checker, 100000), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
 }
@@ -620,7 +620,7 @@ TEST_F(ValidateContainerTest, ValidLimitAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 10);
 
-    EXPECT_TRUE(validate_container(new_order, balance_checker));
+    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
 }
@@ -640,7 +640,7 @@ TEST_F(ValidateContainerTest, InvalidLimitAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 1);
 
-    EXPECT_FALSE(validate_container(new_order, balance_checker));
+    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
 }
 
@@ -659,7 +659,7 @@ TEST_F(ValidateContainerTest, ValidMarketAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 10);
 
-    EXPECT_TRUE(validate_container(new_order, balance_checker));
+    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
 }
@@ -679,7 +679,7 @@ TEST_F(ValidateContainerTest, InvalidMarketAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 1);
 
-    EXPECT_FALSE(validate_container(new_order, balance_checker));
+    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
 }
@@ -697,7 +697,7 @@ TEST_F(ValidateContainerTest, NoRecordInBalanceChecker) {
                                       .price = 100,
                                       .time_in_force = core::TimeInForce::gtc};
 
-    EXPECT_FALSE(validate_container(new_order, balance_checker));
+    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
 }
 
 TEST_F(ValidateContainerTest, ValidCancelRequest) {
@@ -711,7 +711,7 @@ TEST_F(ValidateContainerTest, ValidCancelRequest) {
                                           .side = core::Side::bid,
                                           .order_qty = 10};
 
-    EXPECT_TRUE(validate_container(cancel_request, balance_checker));
+    EXPECT_EQ(validate_container(cancel_request, balance_checker), "ok");
 }
 
 TEST_F(ValidateContainerTest, InvalidCancelRequest) {
@@ -725,5 +725,5 @@ TEST_F(ValidateContainerTest, InvalidCancelRequest) {
                                           .side = core::Side::bid,
                                           .order_qty = 10};
 
-    EXPECT_FALSE(validate_container(cancel_request, balance_checker));
+    EXPECT_NE(validate_container(cancel_request, balance_checker), "ok");
 }
