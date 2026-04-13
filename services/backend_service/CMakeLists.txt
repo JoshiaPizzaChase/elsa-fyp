@@ -1,5 +1,3 @@
-find_package(Boost REQUIRED COMPONENTS thread json url)
-
 add_library(backend_service_lib STATIC request_handler.cpp)
 target_compile_options(backend_service_lib PRIVATE -Wall -Wextra -Wpedantic)
 target_include_directories(backend_service_lib
@@ -12,7 +10,7 @@ target_include_directories(backend_service_lib
 target_link_libraries(backend_service_lib PUBLIC
         Boost::thread Boost::json
         reflectcpp questdb_client pqxx::pqxx
-        boost_url
+        Boost::url
 )
 
 add_executable(backend_service main.cpp)
@@ -20,5 +18,5 @@ target_compile_options(backend_service PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(backend_service PRIVATE backend_service_lib reflectcpp)
 
 if (BUILD_TESTS)
-    add_subdirectory(unit_test)
+  add_subdirectory(unit_test)
 endif ()
