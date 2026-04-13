@@ -1153,3 +1153,178 @@ TEST_F(ForwardAndReplyDeathTest, PreconditionViolationValidWithReason) {
                                    mock_inbound_server, "Should not provide reason"),
                  "");
 }
+
+class UpdateOrderInfoTest : public testing::Test {
+  protected:
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(UpdateOrderInfoTest, UpdatesBothOrdersOnInitialTradeFill) {
+    order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 10,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 1});
+
+    order_info_map.emplace(22, OrderInfo{.sender_comp_id = "MAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 7,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 2});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 7,
+                                     .trade_id = "T1",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 11,
+                                     .maker_order_id = 22,
+                                     .is_taker_buyer = true};
+
+    update_order_info(trade, order_info_map);
+
+    const auto& taker = order_info_map.at(11);
+    EXPECT_EQ(taker.avg_px, 100);
+    EXPECT_EQ(taker.leaves_qty, 3);
+    EXPECT_EQ(taker.cum_qty, 7);
+
+    const auto& maker = order_info_map.at(22);
+    EXPECT_EQ(maker.avg_px, 100);
+    EXPECT_EQ(maker.leaves_qty, 0);
+    EXPECT_EQ(maker.cum_qty, 7);
+}
+
+TEST_F(UpdateOrderInfoTest, UpdatesOneMakerAcrossTwoTakersAndSecondTakerDrainsMaker) {
+    order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER1",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 4,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 1});
+
+    order_info_map.emplace(12, OrderInfo{.sender_comp_id = "TAKER2",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 6,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 3});
+
+    order_info_map.emplace(22, OrderInfo{.sender_comp_id = "MAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 10,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 2});
+
+    const core::TradeContainer first_trade{.ticker = "AAPL",
+                                           .price = 100,
+                                           .quantity = 4,
+                                           .trade_id = "T5",
+                                           .taker_id = "TAKER1",
+                                           .maker_id = "MAKER",
+                                           .taker_order_id = 11,
+                                           .maker_order_id = 22,
+                                           .is_taker_buyer = true};
+
+    const core::TradeContainer second_trade{.ticker = "AAPL",
+                                            .price = 100,
+                                            .quantity = 6,
+                                            .trade_id = "T6",
+                                            .taker_id = "TAKER2",
+                                            .maker_id = "MAKER",
+                                            .taker_order_id = 12,
+                                            .maker_order_id = 22,
+                                            .is_taker_buyer = true};
+
+    update_order_info(first_trade, order_info_map);
+
+    const auto& taker_one = order_info_map.at(11);
+    EXPECT_EQ(taker_one.avg_px, 100);
+    EXPECT_EQ(taker_one.leaves_qty, 0);
+    EXPECT_EQ(taker_one.cum_qty, 4);
+
+    const auto& maker_after_first_fill = order_info_map.at(22);
+    EXPECT_EQ(maker_after_first_fill.avg_px, 100);
+    EXPECT_EQ(maker_after_first_fill.leaves_qty, 6);
+    EXPECT_EQ(maker_after_first_fill.cum_qty, 4);
+
+    update_order_info(second_trade, order_info_map);
+
+    const auto& taker_two = order_info_map.at(12);
+    EXPECT_EQ(taker_two.avg_px, 100);
+    EXPECT_EQ(taker_two.leaves_qty, 0);
+    EXPECT_EQ(taker_two.cum_qty, 6);
+
+    const auto& maker_after_second_fill = order_info_map.at(22);
+    EXPECT_EQ(maker_after_second_fill.avg_px, 100);
+    EXPECT_EQ(maker_after_second_fill.leaves_qty, 0);
+    EXPECT_EQ(maker_after_second_fill.cum_qty, 10);
+}
+
+using UpdateOrderInfoDeathTest = UpdateOrderInfoTest;
+
+TEST_F(UpdateOrderInfoDeathTest, MissingTakerOrderInfo) {
+    order_info_map.emplace(2, OrderInfo{.sender_comp_id = "MAKER",
+                                        .symbol = "AAPL",
+                                        .side = core::Side::ask,
+                                        .price = 100,
+                                        .time_in_force = core::TimeInForce::gtc,
+                                        .leaves_qty = 10,
+                                        .cum_qty = 0,
+                                        .avg_px = 0,
+                                        .arrival_gateway_id = 0});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 1,
+                                     .trade_id = "T3",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 1,
+                                     .maker_order_id = 2,
+                                     .is_taker_buyer = true};
+
+    EXPECT_DEATH(update_order_info(trade, order_info_map), "");
+}
+
+TEST_F(UpdateOrderInfoDeathTest, MissingMakerOrderInfo) {
+    order_info_map.emplace(1, OrderInfo{.sender_comp_id = "TAKER",
+                                        .symbol = "AAPL",
+                                        .side = core::Side::bid,
+                                        .price = 100,
+                                        .time_in_force = core::TimeInForce::gtc,
+                                        .leaves_qty = 10,
+                                        .cum_qty = 0,
+                                        .avg_px = 0,
+                                        .arrival_gateway_id = 0});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 1,
+                                     .trade_id = "T4",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 1,
+                                     .maker_order_id = 2,
+                                     .is_taker_buyer = true};
+
+    EXPECT_DEATH(update_order_info(trade, order_info_map), "");
+}

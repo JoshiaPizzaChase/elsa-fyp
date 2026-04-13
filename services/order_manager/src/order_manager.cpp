@@ -93,7 +93,7 @@ void init_balance_checker(BalanceChecker& balance_checker,
                     }
                 }
             })
-            .transform_error([](std::string_view err) {
+            .transform_error([](std::string&& err) {
                 logger->error("[OM] Failed to load balances into balance_checker: {}", err);
                 std::terminate();
                 return err;
@@ -668,6 +668,11 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
 
 void update_order_info(const core::TradeContainer& trade_container,
                        OrderManager::OrderInfoMapContainer& order_info_map) {
+    boost::contract::check c = boost::contract::function().precondition([&] {
+        BOOST_CONTRACT_ASSERT(order_info_map.contains(trade_container.taker_order_id));
+        BOOST_CONTRACT_ASSERT(order_info_map.contains(trade_container.maker_order_id));
+    });
+
     auto& taker_order_info = order_info_map.at(trade_container.taker_order_id);
     taker_order_info.avg_px = (taker_order_info.avg_px * taker_order_info.cum_qty +
                                trade_container.price * trade_container.quantity) /
