@@ -93,9 +93,10 @@ void init_balance_checker(BalanceChecker& balance_checker,
                     }
                 }
             })
-            .or_else([](std::string_view err) -> std::expected<void, std::string> {
+            .transform_error([](std::string_view err) {
                 logger->error("[OM] Failed to load balances into balance_checker: {}", err);
                 std::terminate();
+                return err;
             });
 }
 
@@ -162,19 +163,18 @@ void OrderManager::connect_matching_engine(std::string host, int port, int try_a
 }
 
 void OrderManager::start() {
-    // TODO: Fix curr_gateway_id to adapt to skipping ids
-    int curr_gateway_id = 0;
+    auto gateway_ids_it = gateway_connection_ids.cbegin();
 
     while (true) {
         // Process an incoming request
         std::ignore =
-            inbound_server->dequeue_message(curr_gateway_id)
+            inbound_server->dequeue_message(*gateway_ids_it)
                 .transform([&](std::string&& new_message) {
                     auto container = transport::deserialize_container(new_message);
 
                     std::ignore =
                         preprocess_container(container, order_id_map, order_info_map,
-                                             username_user_id_map, curr_gateway_id,
+                                             username_user_id_map, *gateway_ids_it,
                                              *order_request_outbound_client,
                                              order_request_connection_id)
                             .transform([&](std::optional<int>&& market_bid_fill_cost) {
@@ -183,12 +183,12 @@ void OrderManager::start() {
 
                                 if (validation_result == "ok") {
                                     forward_and_reply(true, container, order_info_map,
-                                                      curr_gateway_id,
+                                                      *gateway_ids_it,
                                                       *order_request_outbound_client,
                                                       order_request_connection_id, *inbound_server);
                                 } else {
                                     forward_and_reply(
-                                        false, container, order_info_map, curr_gateway_id,
+                                        false, container, order_info_map, *gateway_ids_it,
                                         *order_request_outbound_client, order_request_connection_id,
                                         *inbound_server, validation_result);
                                 }
@@ -197,7 +197,7 @@ void OrderManager::start() {
                                                 validation_result == "ok");
                             })
                             .transform_error([&](std::string&& err) {
-                                forward_and_reply(false, container, order_info_map, curr_gateway_id,
+                                forward_and_reply(false, container, order_info_map, *gateway_ids_it,
                                                   *order_request_outbound_client,
                                                   order_request_connection_id, *inbound_server,
                                                   err);
@@ -209,7 +209,10 @@ void OrderManager::start() {
                     return new_message;
                 });
 
-        curr_gateway_id = (curr_gateway_id + 1) % gateway_connection_ids.size();
+        ++gateway_ids_it;
+        if (gateway_ids_it == gateway_connection_ids.cend()) {
+            gateway_ids_it = gateway_connection_ids.cbegin();
+        }
 
         // Process a returned message container
         if (auto new_message =
