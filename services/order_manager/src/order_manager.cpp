@@ -475,8 +475,8 @@ generate_rejection_report_container(const core::Container& container,
                                     std::string_view order_reject_reason) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
         return core::ExecutionReportContainer{
-            .sender_comp_id = new_order.sender_comp_id,
-            .target_comp_id = SERVER_NAME,
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = new_order.sender_comp_id,
             .order_id = new_order.order_id.value(),
             .cl_order_id = new_order.cl_ord_id,
             .orig_cl_ord_id = std::nullopt,
@@ -502,8 +502,8 @@ generate_rejection_report_container(const core::Container& container,
                 .value();
 
         return core::ExecutionReportContainer{
-            .sender_comp_id = cancel_request.sender_comp_id,
-            .target_comp_id = "",
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = cancel_request.sender_comp_id,
             .order_id = cancel_request.order_id.value_or(-1),
             .cl_order_id = cancel_request.cl_ord_id,
             .orig_cl_ord_id = cancel_request.orig_cl_ord_id,
@@ -534,11 +534,11 @@ generate_rejection_report_container(const core::Container& container,
 
 core::ExecutionReportContainer
 generate_success_report_container(const core::Container& container,
-                                  const OrderManager::OrderInfoMapContainer& order_info_store) {
+                                  const OrderManager::OrderInfoMapContainer& order_info_map) {
     auto new_order_handler{[](const core::NewOrderSingleContainer& new_order) {
         return core::ExecutionReportContainer{
-            .sender_comp_id = new_order.sender_comp_id,
-            .target_comp_id = "",
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = new_order.sender_comp_id,
             .order_id = new_order.order_id.value(),
             .cl_order_id = new_order.cl_ord_id,
             .orig_cl_ord_id = std::nullopt,
@@ -557,10 +557,10 @@ generate_success_report_container(const core::Container& container,
     }};
 
     auto cancel_request_handler{[&](const core::CancelOrderRequestContainer& cancel_request) {
-        const auto& order_info = order_info_store.at(cancel_request.order_id.value());
+        const auto& order_info = order_info_map.at(cancel_request.order_id.value());
         return core::ExecutionReportContainer{
-            .sender_comp_id = cancel_request.sender_comp_id,
-            .target_comp_id = "",
+            .sender_comp_id = SERVER_NAME,
+            .target_comp_id = cancel_request.sender_comp_id,
             .order_id = cancel_request.order_id.value(),
             .cl_order_id = cancel_request.cl_ord_id,
             .orig_cl_ord_id = cancel_request.orig_cl_ord_id,
@@ -678,8 +678,8 @@ generate_matched_order_report_containers(
     const core::TradeContainer& trade, const OrderManager::OrderIdMapContainer& order_id_map,
     const OrderManager::OrderInfoMapContainer& order_info_map) {
     const core::ExecutionReportContainer taker_order_report_container{
-        .sender_comp_id = trade.taker_id,
-        .target_comp_id = "",
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = trade.taker_id,
         .order_id = trade.taker_order_id,
         .cl_order_id = order_id_map.left.at(trade.taker_order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
@@ -699,8 +699,8 @@ generate_matched_order_report_containers(
         .avg_px = order_info_map.at(trade.taker_order_id).avg_px};
 
     const core::ExecutionReportContainer maker_order_report_container{
-        .sender_comp_id = trade.maker_id,
-        .target_comp_id = "",
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = trade.maker_id,
         .order_id = trade.maker_order_id,
         .cl_order_id = order_id_map.left.at(trade.maker_order_id) / core::constants::max_user_count,
         .exec_id = to_string(boost::uuids::time_generator_v7()()),
@@ -727,8 +727,8 @@ core::ExecutionReportContainer generate_cancel_response_report_container(
     const OrderManager::OrderIdMapContainer& order_id_map,
     const OrderManager::OrderInfoMapContainer& order_info_map) {
     return core::ExecutionReportContainer{
-        .sender_comp_id = order_info_map.at(cancel_response.order_id).sender_comp_id,
-        .target_comp_id = "",
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = order_info_map.at(cancel_response.order_id).sender_comp_id,
         .order_id = cancel_response.order_id,
         .cl_order_id = cancel_response.cl_ord_id,
         .orig_cl_ord_id =

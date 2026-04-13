@@ -753,7 +753,8 @@ TEST_F(GenerateRejectionReportContainerTest, NewOrderRejectionBuildsExpectedExec
     const auto rejection =
         generate_rejection_report_container(new_order, order_info_map, "bad order state");
 
-    EXPECT_EQ(rejection.sender_comp_id, "CLIENT");
+    EXPECT_EQ(rejection.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(rejection.target_comp_id, "CLIENT");
     EXPECT_EQ(rejection.order_id, 42);
     EXPECT_EQ(rejection.cl_order_id, 100);
     EXPECT_EQ(rejection.orig_cl_ord_id, std::nullopt);
@@ -786,7 +787,8 @@ TEST_F(GenerateRejectionReportContainerTest,
     const auto rejection = generate_rejection_report_container(
         cancel_request, order_info_map, "Cancel request original client order ID not found");
 
-    EXPECT_EQ(rejection.sender_comp_id, "CLIENT");
+    EXPECT_EQ(rejection.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(rejection.target_comp_id, "CLIENT");
     EXPECT_EQ(rejection.order_id, -1);
     EXPECT_EQ(rejection.cl_order_id, 102);
     EXPECT_EQ(rejection.orig_cl_ord_id, 101);
