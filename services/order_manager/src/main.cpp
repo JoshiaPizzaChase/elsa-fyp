@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
                                order_manager_config.order_manager_port, dependency_factory};
 
     order_manager.init();
+    order_manager.wait_for_connections();
     order_manager.connect_matching_engine(order_manager_config.downstream_matching_engine_host,
                                           order_manager_config.downstream_matching_engine_port);
 

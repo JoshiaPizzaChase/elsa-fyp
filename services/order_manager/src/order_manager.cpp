@@ -99,6 +99,15 @@ void init_balance_checker(BalanceChecker& balance_checker,
             });
 }
 
+// Spin locks until Order Manager is connected from at least one Gateway
+void OrderManager::wait_for_connections() const {
+    while (gateway_connection_ids.size() == 0) {
+        logger->info("Waiting for connections from Gateway");
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+    logger->info("At least one connection from Gateway have been established");
+}
+
 void OrderManager::connect_matching_engine(std::string host, int port, int try_attempts) {
     boost::contract::check c = boost::contract::public_function(this).precondition(
         [&] { BOOST_CONTRACT_ASSERT(try_attempts > 0); });

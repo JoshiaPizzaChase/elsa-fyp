@@ -41,6 +41,7 @@ class OrderManager {
     OrderManager(std::string_view host, int port,
                  const OrderManagerDependencyFactory& dependency_factory);
     void init();
+    void wait_for_connections() const;
     void connect_matching_engine(std::string host, int port, int try_attempts = 5);
     [[noreturn]] void start();
 
