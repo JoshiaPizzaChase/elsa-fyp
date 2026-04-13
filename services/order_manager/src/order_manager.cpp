@@ -102,6 +102,7 @@ void init_balance_checker(BalanceChecker& balance_checker,
 void OrderManager::connect_matching_engine(std::string host, int port, int try_attempts) {
     boost::contract::check c = boost::contract::public_function(this).precondition(
         [&] { BOOST_CONTRACT_ASSERT(try_attempts > 0); });
+
     std::expected<int, int> order_request_res{};
     for (auto i{0}; i < try_attempts; i++) {
         order_request_res = order_request_outbound_client
@@ -152,6 +153,7 @@ void OrderManager::connect_matching_engine(std::string host, int port, int try_a
 }
 
 void OrderManager::start() {
+    // TODO: Fix curr_gateway_id to adapt to skipping ids
     int curr_gateway_id = 0;
 
     while (true) {
@@ -413,6 +415,9 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                        int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                        int order_request_connection_id, transport::InboundServer& inbound_ws_server,
                        std::optional<std::string_view> order_reject_reason) {
+    boost::contract::check c = boost::contract::function().precondition(
+        [&] { BOOST_CONTRACT_ASSERT(is_container_valid && order_reject_reason.has_value()); });
+
     if (is_container_valid) {
         // Forward validated container to Matching Engine
         const auto message =
@@ -445,8 +450,8 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
             });
     } else {
         // Give immediate execution report as feedback on rejection to broker
-        const auto execution_report =
-            generate_rejection_report_container(container, order_info_map);
+        const auto execution_report = generate_rejection_report_container(
+            container, order_info_map, order_reject_reason.value());
 
         inbound_ws_server
             .send(arrival_gateway_id, transport::serialize_container(execution_report),
@@ -466,8 +471,9 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
 
 core::ExecutionReportContainer
 generate_rejection_report_container(const core::Container& container,
-                                    const OrderManager::OrderInfoMapContainer& order_info_store) {
-    auto new_order_handler{[](const core::NewOrderSingleContainer& new_order) {
+                                    const OrderManager::OrderInfoMapContainer& order_info_store,
+                                    std::string_view order_reject_reason) {
+    auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
         return core::ExecutionReportContainer{
             .sender_comp_id = new_order.sender_comp_id,
             .target_comp_id = SERVER_NAME,
@@ -478,7 +484,7 @@ generate_rejection_report_container(const core::Container& container,
             .exec_trans_type = core::ExecTransType::exec_trans_new,
             .exec_type = core::ExecType::status_rejected,
             .ord_status = core::OrderStatus::status_rejected,
-            .text = "TODO",
+            .text = static_cast<std::string>(order_reject_reason),
             .symbol = new_order.symbol,
             .side = new_order.side,
             .price = new_order.price,
@@ -505,18 +511,20 @@ generate_rejection_report_container(const core::Container& container,
             .exec_trans_type = core::ExecTransType::exec_trans_new,
             .exec_type = core::ExecType::status_rejected,
             .ord_status = core::OrderStatus::status_rejected,
-            .text = "TODO",
+            .text = static_cast<std::string>(order_reject_reason),
             .symbol = order_info.symbol,
             .side = order_info.side,
             .price = order_info.price,
             .time_in_force = order_info.time_in_force,
             .leaves_qty = 0,
-            .cum_qty = 0,
-            .avg_px = 0};
+            .cum_qty = order_info.cum_qty,
+            .avg_px = order_info.avg_px};
     }};
 
     auto catch_all_handler{[](const auto&) {
-        assert(false && "Unreachable");
+        logger->error("Unreachable");
+        logger->flush();
+        std::terminate();
         return core::ExecutionReportContainer{};
     }};
 

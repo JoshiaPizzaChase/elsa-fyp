@@ -222,6 +222,10 @@ TEST_F(ConnectMatchingEngineTest, RetriesOrderResponseConnectionUntilSuccessful)
 
 using ConnectMatchingEngineDeathTest = ConnectMatchingEngineTest;
 
+TEST_F(ConnectMatchingEngineDeathTest, NonPositiveTryAttempts) {
+    EXPECT_DEATH(test_om.connect_matching_engine(TEST_HOST, TEST_PORT, 0), "");
+}
+
 TEST_F(ConnectMatchingEngineDeathTest, DeathOnOrderRequestConnectionExhaustion) {
     EXPECT_DEATH(
         {
@@ -726,4 +730,72 @@ TEST_F(ValidateContainerTest, InvalidCancelRequest) {
                                           .order_qty = 10};
 
     EXPECT_NE(validate_container(cancel_request, balance_checker), "ok");
+}
+
+class GenerateRejectionReportContainerTest : public testing::Test {
+  protected:
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(GenerateRejectionReportContainerTest, NewOrderRejectionBuildsExpectedExecutionReport) {
+    const core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 42,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 123,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    const auto rejection =
+        generate_rejection_report_container(new_order, order_info_map, "bad order state");
+
+    EXPECT_EQ(rejection.sender_comp_id, "CLIENT");
+    EXPECT_EQ(rejection.order_id, 42);
+    EXPECT_EQ(rejection.cl_order_id, 100);
+    EXPECT_EQ(rejection.orig_cl_ord_id, std::nullopt);
+    EXPECT_EQ(rejection.exec_trans_type, core::ExecTransType::exec_trans_new);
+    EXPECT_EQ(rejection.exec_type, core::ExecType::status_rejected);
+    EXPECT_EQ(rejection.ord_status, core::OrderStatus::status_rejected);
+    EXPECT_EQ(rejection.text, "bad order state");
+    EXPECT_EQ(rejection.symbol, "AAPL");
+    EXPECT_EQ(rejection.side, core::Side::ask);
+    EXPECT_EQ(rejection.price, 123);
+    EXPECT_EQ(rejection.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(rejection.leaves_qty, 0);
+    EXPECT_EQ(rejection.cum_qty, 0);
+    EXPECT_EQ(rejection.avg_px, 0);
+    EXPECT_FALSE(rejection.exec_id.empty());
+}
+
+TEST_F(GenerateRejectionReportContainerTest,
+       CancelRequestRejectionWithoutOrderIdUsesFallbackValues) {
+    const core::Container cancel_request =
+        core::CancelOrderRequestContainer{.sender_comp_id = "CLIENT",
+                                          .target_comp_id = "OM",
+                                          .order_id = std::nullopt,
+                                          .orig_cl_ord_id = 101,
+                                          .cl_ord_id = 102,
+                                          .symbol = "AAPL",
+                                          .side = core::Side::ask,
+                                          .order_qty = 9};
+
+    const auto rejection = generate_rejection_report_container(
+        cancel_request, order_info_map, "Cancel request original client order ID not found");
+
+    EXPECT_EQ(rejection.sender_comp_id, "CLIENT");
+    EXPECT_EQ(rejection.order_id, -1);
+    EXPECT_EQ(rejection.cl_order_id, 102);
+    EXPECT_EQ(rejection.orig_cl_ord_id, 101);
+    EXPECT_EQ(rejection.exec_type, core::ExecType::status_rejected);
+    EXPECT_EQ(rejection.ord_status, core::OrderStatus::status_rejected);
+    EXPECT_EQ(rejection.text, "Cancel request original client order ID not found");
+    EXPECT_EQ(rejection.symbol, "");
+    EXPECT_EQ(rejection.price, std::nullopt);
+    EXPECT_EQ(rejection.leaves_qty, 0);
+    EXPECT_EQ(rejection.cum_qty, 0);
+    EXPECT_EQ(rejection.avg_px, 0);
 }
