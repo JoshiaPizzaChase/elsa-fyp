@@ -49,6 +49,8 @@ void MatchingEngine::init() const {
 // Spin locks until matching engine has two connections from OMS
 void MatchingEngine::wait_for_connections() const {
     while (incoming_request_connection_id == -1 || order_response_connection_id == -1) {
+        logger->info("Waiting for connections from Order Manager");
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
     logger->info("Both connections from Order Manager have been established");
 }
