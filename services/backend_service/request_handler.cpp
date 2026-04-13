@@ -3,6 +3,7 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <format>
 #include <iostream>
@@ -15,6 +16,20 @@ namespace backend {
 
 namespace net = boost::asio;
 using tcp = net::ip::tcp;
+namespace {
+
+constexpr std::size_t kServerNameMaxLength = 11;
+
+bool is_server_name_valid(const std::string& server_name) {
+    if (server_name.empty() || server_name.size() > kServerNameMaxLength) {
+        return false;
+    }
+    return std::ranges::none_of(server_name, [](unsigned char c) {
+        return std::isspace(c) != 0;
+    });
+}
+
+} // namespace
 
 http::response<http::string_body> RequestHandler::handle(const http::request<http::string_body>& req) {
     // Handle CORS preflight
@@ -459,6 +474,10 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         return res;
     }
     const std::string server_name = std::string(name_it->value().as_string());
+    if (!is_server_name_valid(server_name)) {
+        res["error"] = "server_name must be less than 12 characters and contain no spaces";
+        return res;
+    }
 
     std::string description;
     if (auto it = body.find("description"); it != body.end() && it->value().is_string())
@@ -659,7 +678,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     oms_params["order_manager_port"] = oms_port;
     oms_params["downstream_matching_engine_host"] = machine_ip;
     oms_params["downstream_matching_engine_port"] = me_port;
-    oms_params["gateway_count"] = 1;
+
     auto oms_deploy_result = deploy_service("oms", oms_params);
     if (!oms_deploy_result.has_value()) {
         res["error"] = oms_deploy_result.error();

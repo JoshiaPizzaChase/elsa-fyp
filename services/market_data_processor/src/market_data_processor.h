@@ -4,8 +4,7 @@
 #include "core/orderbook_snapshot.h"
 #include "core/trade.h"
 #include "nlohmann/json.hpp"
-#include "spdlog/async.h"
-#include "spdlog/sinks/basic_file_sink.h"
+#include "logger/logger.h"
 #include "websocket_server.h"
 #include <vector>
 
@@ -14,7 +13,7 @@ using json = nlohmann::json;
 namespace mdp {
 class MarketDataProcessor {
   private:
-    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
+    std::shared_ptr<spdlog::logger> logger = logger::create_logger(
         "mdp_logger",
         std::format("{}/logs/{}/mdp.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
     std::vector<OrderbookSnapshotRingBuffer> orderbook_snapshot_ring_buffers;

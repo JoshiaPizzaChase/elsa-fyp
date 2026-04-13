@@ -1,16 +1,16 @@
 #include "limit_order_book.h"
 
 #include "core/constants.h"
+#include "uuid/uuid.h"
 #include <boost/contract.hpp>
-#include <boost/uuid.hpp>
 #include <chrono>
 #include <queue>
 
 namespace engine {
+
 LimitOrderBook::LimitOrderBook(std::string_view ticker, std::queue<Trade>& trade_container,
                                std::unique_ptr<Publisher<Trade>> trade_publisher)
-    : trade_publisher{std::move(trade_publisher)}, trade_events{trade_container},
-      ticker{ticker} {
+    : trade_publisher{std::move(trade_publisher)}, trade_events{trade_container}, ticker{ticker} {
 }
 
 std::string_view LimitOrderBook::get_ticker() const {
@@ -57,7 +57,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                                                front_order.get_trader_id(), ticker,
                                                front_order.get_price(), order_quantity, side);
                 trade_publisher->try_publish(new_trade);
-                trade_events.emplace(new_trade);
+                trade_events.emplace(std::move(new_trade));
 
                 order_id_map.erase(best_level_orders.front().get_order_id());
                 best_level_orders.pop_front();
@@ -68,7 +68,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                                                front_order.get_trader_id(), ticker,
                                                front_order.get_price(), remaining_quantity, side);
                 trade_publisher->try_publish(new_trade);
-                trade_events.emplace(new_trade);
+                trade_events.emplace(std::move(new_trade));
                 remaining_quantity = 0;
             }
         }
@@ -197,17 +197,12 @@ Trade create_trade(int taker_order_id, int maker_order_id, std::string_view take
     uint64_t now_ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                              std::chrono::system_clock::now().time_since_epoch())
                              .count();
+    char trade_id[core::constants::UUID_LENGTH]{};
+    core::uuid::UUIDGeneratorWrapper::instance().generate(trade_id);
 
-    return Trade{ticker.data(),
-                 price,
-                 quantity,
-                 boost::uuids::to_string(boost::uuids::time_generator_v7()()).data(),
-                 taker_id.data(),
-                 maker_id.data(),
-                 taker_order_id,
-                 maker_order_id,
-                 taker_side == Side::bid,
-                 now_ts_ms};
+    return Trade{ticker.data(),           price,           quantity,       trade_id,
+                 taker_id.data(),         maker_id.data(), taker_order_id, maker_order_id,
+                 taker_side == Side::bid, now_ts_ms};
 }
 
 // Calculates the total cost of filling required quantity starting from best orders. If there is
