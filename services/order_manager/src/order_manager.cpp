@@ -230,8 +230,7 @@ void OrderManager::start() {
                 update_order_info(*trade_container, order_info_map);
             }
 
-            return_execution_report(container, order_id_map, order_info_map, *inbound_server,
-                                    *database_client);
+            return_execution_report(container, order_id_map, order_info_map, *inbound_server);
 
             update_database(container, *database_client);
         }
@@ -691,32 +690,61 @@ void update_order_info(const core::TradeContainer& trade_container,
 void return_execution_report(const core::Container& container,
                              const OrderManager::OrderIdMapContainer& order_id_map,
                              const OrderManager::OrderInfoMapContainer& order_info_map,
-                             transport::InboundServer& inbound_ws_server,
-                             OrderManagerDatabase& database_client) {
+                             transport::InboundServer& inbound_ws_server) {
     auto trade_handler{[&](const core::TradeContainer& trade) {
         const auto [taker_exec_report, maker_exec_report] =
             generate_matched_order_report_containers(trade, order_id_map, order_info_map);
 
         const int taker_order_arrival_gateway_id{
             order_info_map.at(trade.taker_order_id).arrival_gateway_id};
+        inbound_ws_server
+            .send(taker_order_arrival_gateway_id, transport::serialize_container(taker_exec_report))
+            .transform([&] {
+                logger->info("Successfully returned execution report: {}", taker_exec_report);
+                logger->flush();
+            })
+            .transform_error([&](int err) {
+                logger->info("Failed to returned execution report: {}", taker_exec_report);
+                logger->flush();
+                return err;
+            });
+
         const int maker_order_arrival_gateway_id{
             order_info_map.at(trade.maker_order_id).arrival_gateway_id};
-
-        inbound_ws_server.send(taker_order_arrival_gateway_id,
-                               transport::serialize_container(taker_exec_report));
-
-        inbound_ws_server.send(maker_order_arrival_gateway_id,
-                               transport::serialize_container(maker_exec_report));
+        inbound_ws_server
+            .send(maker_order_arrival_gateway_id, transport::serialize_container(maker_exec_report))
+            .transform([&] {
+                logger->info("Successfully returned execution report: {}", maker_exec_report);
+                logger->flush();
+            })
+            .transform_error([&](int err) {
+                logger->info("Failed to returned execution report: {}", maker_exec_report);
+                logger->flush();
+                return err;
+            });
     }};
     auto cancel_response_handler{[&](const core::CancelOrderResponseContainer& cancel_response) {
         const auto exec_report = generate_cancel_response_report_container(
             cancel_response, order_id_map, order_info_map);
         const int orig_order_arrival_gateway_id{
             order_info_map.at(cancel_response.order_id).arrival_gateway_id};
-        inbound_ws_server.send(orig_order_arrival_gateway_id,
-                               transport::serialize_container(exec_report));
+        inbound_ws_server
+            .send(orig_order_arrival_gateway_id, transport::serialize_container(exec_report))
+            .transform([&] {
+                logger->info("Successfully returned execution report: {}", exec_report);
+                logger->flush();
+            })
+            .transform_error([&](int err) {
+                logger->info("Failed to returned execution report: {}", exec_report);
+                logger->flush();
+                return err;
+            });
     }};
-    auto catch_all_handler{[](const auto&) { assert(false && "UNREACHABLE"); }};
+    auto catch_all_handler{[](const auto&) {
+        logger->error("Unreachable");
+        logger->flush();
+        std::terminate();
+    }};
 
     std::visit(overloaded{trade_handler, cancel_response_handler, catch_all_handler}, container);
 }
