@@ -817,7 +817,7 @@ core::ExecutionReportContainer generate_cancel_response_report_container(
                                                : core::ExecType::status_rejected,
         .ord_status = (cancel_response.success) ? core::OrderStatus::status_canceled
                                                 : core::OrderStatus::status_rejected,
-        .text = "TODO",
+        .text = "Order had already been matched",
         .symbol = order_info_map.at(cancel_response.order_id).symbol,
         .side = order_info_map.at(cancel_response.order_id).side,
         .price = order_info_map.at(cancel_response.order_id).price,

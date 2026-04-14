@@ -1410,3 +1410,97 @@ TEST_F(GenerateMatchedOrderReportContainersTest, TakerBuyerBuildsExpectedTakerAn
     EXPECT_EQ(maker_report.avg_px, 110);
     EXPECT_FALSE(maker_report.exec_id.empty());
 }
+
+class GenerateCancelResponseReportContainerTest : public testing::Test {
+  protected:
+    OrderManager::OrderIdMapContainer order_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(GenerateCancelResponseReportContainerTest,
+       SuccessfulCancelResponseBuildsExpectedExecutionReport) {
+    constexpr int order_id = 42;
+    constexpr int orig_cl_ord_id = 300;
+    constexpr int cl_ord_id = 303;
+    constexpr int user_id = 7;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        order_id, orig_cl_ord_id * core::constants::max_user_count + user_id));
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::ask,
+                                               .price = 123,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 0,
+                                               .cum_qty = 12,
+                                               .avg_px = 124,
+                                               .arrival_gateway_id = 3});
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = cl_ord_id, .success = true};
+
+    const auto report =
+        generate_cancel_response_report_container(cancel_response, order_id_map, order_info_map);
+
+    EXPECT_EQ(report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(report.target_comp_id, "CLIENT");
+    EXPECT_EQ(report.order_id, order_id);
+    EXPECT_EQ(report.cl_order_id, cl_ord_id);
+    EXPECT_EQ(report.orig_cl_ord_id, orig_cl_ord_id);
+    EXPECT_EQ(report.exec_trans_type, core::ExecTransType::exec_trans_new);
+    EXPECT_EQ(report.exec_type, core::ExecType::status_canceled);
+    EXPECT_EQ(report.ord_status, core::OrderStatus::status_canceled);
+    EXPECT_EQ(report.text, "Order had already been matched");
+    EXPECT_EQ(report.symbol, "AAPL");
+    EXPECT_EQ(report.side, core::Side::ask);
+    EXPECT_EQ(report.price, 123);
+    EXPECT_EQ(report.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(report.leaves_qty, 0);
+    EXPECT_EQ(report.cum_qty, 12);
+    EXPECT_EQ(report.avg_px, 124);
+    EXPECT_FALSE(report.exec_id.empty());
+}
+
+TEST_F(GenerateCancelResponseReportContainerTest,
+       RejectedCancelResponseBuildsExpectedExecutionReport) {
+    constexpr int order_id = 77;
+    constexpr int orig_cl_ord_id = 900;
+    constexpr int cl_ord_id = 909;
+    constexpr int user_id = 2;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        order_id, orig_cl_ord_id * core::constants::max_user_count + user_id));
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "TRADER",
+                                               .symbol = "MSFT",
+                                               .side = core::Side::bid,
+                                               .price = std::nullopt,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 5,
+                                               .cum_qty = 15,
+                                               .avg_px = 301,
+                                               .arrival_gateway_id = 4});
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = cl_ord_id, .success = false};
+
+    const auto report =
+        generate_cancel_response_report_container(cancel_response, order_id_map, order_info_map);
+
+    EXPECT_EQ(report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(report.target_comp_id, "TRADER");
+    EXPECT_EQ(report.order_id, order_id);
+    EXPECT_EQ(report.cl_order_id, cl_ord_id);
+    EXPECT_EQ(report.orig_cl_ord_id, orig_cl_ord_id);
+    EXPECT_EQ(report.exec_trans_type, core::ExecTransType::exec_trans_new);
+    EXPECT_EQ(report.exec_type, core::ExecType::status_rejected);
+    EXPECT_EQ(report.ord_status, core::OrderStatus::status_rejected);
+    EXPECT_EQ(report.text, "Order had already been matched");
+    EXPECT_EQ(report.symbol, "MSFT");
+    EXPECT_EQ(report.side, core::Side::bid);
+    EXPECT_EQ(report.price, std::nullopt);
+    EXPECT_EQ(report.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(report.leaves_qty, 0);
+    EXPECT_EQ(report.cum_qty, 15);
+    EXPECT_EQ(report.avg_px, 301);
+    EXPECT_FALSE(report.exec_id.empty());
+}
