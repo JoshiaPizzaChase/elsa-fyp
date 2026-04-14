@@ -668,7 +668,7 @@ TEST_CASE("insert_execution with no time_in_force stores UNKNOWN",
         .symbol            = "META",
         .side              = Side::bid,
         .price             = 50000,
-        .time_in_force     = std::nullopt, // <-- no TIF
+        .time_in_force     = core::TimeInForce::gtc,
         .leaves_qty        = 40,
         .cum_qty           = 0,
         .avg_px            = 0,
