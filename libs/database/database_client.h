@@ -8,6 +8,7 @@
 #include <core/orders.h>
 #include <core/service.h>
 #include <core/thread_safe_queue.h>
+#include <cstdint>
 #include <cstdlib>
 #include <expected>
 #include <format>
@@ -395,13 +396,14 @@ class DatabaseClient {
 
     // Usually called by the OM at initialization, so this can be left synchronous.
     auto read_balance(int user_id, int server_id, std::string_view symbol)
-        -> std::expected<int, std::string> {
+        -> std::expected<std::int64_t, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
 
-            int balance{transaction.query_value<int>("SELECT balance FROM balances WHERE user_id = "
-                                                     "$1 AND symbol = $2 AND server_id = $3",
-                                                     pqxx::params{user_id, symbol, server_id})};
+            std::int64_t balance{transaction.query_value<std::int64_t>(
+                "SELECT balance FROM balances WHERE user_id = "
+                "$1 AND symbol = $2 AND server_id = $3",
+                pqxx::params{user_id, symbol, server_id})};
 
             transaction.commit();
 
@@ -413,7 +415,7 @@ class DatabaseClient {
 
     struct BalanceRow {
         std::string symbol;
-        int balance;
+        std::int64_t balance;
     };
 
     auto read_balances(int user_id, int server_id) const
@@ -429,7 +431,7 @@ class DatabaseClient {
             balances.reserve(res.size());
             for (const auto& row : res) {
                 balances.emplace_back(
-                    BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
+                    BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<std::int64_t>()});
             }
 
             return balances;
@@ -439,8 +441,8 @@ class DatabaseClient {
     }
 
     // This is called periodically (e.g. hourly) by the OM so it should be performed asynchronously.
-    auto update_balance(int user_id, int server_id, std::string_view symbol, int balance) const
-        -> std::expected<void, std::string> {
+    auto update_balance(int user_id, int server_id, std::string_view symbol,
+                        std::int64_t balance) const -> std::expected<void, std::string> {
         try {
             pqxx::work transaction{*m_core_db_sql_connection};
 
@@ -685,8 +687,8 @@ class DatabaseClient {
                                         pqxx::params{user_id, usr.server_id});
                 usr.balances.reserve(bal_res.size());
                 for (const auto& bal_row : bal_res) {
-                    usr.balances.push_back(
-                        {bal_row["symbol"].as<std::string>(), bal_row["balance"].as<int>()});
+                    usr.balances.push_back({bal_row["symbol"].as<std::string>(),
+                                            bal_row["balance"].as<std::int64_t>()});
                 }
 
                 result.push_back(std::move(usr));
@@ -756,7 +758,7 @@ class DatabaseClient {
 
             for (const auto& brow : bal_res)
                 details.balances.push_back(
-                    {brow["symbol"].as<std::string>(), brow["balance"].as<int>()});
+                    {brow["symbol"].as<std::string>(), brow["balance"].as<std::int64_t>()});
             return details;
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error getting account details: {}", e.what())};
@@ -771,18 +773,17 @@ class DatabaseClient {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
             // QuestDB: CAST(ts AS LONG) returns microseconds since epoch.
-            // Parameterised queries over QuestDB's PG wire are unreliable, so we
-            // quote literals manually (safe: tickers are alphanumeric, after_ts_micros is numeric).
             const auto after_ts_micros = after_ts_ms * 1000LL;
             const auto trades_table = std::format("trades_{}", server_name);
+            const auto quoted_symbol = txn.quote(symbol);
             const std::string query = std::format(
-                "SELECT trade_id, symbol, price, quantity, CAST(ts AS LONG) AS ts_micros "
+                "SELECT trade_id, symbol, price, quantity, CAST(timestamp AS LONG) AS ts_micros "
                 "FROM {} "
-                "WHERE symbol = $1"
-                " AND ts >= to_timestamp($2) "
-                "ORDER BY ts ASC",
-                trades_table);
-            auto res = txn.exec(query, pqxx::params{symbol, after_ts_micros});
+                "WHERE symbol = {} "
+                "AND CAST(timestamp AS LONG) >= {} "
+                "ORDER BY timestamp ASC",
+                trades_table, quoted_symbol, after_ts_micros);
+            auto res = txn.exec(query);
             txn.commit();
 
             std::vector<HistoricalTradeRow> result;
@@ -1213,7 +1214,7 @@ class DatabaseClient {
         return query_trades(SERVER_NAME);
     }
 
-    auto insert_balance(int user_id, int server_id, std::string_view symbol, int balance)
+    auto insert_balance(int user_id, int server_id, std::string_view symbol, std::int64_t balance)
         -> std::expected<void, std::string> {
         try {
             pqxx::work txn{*m_core_db_sql_connection};
@@ -1295,9 +1296,9 @@ class DatabaseClient {
             int inserted_count = 0;
             for (int user_id : user_ids) {
                 // Calculate balance as integer to avoid scientific notation in SQL
-                int balance =
-                    static_cast<int>(initial_usd * core::constants::decimal_to_int_multiplier *
-                                     core::constants::decimal_to_int_multiplier);
+                std::int64_t balance = static_cast<std::int64_t>(
+                    initial_usd * core::constants::decimal_to_int_multiplier *
+                    core::constants::decimal_to_int_multiplier);
 
                 auto result = txn.exec("INSERT INTO balances (user_id, server_id, symbol, balance) "
                                        "VALUES ($1, $2, 'USD', $3) ON CONFLICT (user_id, "
@@ -1377,8 +1378,8 @@ class DatabaseClient {
                 std::vector<BalanceRow> balances;
                 balances.reserve(balance_res.size());
                 for (const auto& row : balance_res) {
-                    balances.emplace_back(
-                        BalanceRow{row["symbol"].as<std::string>(), row["balance"].as<int>()});
+                    balances.emplace_back(BalanceRow{row["symbol"].as<std::string>(),
+                                                     row["balance"].as<std::int64_t>()});
                 }
 
                 result.emplace_back(user_id, std::move(username), std::move(balances));
@@ -1474,11 +1475,14 @@ class DatabaseClient {
         }
     }
 
-    auto truncate_orders() -> std::expected<void, std::string> {
+    auto truncate_orders(const std::string_view& server_name) -> std::expected<void, std::string> {
+        if (auto setup = create_quest_tables(server_name); !setup.has_value()) {
+            return std::unexpected{setup.error()};
+        }
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
-            txn.exec("TRUNCATE TABLE orders");
+            txn.exec(std::format("TRUNCATE TABLE orders_{}", server_name));
             txn.commit();
             return {};
         } catch (const std::exception& e) {
@@ -1486,16 +1490,27 @@ class DatabaseClient {
         }
     }
 
-    auto truncate_trades() -> std::expected<void, std::string> {
+    auto truncate_orders() -> std::expected<void, std::string> {
+        return truncate_orders(SERVER_NAME);
+    }
+
+    auto truncate_trades(const std::string_view& server_name) -> std::expected<void, std::string> {
+        if (auto setup = create_quest_tables(server_name); !setup.has_value()) {
+            return std::unexpected{setup.error()};
+        }
         try {
             ensure_timeseries_connection();
             pqxx::work txn{*m_timeseries_db_sql_connection};
-            txn.exec("TRUNCATE TABLE trades");
+            txn.exec(std::format("TRUNCATE TABLE trades_{}", server_name));
             txn.commit();
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{std::format("Error truncating trades: {}", e.what())};
         }
+    }
+
+    auto truncate_trades() -> std::expected<void, std::string> {
+        return truncate_trades(SERVER_NAME);
     }
 
   public:

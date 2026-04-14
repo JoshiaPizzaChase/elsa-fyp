@@ -19,7 +19,7 @@ bool BalanceChecker::broker_owns_ticker(const std::string& broker_id,
 }
 
 void BalanceChecker::update_balance(const std::string& broker_id, const std::string& ticker,
-                                    int delta) {
+                                    std::int64_t delta) {
     boost::contract::check c = boost::contract::public_function(this).precondition(
         [&] { BOOST_CONTRACT_ASSERT(!ticker.empty()); });
 
@@ -37,12 +37,14 @@ void BalanceChecker::update_balance(const std::string& broker_id, const std::str
             broker_it->second.emplace(ticker, delta);
         }
     } else {
-        balance_map.emplace(broker_id, std::unordered_map<std::string, int>{{ticker, delta}});
+        balance_map.emplace(broker_id,
+                            std::unordered_map<std::string, std::int64_t>{{ticker, delta}});
     }
 }
 
-int BalanceChecker::get_balance(const std::string& broker_id, const std::string& ticker) const {
-    int rtn;
+std::int64_t BalanceChecker::get_balance(const std::string& broker_id,
+                                         const std::string& ticker) const {
+    std::int64_t rtn;
     boost::contract::check c = boost::contract::public_function(this)
                                    .precondition([&] {
                                        BOOST_CONTRACT_ASSERT(broker_id_exists(broker_id));
@@ -54,7 +56,7 @@ int BalanceChecker::get_balance(const std::string& broker_id, const std::string&
 }
 
 bool BalanceChecker::has_sufficient_balance(const std::string& broker_id, const std::string& ticker,
-                                            int delta) const {
+                                            std::int64_t delta) const {
     boost::contract::check c = boost::contract::public_function(this).precondition([&] {
         BOOST_CONTRACT_ASSERT(broker_id_exists(broker_id));
         BOOST_CONTRACT_ASSERT(broker_owns_ticker(broker_id, ticker));

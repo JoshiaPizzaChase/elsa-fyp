@@ -4,6 +4,7 @@
 
 #include <boost/contract.hpp>
 #include <boost/uuid.hpp>
+#include <cstdint>
 
 namespace om {
 
@@ -367,16 +368,17 @@ std::string validate_container(const core::Container& container, BalanceChecker&
             }
 
             switch (new_order.ord_type) {
-            case core::OrderType::limit:
+            case core::OrderType::limit: {
+                const std::int64_t reserved_usd =
+                    -static_cast<std::int64_t>(new_order.price.value()) * new_order.order_qty;
                 if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, USD_SYMBOL,
-                                                            -new_order.price.value() *
-                                                                new_order.order_qty)) {
+                                                            reserved_usd)) {
                     return "User has insufficient USD balance";
                 }
 
-                balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
-                                               -new_order.price.value() * new_order.order_qty);
+                balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL, reserved_usd);
                 break;
+            }
             case core::OrderType::market:
                 return market_bid_fill_cost
                     .transform([&](int fill_cost) {

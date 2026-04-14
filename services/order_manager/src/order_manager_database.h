@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/containers.h"
+#include <cstdint>
 #include <expected>
 #include <string>
 #include <string_view>
@@ -10,7 +11,7 @@ namespace om {
 
 struct DbBalanceRow {
     std::string symbol;
-    int balance{};
+    std::int64_t balance{};
 };
 
 struct DbUserBalanceInfo {
