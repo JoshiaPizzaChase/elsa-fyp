@@ -1328,3 +1328,85 @@ TEST_F(UpdateOrderInfoDeathTest, MissingMakerOrderInfo) {
 
     EXPECT_DEATH(update_order_info(trade, order_info_map), "");
 }
+
+class GenerateMatchedOrderReportContainersTest : public testing::Test {
+  protected:
+    OrderManager::OrderIdMapContainer order_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(GenerateMatchedOrderReportContainersTest, TakerBuyerBuildsExpectedTakerAndMakerReports) {
+    constexpr int taker_order_id = 101;
+    constexpr int maker_order_id = 202;
+    constexpr int taker_cl_ord_id = 77;
+    constexpr int maker_cl_ord_id = 88;
+    constexpr int taker_user_id = 2;
+    constexpr int maker_user_id = 5;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        taker_order_id, taker_cl_ord_id * core::constants::max_user_count + taker_user_id));
+    order_id_map.insert(OrderManager::OrderIdPair(
+        maker_order_id, maker_cl_ord_id * core::constants::max_user_count + maker_user_id));
+
+    order_info_map.emplace(taker_order_id, OrderInfo{.sender_comp_id = "TAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::bid,
+                                                     .price = 110,
+                                                     .time_in_force = core::TimeInForce::gtc,
+                                                     .leaves_qty = 3,
+                                                     .cum_qty = 7,
+                                                     .avg_px = 109,
+                                                     .arrival_gateway_id = 1});
+    order_info_map.emplace(maker_order_id, OrderInfo{.sender_comp_id = "MAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::ask,
+                                                     .price = 111,
+                                                     .time_in_force = core::TimeInForce::day,
+                                                     .leaves_qty = 6,
+                                                     .cum_qty = 4,
+                                                     .avg_px = 110,
+                                                     .arrival_gateway_id = 2});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 110,
+                                     .quantity = 4,
+                                     .trade_id = "TR-1",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = taker_order_id,
+                                     .maker_order_id = maker_order_id,
+                                     .is_taker_buyer = true};
+
+    const auto [taker_report, maker_report] =
+        generate_matched_order_report_containers(trade, order_id_map, order_info_map);
+
+    EXPECT_EQ(taker_report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(taker_report.target_comp_id, "TAKER");
+    EXPECT_EQ(taker_report.order_id, taker_order_id);
+    EXPECT_EQ(taker_report.cl_order_id, taker_cl_ord_id);
+    EXPECT_EQ(taker_report.exec_type, core::ExecType::status_partially_filled);
+    EXPECT_EQ(taker_report.ord_status, core::OrderStatus::status_partially_filled);
+    EXPECT_EQ(taker_report.symbol, "AAPL");
+    EXPECT_EQ(taker_report.side, core::Side::bid);
+    EXPECT_EQ(taker_report.price, 110);
+    EXPECT_EQ(taker_report.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(taker_report.leaves_qty, 3);
+    EXPECT_EQ(taker_report.cum_qty, 7);
+    EXPECT_EQ(taker_report.avg_px, 109);
+    EXPECT_FALSE(taker_report.exec_id.empty());
+
+    EXPECT_EQ(maker_report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(maker_report.target_comp_id, "MAKER");
+    EXPECT_EQ(maker_report.order_id, maker_order_id);
+    EXPECT_EQ(maker_report.cl_order_id, maker_cl_ord_id);
+    EXPECT_EQ(maker_report.exec_type, core::ExecType::status_partially_filled);
+    EXPECT_EQ(maker_report.ord_status, core::OrderStatus::status_partially_filled);
+    EXPECT_EQ(maker_report.symbol, "AAPL");
+    EXPECT_EQ(maker_report.side, core::Side::ask);
+    EXPECT_EQ(maker_report.price, 110);
+    EXPECT_EQ(maker_report.time_in_force, core::TimeInForce::day);
+    EXPECT_EQ(maker_report.leaves_qty, 6);
+    EXPECT_EQ(maker_report.cum_qty, 4);
+    EXPECT_EQ(maker_report.avg_px, 110);
+    EXPECT_FALSE(maker_report.exec_id.empty());
+}

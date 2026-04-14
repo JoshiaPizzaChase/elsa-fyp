@@ -109,8 +109,7 @@ void update_order_info(const core::TradeContainer& trade_container,
 void return_execution_report(const core::Container& container,
                              const OrderManager::OrderIdMapContainer& order_id_map,
                              const OrderManager::OrderInfoMapContainer& order_info_map,
-                             transport::InboundServer& inbound_ws_server,
-                             OrderManagerDatabase& database_client);
+                             transport::InboundServer& inbound_ws_server);
 
 std::pair<core::ExecutionReportContainer, core::ExecutionReportContainer>
 generate_matched_order_report_containers(const core::TradeContainer& trade,

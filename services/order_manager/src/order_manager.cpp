@@ -741,7 +741,7 @@ generate_matched_order_report_containers(
                           : core::OrderStatus::status_partially_filled,
         .symbol = trade.ticker,
         .side = (trade.is_taker_buyer) ? core::Side::bid : core::Side::ask,
-        .price = order_info_map.at(trade.taker_order_id).price,
+        .price = trade.price,
         .time_in_force = order_info_map.at(trade.taker_order_id).time_in_force,
         .leaves_qty = order_info_map.at(trade.taker_order_id).leaves_qty,
         .cum_qty = order_info_map.at(trade.taker_order_id).cum_qty,
@@ -762,13 +762,14 @@ generate_matched_order_report_containers(
                           : core::OrderStatus::status_partially_filled,
         .symbol = trade.ticker,
         .side = (trade.is_taker_buyer) ? core::Side::ask : core::Side::bid,
-        .price = order_info_map.at(trade.maker_order_id).price,
+        .price = trade.price,
         .time_in_force = order_info_map.at(trade.maker_order_id).time_in_force,
         .leaves_qty = order_info_map.at(trade.maker_order_id).leaves_qty,
         .cum_qty = order_info_map.at(trade.maker_order_id).cum_qty,
         .avg_px = order_info_map.at(trade.maker_order_id).avg_px};
 
-    return std::pair{taker_order_report_container, maker_order_report_container};
+    return std::pair{std::move(taker_order_report_container),
+                     std::move(maker_order_report_container)};
 }
 
 core::ExecutionReportContainer generate_cancel_response_report_container(
