@@ -1450,7 +1450,7 @@ TEST_F(GenerateCancelResponseReportContainerTest,
     EXPECT_EQ(report.exec_trans_type, core::ExecTransType::exec_trans_new);
     EXPECT_EQ(report.exec_type, core::ExecType::status_canceled);
     EXPECT_EQ(report.ord_status, core::OrderStatus::status_canceled);
-    EXPECT_EQ(report.text, "Order had already been matched");
+    EXPECT_EQ(report.text, "");
     EXPECT_EQ(report.symbol, "AAPL");
     EXPECT_EQ(report.side, core::Side::ask);
     EXPECT_EQ(report.price, 123);
@@ -1503,4 +1503,169 @@ TEST_F(GenerateCancelResponseReportContainerTest,
     EXPECT_EQ(report.cum_qty, 15);
     EXPECT_EQ(report.avg_px, 301);
     EXPECT_FALSE(report.exec_id.empty());
+}
+
+class ReturnExecutionReportTest : public testing::Test {
+  protected:
+    MockInboundServer mock_inbound_server;
+    OrderManager::OrderIdMapContainer order_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(ReturnExecutionReportTest, TradeContainerSendsTakerAndMakerExecutionReports) {
+    constexpr int taker_order_id = 11;
+    constexpr int maker_order_id = 22;
+    constexpr int taker_cl_ord_id = 101;
+    constexpr int maker_cl_ord_id = 202;
+    constexpr int taker_user_id = 3;
+    constexpr int maker_user_id = 7;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        taker_order_id, taker_cl_ord_id * core::constants::max_user_count + taker_user_id));
+    order_id_map.insert(OrderManager::OrderIdPair(
+        maker_order_id, maker_cl_ord_id * core::constants::max_user_count + maker_user_id));
+
+    order_info_map.emplace(taker_order_id, OrderInfo{.sender_comp_id = "TAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::bid,
+                                                     .price = 100,
+                                                     .time_in_force = core::TimeInForce::gtc,
+                                                     .leaves_qty = 3,
+                                                     .cum_qty = 7,
+                                                     .avg_px = 99,
+                                                     .arrival_gateway_id = 4});
+    order_info_map.emplace(maker_order_id, OrderInfo{.sender_comp_id = "MAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::ask,
+                                                     .price = 100,
+                                                     .time_in_force = core::TimeInForce::gtc,
+                                                     .leaves_qty = 0,
+                                                     .cum_qty = 5,
+                                                     .avg_px = 100,
+                                                     .arrival_gateway_id = 9});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 5,
+                                     .trade_id = "TR-42",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = taker_order_id,
+                                     .maker_order_id = maker_order_id,
+                                     .is_taker_buyer = true};
+
+    core::Container container = trade;
+
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_inbound_server, send(4, _, _))
+            .WillOnce(Invoke([=](int, const std::string& payload,
+                                 transport::MessageFormat) -> std::expected<void, int> {
+                const auto serialized = transport::deserialize_container(payload);
+                const auto* report = std::get_if<core::ExecutionReportContainer>(&serialized);
+                EXPECT_NE(report, nullptr);
+                if (report == nullptr) {
+                    return std::unexpected{-1};
+                }
+
+                EXPECT_EQ(report->sender_comp_id, SERVER_NAME);
+                EXPECT_EQ(report->target_comp_id, "TAKER");
+                EXPECT_EQ(report->order_id, taker_order_id);
+                EXPECT_EQ(report->cl_order_id, taker_cl_ord_id);
+                EXPECT_EQ(report->exec_type, core::ExecType::status_partially_filled);
+                EXPECT_EQ(report->ord_status, core::OrderStatus::status_partially_filled);
+                EXPECT_EQ(report->symbol, "AAPL");
+                EXPECT_EQ(report->side, core::Side::bid);
+                EXPECT_EQ(report->price, 100);
+                EXPECT_EQ(report->time_in_force, core::TimeInForce::gtc);
+                EXPECT_EQ(report->leaves_qty, 3);
+                EXPECT_EQ(report->cum_qty, 7);
+                EXPECT_EQ(report->avg_px, 99);
+                EXPECT_FALSE(report->exec_id.empty());
+                return std::expected<void, int>{};
+            }));
+        EXPECT_CALL(mock_inbound_server, send(9, _, _))
+            .WillOnce(Invoke([=](int, const std::string& payload,
+                                 transport::MessageFormat) -> std::expected<void, int> {
+                const auto serialized = transport::deserialize_container(payload);
+                const auto* report = std::get_if<core::ExecutionReportContainer>(&serialized);
+                EXPECT_NE(report, nullptr);
+                if (report == nullptr) {
+                    return std::unexpected{-1};
+                }
+
+                EXPECT_EQ(report->sender_comp_id, SERVER_NAME);
+                EXPECT_EQ(report->target_comp_id, "MAKER");
+                EXPECT_EQ(report->order_id, maker_order_id);
+                EXPECT_EQ(report->cl_order_id, maker_cl_ord_id);
+                EXPECT_EQ(report->exec_type, core::ExecType::status_filled);
+                EXPECT_EQ(report->ord_status, core::OrderStatus::status_filled);
+                EXPECT_EQ(report->symbol, "AAPL");
+                EXPECT_EQ(report->side, core::Side::ask);
+                EXPECT_EQ(report->price, 100);
+                EXPECT_EQ(report->time_in_force, core::TimeInForce::gtc);
+                EXPECT_EQ(report->leaves_qty, 0);
+                EXPECT_EQ(report->cum_qty, 5);
+                EXPECT_EQ(report->avg_px, 100);
+                EXPECT_FALSE(report->exec_id.empty());
+                return std::expected<void, int>{};
+            }));
+    }
+
+    return_execution_report(container, order_id_map, order_info_map, mock_inbound_server);
+}
+
+TEST_F(ReturnExecutionReportTest, CancelResponseContainerSendsExecutionReportToOriginalGateway) {
+    constexpr int order_id = 33;
+    constexpr int orig_cl_ord_id = 303;
+    constexpr int user_id = 8;
+    constexpr int arrival_gateway_id = 12;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        order_id, orig_cl_ord_id * core::constants::max_user_count + user_id));
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "MSFT",
+                                               .side = core::Side::ask,
+                                               .price = 250,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 2,
+                                               .cum_qty = 8,
+                                               .avg_px = 249,
+                                               .arrival_gateway_id = arrival_gateway_id});
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 404, .success = false};
+
+    core::Container container = cancel_response;
+
+    EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+        .WillOnce(Invoke([=](int, const std::string& payload,
+                             transport::MessageFormat) -> std::expected<void, int> {
+            const auto serialized = transport::deserialize_container(payload);
+            const auto* report = std::get_if<core::ExecutionReportContainer>(&serialized);
+            EXPECT_NE(report, nullptr);
+            if (report == nullptr) {
+                return std::unexpected{-1};
+            }
+
+            EXPECT_EQ(report->sender_comp_id, SERVER_NAME);
+            EXPECT_EQ(report->target_comp_id, "CLIENT");
+            EXPECT_EQ(report->order_id, order_id);
+            EXPECT_EQ(report->cl_order_id, 404);
+            EXPECT_EQ(report->orig_cl_ord_id, orig_cl_ord_id);
+            EXPECT_EQ(report->exec_type, core::ExecType::status_rejected);
+            EXPECT_EQ(report->ord_status, core::OrderStatus::status_rejected);
+            EXPECT_EQ(report->text, "Order had already been matched");
+            EXPECT_EQ(report->symbol, "MSFT");
+            EXPECT_EQ(report->side, core::Side::ask);
+            EXPECT_EQ(report->price, 250);
+            EXPECT_EQ(report->time_in_force, core::TimeInForce::gtc);
+            EXPECT_EQ(report->leaves_qty, 0);
+            EXPECT_EQ(report->cum_qty, 8);
+            EXPECT_EQ(report->avg_px, 249);
+            EXPECT_FALSE(report->exec_id.empty());
+            return std::expected<void, int>{};
+        }));
+
+    return_execution_report(container, order_id_map, order_info_map, mock_inbound_server);
 }

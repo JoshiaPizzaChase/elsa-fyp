@@ -28,20 +28,17 @@ OrderManager::OrderManager(std::string_view host, int port,
 }
 
 void OrderManager::init() {
-    std::ignore = inbound_server->start()
-                      .transform([] {
-                          logger->info("[OM] Order Manager starts accepting connections");
-                      })
-                      .or_else([](int) -> std::expected<void, int> {
-                          logger->error("[OM] Failed to start inbound connection server");
+    std::ignore =
+        inbound_server->start()
+            .transform([] { logger->info("[OM] Order Manager starts accepting connections"); })
+            .or_else([](int) -> std::expected<void, int> {
+                logger->error("[OM] Failed to start inbound connection server");
 
-                          std::terminate();
-                      });
+                std::terminate();
+            });
 
     std::ignore = order_request_outbound_client->start()
-                      .transform([] {
-                          logger->info("[OM] Order Request Client started");
-                      })
+                      .transform([] { logger->info("[OM] Order Request Client started"); })
                       .or_else([](int) -> std::expected<void, int> {
                           logger->error("[OM] Order Request Client failed to start");
 
@@ -49,9 +46,7 @@ void OrderManager::init() {
                       });
 
     std::ignore = order_response_outbound_client->start()
-                      .transform([] {
-                          logger->info("[OM] Order Response Client started");
-                      })
+                      .transform([] { logger->info("[OM] Order Response Client started"); })
                       .or_else([](int) -> std::expected<void, int> {
                           logger->error("[OM] Order Response Client failed to start");
 
@@ -451,9 +446,7 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
         const auto message =
             std::visit([](auto&& c) { return transport::serialize_container(c); }, container);
         order_request_ws_client.send(order_request_connection_id, message)
-            .transform([] {
-                logger->info("[OM] Forwarded a valid container");
-            })
+            .transform([] { logger->info("[OM] Forwarded a valid container"); })
             .transform_error([](int err) -> int {
                 logger->error("[OM] Failed to forward a valid container");
 
@@ -716,9 +709,8 @@ void return_execution_report(const core::Container& container,
             order_info_map.at(cancel_response.order_id).arrival_gateway_id};
         inbound_ws_server
             .send(orig_order_arrival_gateway_id, transport::serialize_container(exec_report))
-            .transform([&] {
-                logger->info("Successfully returned execution report: {}", exec_report);
-            })
+            .transform(
+                [&] { logger->info("Successfully returned execution report: {}", exec_report); })
             .transform_error([&](int err) {
                 logger->info("Failed to returned execution report: {}", exec_report);
 
@@ -802,7 +794,7 @@ core::ExecutionReportContainer generate_cancel_response_report_container(
                                                : core::ExecType::status_rejected,
         .ord_status = (cancel_response.success) ? core::OrderStatus::status_canceled
                                                 : core::OrderStatus::status_rejected,
-        .text = "Order had already been matched",
+        .text = cancel_response.success ? "" : "Order had already been matched",
         .symbol = order_info_map.at(cancel_response.order_id).symbol,
         .side = order_info_map.at(cancel_response.order_id).side,
         .price = order_info_map.at(cancel_response.order_id).price,
