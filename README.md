@@ -13,6 +13,14 @@ Note: Please make sure the boost version >= 1.86.0
 ./scripts/setup.sh
 ```
 
+## Deployment
+```
+./scripts/build.sh
+sudo ./scripts/deploy_backend.sh 8080
+sudo ./scripts/deploy_frontend.sh
+sudo ./scripts/deploy_deployment_server.sh
+```
+
 ## libpqxx installation
 1. First ensure you installed any postgresql related libraries on your system, perhaps via the package manager.
 This includes `libpq`, the underlying C-library powering `libpqxx`.

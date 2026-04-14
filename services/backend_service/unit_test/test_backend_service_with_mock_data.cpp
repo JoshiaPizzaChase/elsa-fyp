@@ -463,7 +463,7 @@ TEST_F(BackendServiceTest, HistoricalTradesMissingServerParam) {
 
 TEST_F(BackendServiceTest, CreateServerSuccess) {
     json::object body;
-    body["server_name"]    = "test_new_server";
+    body["server_name"]    = "test_new01";
     body["description"]    = "Created in test";
     body["active_symbols"] = json::array{"TSLA"};
     body["allowlist"]      = json::array{"test_member"};
@@ -474,7 +474,7 @@ TEST_F(BackendServiceTest, CreateServerSuccess) {
 
     const auto& obj = r.body.as_object();
     EXPECT_TRUE(obj.at("success").as_bool());
-    EXPECT_EQ(obj.at("server_name").as_string(),  "test_new_server");
+    EXPECT_EQ(obj.at("server_name").as_string(),  "test_new01");
     EXPECT_EQ(obj.at("description").as_string(),  "Created in test");
     EXPECT_EQ(obj.at("initial_usd").as_int64(), 250000);
     ASSERT_EQ(obj.at("active_symbols").as_array().size(), 1u);
@@ -485,7 +485,7 @@ TEST_F(BackendServiceTest, CreateServerSuccess) {
     pqxx::connection conn{DB_CONN};
     pqxx::work txn{conn};
     auto srv = txn.exec(
-        "SELECT server_id FROM servers WHERE server_name = 'test_new_server'");
+        "SELECT server_id FROM servers WHERE server_name = 'test_new01'");
     ASSERT_EQ(srv.size(), 1u);
     const int created_server_id = srv[0]["server_id"].as<int>();
 
@@ -501,7 +501,7 @@ TEST_F(BackendServiceTest, CreateServerSuccess) {
 
 TEST_F(BackendServiceTest, CreateServerNoAuth) {
     json::object body;
-    body["server_name"] = "test_unauth_server";
+    body["server_name"] = "test_auth01";
 
     auto r = do_post("/create_server", body);
     EXPECT_EQ(r.status, http::status::unauthorized);
@@ -519,12 +519,36 @@ TEST_F(BackendServiceTest, CreateServerMissingServerName) {
 
 TEST_F(BackendServiceTest, CreateServerUnknownAllowlistUser) {
     json::object body;
-    body["server_name"] = "test_bad_allowlist_server";
+    body["server_name"] = "test_bad01";
     body["allowlist"]   = json::array{"no_such_user_xyz"};
 
     auto r = do_post("/create_server", body, "test_admin");
     EXPECT_EQ(r.status, http::status::bad_request);
     EXPECT_TRUE(r.body.as_object().contains("error"));
+}
+
+TEST_F(BackendServiceTest, CreateServerNameTooLong) {
+    json::object body;
+    body["server_name"]    = "test_server01";
+    body["active_symbols"] = json::array{"TSLA"};
+    body["allowlist"]      = json::array{"test_member"};
+
+    auto r = do_post("/create_server", body, "test_admin");
+    EXPECT_EQ(r.status, http::status::bad_request);
+    EXPECT_EQ(r.body.as_object().at("error").as_string(),
+              "server_name must be less than 12 characters and contain no spaces");
+}
+
+TEST_F(BackendServiceTest, CreateServerNameContainsSpace) {
+    json::object body;
+    body["server_name"]    = "test bad";
+    body["active_symbols"] = json::array{"TSLA"};
+    body["allowlist"]      = json::array{"test_member"};
+
+    auto r = do_post("/create_server", body, "test_admin");
+    EXPECT_EQ(r.status, http::status::bad_request);
+    EXPECT_EQ(r.body.as_object().at("error").as_string(),
+              "server_name must be less than 12 characters and contain no spaces");
 }
 
 // ── POST /configure_server ────────────────────────────────────────────────────

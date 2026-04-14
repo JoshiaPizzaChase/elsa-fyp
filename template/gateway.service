@@ -7,6 +7,7 @@ WorkingDirectory=/usr/local/bin/gateway
 ExecStart=/usr/local/bin/gateway/gateway
 Restart=always
 Environment="SERVER_NAME=<server name placeholder>"
+Environment="SPDLOG_LEVEL=err"
 
 [Install]
 Alias=gateway.service

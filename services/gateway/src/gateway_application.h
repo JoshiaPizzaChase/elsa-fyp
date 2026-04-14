@@ -8,8 +8,7 @@
 #include <quickfix/FixFields.h>
 #include <quickfix/MessageCracker.h>
 
-#include "spdlog/async.h"
-#include "spdlog/sinks/basic_file_sink.h"
+#include "logger/logger.h"
 
 namespace gateway {
 
@@ -47,8 +46,9 @@ class GatewayApplication : public FIX::Application, public FIX::MessageCracker {
     void process_report();
 
   private:
-    std::shared_ptr<spdlog::logger> logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-        "gateway_logger", std::string{PROJECT_SOURCE_DIR} + "/logs/gateway.log");
+    std::shared_ptr<spdlog::logger> logger = logger::create_logger(
+        "gateway_logger",
+        std::format("{}/logs/{}/gateway.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME));
     transport::WebsocketManagerClient m_websocketClient{logger};
     int gateway_connection_id{};
 
