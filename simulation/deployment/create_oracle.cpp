@@ -15,23 +15,16 @@ using namespace simulation;
 
 int main() {
     const auto oracle_config_path = "oracle_config.toml";
-    
-    simulation::OracleServerConfig config;
-    auto toml_result = rfl::toml::load<simulation::OracleServerConfig>(oracle_config_path);
-    if (toml_result) {
-        config = toml_result.value();
-        std::cout << "Loaded Oracle config from " << oracle_config_path << '\n';
-    } else {
-        std::cerr << "Warning: Could not load " << oracle_config_path << ", using default Oracle configuration.\n";
-    }
+
+    simulation::OracleServerConfig config = rfl::toml::load<simulation::OracleServerConfig>(oracle_config_path).value();
 
     std::cout << "Deploying Fundamental Price Oracle..." << '\n';
 
     // Create Websocket Server for Oracle broadcast
     // Typically, we want this on a separate port from the main exchange data
-    int port = 9005; 
+    int port = 9005;
     auto ws_server = std::make_shared<transport::WebsocketManagerServer>(port, "0.0.0.0", "oracle_ws_logger", true);
-    
+
     // Start the Websocket Server
     auto start_res = ws_server->start();
     if (!start_res.has_value()) {

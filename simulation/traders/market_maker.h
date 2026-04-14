@@ -54,6 +54,7 @@ public:
 
     void start() {
         if (!m_running) {
+            std::cout << "[MarketDataHandler] Starting consumer loop...\n";
             m_running = true;
             m_thread = std::thread(&MarketDataHandler::consume_loop, this);
         }
@@ -178,8 +179,16 @@ public:
     MMFixClient(const std::string& config_file) : FixClient(config_file) {}
 
     void send_order(const std::string& ticker, double price, double quantity, const std::string& side) {
+        if (!is_connected()) {
+            std::cout << "[MMFixClient] Not connected...\n";
+            return;
+        }
         OrderSide order_side = (side == "BUY") ? OrderSide::BUY : OrderSide::SELL;
         int client_order_id = ++m_order_id_counter;
+
+        std::cout << "[MMFixClient] Submitting " << side << " order for " << ticker
+                  << " | Px: " << price << " | Qty: " << quantity
+                  << " | ID: " << client_order_id << "\n";
 
         submit_limit_order(ticker, price, quantity, order_side, TimeInForce::GTC, client_order_id);
 
@@ -190,11 +199,14 @@ public:
     void cancel_all_orders(const std::string& ticker) {
         std::lock_guard<std::mutex> lock(m_mutex);
         auto& orders = m_active_orders[ticker];
-        for (const auto& order : orders) {
-            int cancel_id = ++m_order_id_counter;
-            cancel_order(ticker, order.side, order.id, cancel_id);
+        if (!orders.empty()) {
+            std::cout << "[MMFixClient] Cancelling " << orders.size() << " active orders for " << ticker << "\n";
+            for (const auto& order : orders) {
+                int cancel_id = ++m_order_id_counter;
+                cancel_order(ticker, order.side, order.id, cancel_id);
+            }
+            orders.clear();
         }
-        orders.clear();
     }
 
     double get_inventory(const std::string& ticker) {
@@ -209,6 +221,7 @@ public:
 
 protected:
     void on_order_update(const ExecutionReport& report) override {
+        std::cout << "[MMFixClient] Order update...\n";
         std::lock_guard<std::mutex> lock(m_mutex);
         if (report.status == OrderStatus::FILLED || report.status == OrderStatus::PARTIALLY_FILLED) {
             if (report.side == OrderSide::BUY) {
@@ -216,6 +229,10 @@ protected:
             } else {
                 m_inventory[report.ticker] -= report.filled_qty;
             }
+            std::cout << "[MMFixClient] Order filled! Ticker: " << report.ticker
+                      << " | Side: " << (report.side == OrderSide::BUY ? "BUY" : "SELL")
+                      << " | Qty: " << report.filled_qty
+                      << " | New Inv: " << m_inventory[report.ticker] << "\n";
         }
     }
 
@@ -261,9 +278,11 @@ public:
     }
 
     void start(const std::vector<std::string>& tickers) {
+        std::cout << "[MarketMaker] Starting market maker agent for " << tickers.size() << " tickers...\n";
         m_tickers = tickers;
         for (const auto& ticker : m_tickers) {
             m_fix_client->set_inventory(ticker, m_initial_inventory);
+            std::cout << "[MarketMaker] Seeded initial inventory for " << ticker << ": " << m_initial_inventory << "\n";
         }
         m_running = true;
         m_start_time = std::chrono::steady_clock::now();
@@ -286,14 +305,16 @@ private:
                 make_market(ticker);
             }
             // To avoid spamming the exchange, sleep between quotes
-            std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 10Hz quoting
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // 50Hz quoting
         }
     }
 
     void make_market(const std::string& ticker) {
         OrderBookSnapshot ob = m_md_handler->get_latest_orderbook(ticker);
         double mid_price = ob.mid_price();
-        if (mid_price == 0.0) return; // Not enough data yet
+        if (mid_price == 0.0) {
+            mid_price =  100.0;
+        }; // Not enough data yet
 
         double variance = m_md_handler->calculate_variance(ticker);
         if (variance == 0.0) {
@@ -301,14 +322,15 @@ private:
         }
 
         double q = m_fix_client->get_inventory(ticker);
+        double q_centered = q - m_initial_inventory;
 
         auto now = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = now - m_start_time;
-        double time_left = std::max(0.0, m_terminal_time - elapsed.count());
+        double time_left = std::max(0.0, (m_terminal_time - elapsed.count()) / m_terminal_time);
 
         // Calculate Reservation Price (r)
-        // r(s, t) = s - q * gamma * sigma^2 * (T - t)
-        double reservation_price = mid_price - (q * m_gamma * variance * time_left);
+        // Treat initial inventory as target inventory to prevent massive negative price drift
+        double reservation_price = mid_price - (q_centered * m_gamma * variance * time_left);
 
         // Calculate Optimal Spread
         // spread = gamma * sigma^2 * (T - t) + (2 / gamma) * ln(1 + gamma / k)
@@ -318,17 +340,30 @@ private:
         double optimal_bid = reservation_price - (spread / 2.0);
         double optimal_ask = reservation_price + (spread / 2.0);
 
-        place_quotes(ticker, optimal_bid, optimal_ask);
+        std::cout << "[MarketMaker] [" << ticker << "] Mid: " << mid_price
+                  << " | Var: " << variance << " | Inv: " << q
+                  << " | ResPx: " << reservation_price << " | Spread: " << spread << "\n";
+
+        place_quotes(ticker, optimal_bid, optimal_ask, spread);
     }
 
-    void place_quotes(const std::string& ticker, double bid_price, double ask_price) {
+    void place_quotes(const std::string& ticker, double bid_price, double ask_price, double spread) {
         // This may spam the exchange with constant cancels? Although we do have the sleeps.
         m_fix_client->cancel_all_orders(ticker);
 
-        double order_qty = m_lot_size;
+        int num_levels = 5; // Create a ladder of 5 quote levels on each side
+        double level_spacing = std::max(0.05, spread * 0.25); // Minimum spacing of 5 cents, or 25% of the optimal spread
 
-        m_fix_client->send_order(ticker, bid_price, order_qty, "BUY");
-        m_fix_client->send_order(ticker, ask_price, order_qty, "SELL");
+        for (int i = 0; i < num_levels; ++i) {
+            double current_bid = bid_price - (i * level_spacing);
+            double current_ask = ask_price + (i * level_spacing);
+            
+            // Provide more liquidity deeper in the book to absorb shocks (1x, 1.5x, 2x...)
+            double current_qty = m_lot_size * (1.0 + i * 0.5);
+
+            m_fix_client->send_order(ticker, current_bid, current_qty, "BUY");
+            m_fix_client->send_order(ticker, current_ask, current_qty, "SELL");
+        }
     }
 
 private:

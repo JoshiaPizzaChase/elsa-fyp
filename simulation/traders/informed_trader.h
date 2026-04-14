@@ -27,8 +27,12 @@ public:
     void send_snipe_order(const std::string& ticker, double price, double quantity, const std::string& side) {
         OrderSide order_side = (side == "BUY") ? OrderSide::BUY : OrderSide::SELL;
         int client_order_id = ++m_order_id_counter;
-        
-        // Using IMMEDIATE_OR_CANCEL if available in your TimeInForce enum, otherwise GTC. 
+
+        std::cout << "[InformedFixClient] Submitting " << side << " snipe order for " << ticker
+                  << " | Px: " << price << " | Qty: " << quantity
+                  << " | ID: " << client_order_id << "\n";
+
+        // Using IMMEDIATE_OR_CANCEL if available in your TimeInForce enum, otherwise GTC.
         // We'll use GTC for safety but ideally this should be IOC.
         submit_limit_order(ticker, price, quantity, order_side, TimeInForce::GTC, client_order_id);
     }
@@ -52,6 +56,10 @@ protected:
             } else {
                 m_inventory[report.ticker] -= report.filled_qty;
             }
+            std::cout << "[InformedFixClient] Snipe order filled! Ticker: " << report.ticker
+                      << " | Side: " << (report.side == OrderSide::BUY ? "BUY" : "SELL")
+                      << " | Qty: " << report.filled_qty
+                      << " | New Inv: " << m_inventory[report.ticker] << "\n";
         }
     }
 
@@ -95,9 +103,11 @@ public:
     }
 
     void start(const std::vector<std::string>& tickers) {
+        std::cout << "[InformedTrader] Starting informed trader agent for " << tickers.size() << " tickers...\n";
         m_tickers = tickers;
         for (const auto& ticker : m_tickers) {
             m_fix_client->set_inventory(ticker, m_initial_inventory);
+            std::cout << "[InformedTrader] Seeded initial inventory for " << ticker << ": " << m_initial_inventory << "\n";
         }
         m_running = true;
         m_worker_thread = std::thread(&InformedTrader::run_loop, this);
@@ -119,21 +129,23 @@ private:
                 evaluate_and_trade(ticker);
             }
             // Check for mispricings frequently
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 
     void evaluate_and_trade(const std::string& ticker) {
         auto now = std::chrono::steady_clock::now();
-        
+
         // Cooldown check to prevent spamming orders before the book updates
         if (now - m_last_trade_time[ticker] < std::chrono::milliseconds(500)) {
+            std::cout << "In cooldown\n";
             return;
         }
 
         // 1. Get current market state
         OrderBookSnapshot ob = m_md_handler->get_latest_orderbook(ticker);
         if (ob.best_bid_price == 0.0 || ob.best_ask_price == 0.0) {
+            std::cout << "Ordering book not formed...\n";
             return; // Orderbook not formed yet
         }
 
@@ -141,25 +153,39 @@ private:
         double true_price = m_oracle->get_true_price(ticker);
         double current_inventory = m_fix_client->get_inventory(ticker);
 
+        static auto last_log_time = std::chrono::steady_clock::now();
+        if (now - last_log_time > std::chrono::seconds(1)) {
+            std::cout << "[InformedTrader] [" << ticker << "] TruePx: " << true_price
+                      << " | BestBid: " << ob.best_bid_price << " | BestAsk: " << ob.best_ask_price
+                      << " | Inv: " << current_inventory << "\n";
+            last_log_time = now;
+        }
+
         // 3. Evaluate Sniping Opportunities (Adverse Selection)
-        
+
         // Case A: Market is undervaluing the asset (True Price > Ask)
         if (true_price > ob.best_ask_price + m_epsilon) {
             // Buy from the market maker to push the price up
             if (current_inventory + m_trade_qty <= m_max_inventory) {
+                std::cout << "[InformedTrader] [" << ticker << "] Undervalued! True: " << true_price
+                          << " > Ask: " << ob.best_ask_price << " + eps(" << m_epsilon << "). Sniping ASK!\n";
                 m_fix_client->send_snipe_order(ticker, ob.best_ask_price, m_trade_qty, "BUY");
                 m_last_trade_time[ticker] = now;
-                std::cout << "[Informed] Sniping ASK! True: " << true_price << " Ask: " << ob.best_ask_price << "\n";
+            } else {
+                std::cout << "[InformedTrader] [" << ticker << "] Skipping buy snipe, inventory limit reached.\n";
             }
         }
-        
+
         // Case B: Market is overvaluing the asset (True Price < Bid)
         else if (true_price < ob.best_bid_price - m_epsilon) {
             // Sell to the market maker to push the price down (no short selling)
             if (current_inventory - m_trade_qty >= 0.0) {
+                std::cout << "[InformedTrader] [" << ticker << "] Overvalued! True: " << true_price
+                          << " < Bid: " << ob.best_bid_price << " - eps(" << m_epsilon << "). Sniping BID!\n";
                 m_fix_client->send_snipe_order(ticker, ob.best_bid_price, m_trade_qty, "SELL");
                 m_last_trade_time[ticker] = now;
-                std::cout << "[Informed] Sniping BID! True: " << true_price << " Bid: " << ob.best_bid_price << "\n";
+            } else {
+                std::cout << "[InformedTrader] [" << ticker << "] Skipping sell snipe, zero inventory.\n";
             }
         }
     }

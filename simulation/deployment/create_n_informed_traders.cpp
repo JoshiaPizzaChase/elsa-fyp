@@ -16,15 +16,8 @@ using namespace simulation;
 
 int main() {
     const auto it_config_path = "it_config.toml";
-    
-    simulation::InformedTradersConfig config;
-    auto toml_result = rfl::toml::load<simulation::InformedTradersConfig>(it_config_path);
-    if (toml_result) {
-        config = toml_result.value();
-        std::cout << "Loaded Informed Trader config from " << it_config_path << '\n';
-    } else {
-        std::cerr << "Warning: Could not load " << it_config_path << ", using default Informed Trader configuration.\n";
-    }
+
+    simulation::InformedTradersConfig config = rfl::toml::load<simulation::InformedTradersConfig>(it_config_path).value();
 
     std::cout << "Deploying " << config.num_informed_traders << " Informed Traders..." << '\n';
 
@@ -43,7 +36,10 @@ int main() {
         }
 
         // 1. Market Data Websocket & Handler (Connects to Exchange)
-        auto md_ws_client = std::make_shared<transport::WebsocketManagerClient>();
+        auto md_ws_client = std::make_shared<transport::WebsocketManagerClient>(config.cfg_prefix + std::to_string(i + 1) + "_logger");
+        md_ws_client->start();
+        md_ws_client->connect("ws://localhost:9001");
+
         md_ws_clients.push_back(md_ws_client);
 
         auto md_handler = std::make_shared<MarketDataHandler>(md_ws_client);
@@ -51,7 +47,9 @@ int main() {
         md_handlers.push_back(md_handler);
 
         // 2. Oracle Websocket & Client (Connects to Fundamental Price Oracle)
-        auto oracle_ws_client = std::make_shared<transport::WebsocketManagerClient>();
+        auto oracle_ws_client = std::make_shared<transport::WebsocketManagerClient>("informed_t_for_cl" + std::to_string(i+1));
+        oracle_ws_client->start();
+        oracle_ws_client->connect("ws://localhost:9005");
         oracle_ws_clients.push_back(oracle_ws_client);
 
         auto oracle_client = std::make_shared<OracleClient>(oracle_ws_client);
@@ -60,6 +58,13 @@ int main() {
 
         // 3. FIX Client (For Order Execution)
         auto fix_client = std::make_shared<InformedFixClient>(config_path);
+        
+        try {
+            fix_client->connect(5);
+        } catch(const std::exception& e) {
+            std::cerr << "Error connecting InformedFixClient " << i << ": " << e.what() << '\n';
+            continue;
+        }
 
         // 4. Informed Trader Agent
         auto trader = std::make_shared<InformedTrader>(

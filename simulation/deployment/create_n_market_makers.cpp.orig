@@ -34,8 +34,6 @@ int main() {
 
         // Create and store the websocket client
         auto ws_client = std::make_shared<transport::WebsocketManagerClient>(config.cfg_prefix + std::to_string(i + 1) + "_logger");
-        ws_client->start();
-        ws_client->connect("ws://localhost:9001");
         ws_clients.push_back(ws_client);
 
         // Create and start the market data handler

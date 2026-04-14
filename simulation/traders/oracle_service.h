@@ -9,6 +9,7 @@
 #include <vector>
 #include <chrono>
 #include <cmath>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <transport/websocket/websocket_server.h>
 #include <transport/websocket/websocket_client.h>
@@ -37,9 +38,11 @@ public:
                   std::shared_ptr<transport::WebsocketManagerServer> ws_server,
                   const OracleConfig& config = OracleConfig())
         : m_config(config), m_ws_server(std::move(ws_server)), m_running(false) {
+        std::cout << "[OracleService] Initializing with " << tickers.size() << " tickers.\n";
         for (const auto& ticker : tickers) {
             auto it = initial_prices.find(ticker);
             m_true_prices[ticker] = (it != initial_prices.end()) ? it->second : 100.0;
+            std::cout << "[OracleService] Initial price for " << ticker << ": " << m_true_prices[ticker] << "\n";
         }
     }
 
@@ -49,6 +52,7 @@ public:
 
     void start() {
         if (!m_running) {
+            std::cout << "[OracleService] Starting fundamental price broadcast loop...\n";
             m_running = true;
             m_thread = std::thread(&OracleService::run_loop, this);
         }
@@ -83,6 +87,8 @@ private:
 
                     if (uniform_dist(gen) < (m_config.jump_intensity * dt)) {
                         double jump_factor = jump_dist(gen);
+                        std::cout << "[OracleService] *** JUMP EVENT *** " << ticker 
+                                  << " shifted by factor: " << jump_factor << "\n";
                         ds += price * jump_factor;
                     }
 
@@ -133,6 +139,7 @@ public:
 
     void start() {
         if (!m_running) {
+            std::cout << "[OracleClient] Starting to listen for true prices...\n";
             m_running = true;
             m_thread = std::thread(&OracleClient::consume_loop, this);
         }
@@ -163,6 +170,7 @@ private:
             if (msg_opt) {
                 try {
                     auto j = nlohmann::json::parse(*msg_opt);
+                    std::cout << "[OracleClient] Received update: " << *msg_opt << "\n";
                     if (j.contains("ticker") && j.contains("true_price")) {
                         std::string ticker = j["ticker"].get<std::string>();
                         std::lock_guard<std::mutex> lock(m_mutex);

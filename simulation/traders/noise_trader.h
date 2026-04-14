@@ -7,6 +7,7 @@
 #include <order.h>
 #include <random>
 #include <thread>
+#include <iostream>
 
 // TODO 1: Switch to CRTP for compile-time polymorphism later.
 // TODO 2: Improve the class designs below. Having a separate parent class for ProcessGenerator and
@@ -64,8 +65,12 @@ class BernoulliDecisionGenerator : public DecisionGenerator<BinaryDecisionType> 
     }
 
     BinaryDecisionType generate() override {
-        return m_distribution(m_generator) ? static_cast<BinaryDecisionType>(0)
-                                           : static_cast<BinaryDecisionType>(1);
+        if constexpr (std::is_same_v<BinaryDecisionType, OrderSide>) {
+            return m_distribution(m_generator) ? OrderSide::BUY : OrderSide::SELL;
+        } else {
+            return m_distribution(m_generator) ? static_cast<BinaryDecisionType>(0)
+                                               : static_cast<BinaryDecisionType>(1);
+        }
     }
 
   private:
@@ -162,13 +167,30 @@ class NoiseTrader {
     }
 
     void run_strategy() {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::normal_distribution<> price_noise(0.0, 5.0); // Random noise around baseline
+        std::bernoulli_distribution is_limit_order(0.5);  // 50% chance for limit order
+
         while (true) {
             OrderSide buy_or_sell{m_side_generator->generate()};
             double quantity{m_quantity_generator->generate()};
             std::string ticker = m_tickers[rand() % m_tickers.size()];
 
             if (m_fix_client && m_fix_client->is_connected()) {
-                m_fix_client->submit_market_order(ticker, quantity, buy_or_sell, ++m_client_order_id);
+                if (is_limit_order(gen)) {
+                    // Generate a random limit price around a baseline of 100.0
+                    double price = 100.0 + price_noise(gen);
+                    price = std::max(0.01, std::round(price * 100.0) / 100.0);
+
+                    m_fix_client->submit_limit_order(ticker, price, quantity, buy_or_sell, TimeInForce::GTC, ++m_client_order_id);
+                    std::cout << "[NoiseTrader] Submitted " << (buy_or_sell == OrderSide::BUY ? "BUY" : "SELL") 
+                              << " limit order for " << ticker << " | Px: " << price << " | Qty: " << quantity << "\n";
+                } else {
+                    m_fix_client->submit_market_order(ticker, quantity, buy_or_sell, ++m_client_order_id);
+                    std::cout << "[NoiseTrader] Submitted " << (buy_or_sell == OrderSide::BUY ? "BUY" : "SELL") 
+                              << " market order for " << ticker << " | Qty: " << quantity << "\n";
+                }
             }
 
             m_process_generator->wait_for_arrival();

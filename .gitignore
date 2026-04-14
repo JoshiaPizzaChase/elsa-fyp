@@ -6,7 +6,8 @@ store*/
 logs/*
 Testing
 deps/
-temp*.cfg
+*.cfg
+*.toml
 configs
 
 # Usual ignores
