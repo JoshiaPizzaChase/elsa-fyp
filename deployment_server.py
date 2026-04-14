@@ -339,13 +339,13 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
             f"Template TOML must be a flat key/value document: {toml_template_path}"
         )
 
-    gateway_special_keys = {"active_symbols", "fix_server_port", "whitelist"}
-    me_mdp_special_keys = {"active_symbols"}
+    gateway_special_keys = {"fix_server_port", "whitelist"}
+    me_mdp_oms_special_keys = {"active_symbols"}
     
     if service_name == "gateway":
         allowed_non_template_keys = gateway_special_keys
-    elif service_name in {"me", "mdp"}:
-        allowed_non_template_keys = me_mdp_special_keys
+    elif service_name in {"me", "mdp", "oms"}:
+        allowed_non_template_keys = me_mdp_oms_special_keys
     else:
         allowed_non_template_keys = set()
     
@@ -361,7 +361,7 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     server_name_placeholder = "<server name placeholder>"
 
     for key, value in params.items():
-        if key == "active_symbols" and service_name in {"gateway", "me", "mdp"}:
+        if key == "active_symbols" and service_name in {"me", "mdp", "oms"}:
             final_config["active_symbols"] = _parse_csv_string(value, "active_symbols")
             LOGGER.info(
                 "%s active_symbols parsed: count=%d",

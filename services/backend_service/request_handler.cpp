@@ -720,6 +720,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     bj::object oms_params;
     oms_params["order_manager_host"] = machine_ip;
     oms_params["order_manager_port"] = oms_port;
+    oms_params["active_symbols"] = join_csv(symbols);
     oms_params["downstream_matching_engine_host"] = machine_ip;
     oms_params["downstream_matching_engine_port"] = me_port;
 
@@ -733,7 +734,6 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     bj::object gateway_params;
     gateway_params["downstream_order_manager_host"] = machine_ip;
     gateway_params["downstream_order_manager_port"] = oms_port;
-    gateway_params["active_symbols"] = join_csv(symbols);
     gateway_params["fix_server_port"] = gateway_port;
     gateway_params["whitelist"] = join_csv(allowlist_names);
     auto gateway_deploy_result = deploy_service("gateway", gateway_params);
