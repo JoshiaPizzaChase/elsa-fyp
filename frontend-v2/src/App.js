@@ -328,6 +328,7 @@ function App() {
         chartRef.current = chart;
         seriesRef.current = series;
         volumeSeriesRef.current = volumeSeries;
+        rebuildCandles(selectedTimeframeRef.current.ms);
 
         const handleResize = () => {
             if (chartContainerRef.current) {
@@ -347,7 +348,7 @@ function App() {
             ro.disconnect();
             chart.remove();
         };
-    }, []);
+    }, [rebuildCandles]);
 
     // Rebuild candles when timeframe changes
     useEffect(() => {
