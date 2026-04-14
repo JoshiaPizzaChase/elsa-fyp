@@ -31,33 +31,30 @@ void OrderManager::init() {
     std::ignore = inbound_server->start()
                       .transform([] {
                           logger->info("[OM] Order Manager starts accepting connections");
-                          logger->flush();
                       })
                       .or_else([](int) -> std::expected<void, int> {
                           logger->error("[OM] Failed to start inbound connection server");
-                          logger->flush();
+
                           std::terminate();
                       });
 
     std::ignore = order_request_outbound_client->start()
                       .transform([] {
                           logger->info("[OM] Order Request Client started");
-                          logger->flush();
                       })
                       .or_else([](int) -> std::expected<void, int> {
                           logger->error("[OM] Order Request Client failed to start");
-                          logger->flush();
+
                           std::terminate();
                       });
 
     std::ignore = order_response_outbound_client->start()
                       .transform([] {
                           logger->info("[OM] Order Response Client started");
-                          logger->flush();
                       })
                       .or_else([](int) -> std::expected<void, int> {
                           logger->error("[OM] Order Response Client failed to start");
-                          logger->flush();
+
                           std::terminate();
                       });
 
@@ -120,7 +117,7 @@ void OrderManager::connect_matching_engine(std::string host, int port, int try_a
                                 .transform([this](int connection_id) -> int {
                                     order_request_connection_id = connection_id;
                                     logger->info("[OM] Order Request connection established");
-                                    logger->flush();
+
                                     return connection_id;
                                 })
                                 .or_else([=](int err) -> std::expected<int, int> {
@@ -128,7 +125,7 @@ void OrderManager::connect_matching_engine(std::string host, int port, int try_a
                                                   "connection, "
                                                   "attempt: {}",
                                                   i + 1);
-                                    logger->flush();
+
                                     return std::unexpected{err};
                                 });
 
@@ -144,7 +141,7 @@ void OrderManager::connect_matching_engine(std::string host, int port, int try_a
                                  .transform([this](int connection_id) -> int {
                                      order_response_connection_id = connection_id;
                                      logger->info("[OM] Order Response connection established");
-                                     logger->flush();
+
                                      return connection_id;
                                  })
                                  .or_else([=](int err) -> std::expected<int, int> {
@@ -152,7 +149,7 @@ void OrderManager::connect_matching_engine(std::string host, int port, int try_a
                                                    "connection, "
                                                    "attempt: {}",
                                                    i + 1);
-                                     logger->flush();
+
                                      return std::unexpected{err};
                                  });
 
@@ -225,7 +222,6 @@ void OrderManager::start() {
                 logger->info("trade qty: {}", trade_container->quantity);
                 logger->info("taker id: {}", trade_container->taker_id);
                 logger->info("maker_id: {}", trade_container->maker_id);
-                logger->flush();
 
                 update_order_info(*trade_container, order_info_map);
             }
@@ -250,7 +246,6 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
         // Assign an internal order_id to NewOrderSingleContainer
         new_order.order_id = ++latest_assigned_order_id;
         logger->info("[OM] New Order Single received: {}", new_order);
-        logger->flush();
 
         if (!username_user_id_map.contains(new_order.sender_comp_id)) {
             return std::unexpected{std::string{"Order request contains unknown username"}};
@@ -288,7 +283,6 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
                 .send(order_request_connection_id, transport::serialize_container(fill_cost_query))
                 .transform([&] -> std::optional<int> {
                     logger->info("[OM] Successfully sent Fill Cost Query: {}", fill_cost_query);
-                    logger->flush();
 
                     auto response_message = order_request_ws_client.wait_and_dequeue_message(
                         order_request_connection_id);
@@ -305,13 +299,12 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
                     const auto fill_cost_response =
                         std::get<core::FillCostResponseContainer>(response_container);
                     logger->info("[OM] Fill Cost Response received: {}", fill_cost_response);
-                    logger->flush();
 
                     return fill_cost_response.total_cost;
                 })
                 .transform_error([&](int) -> std::string {
                     logger->error("[OM] Failed to send Fill Cost Query: {}", fill_cost_query);
-                    logger->flush();
+
                     return std::string{"Order request dropped due to internal reasons"};
                 });
         }
@@ -322,7 +315,6 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
     auto cancel_request_handler{[&](core::CancelOrderRequestContainer& cancel_request)
                                     -> std::expected<std::optional<int>, std::string> {
         logger->info("[OM] Cancel Order Request received: {}", cancel_request);
-        logger->flush();
 
         if (!username_user_id_map.contains(cancel_request.sender_comp_id)) {
             return std::unexpected{std::string{"Cancel request contains unknown username"}};
@@ -344,7 +336,7 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
 
     auto catch_all_handler{[](auto&) -> std::expected<std::optional<int>, std::string> {
         logger->error("[OM] UNREACHABLE");
-        logger->flush();
+
         std::terminate();
     }};
 
@@ -356,7 +348,6 @@ std::string validate_container(const core::Container& container, BalanceChecker&
                                std::optional<int> market_bid_fill_cost) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) -> std::string {
         logger->info("[OM] Validating New Order Single: {}", new_order);
-        logger->flush();
 
         // A broker must at least have a record for USD at the start
         if (!balance_checker.broker_id_exists(new_order.sender_comp_id)) {
@@ -399,7 +390,7 @@ std::string validate_container(const core::Container& container, BalanceChecker&
                 break;
             default:
                 logger->error("[OM] Unsupported Order Type");
-                logger->flush();
+
                 std::terminate();
             }
             break;
@@ -419,7 +410,7 @@ std::string validate_container(const core::Container& container, BalanceChecker&
             break;
         default:
             logger->error("[OM] Unreachable");
-            logger->flush();
+
             std::terminate();
         }
 
@@ -433,7 +424,7 @@ std::string validate_container(const core::Container& container, BalanceChecker&
         }};
     auto catch_all_handler{[](const auto&) -> std::string {
         logger->error("[OM] Received unexpected request from Gateway");
-        logger->flush();
+
         return "Unsupported request type";
     }};
 
@@ -462,11 +453,10 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
         order_request_ws_client.send(order_request_connection_id, message)
             .transform([] {
                 logger->info("[OM] Forwarded a valid container");
-                logger->flush();
             })
             .transform_error([](int err) -> int {
                 logger->error("[OM] Failed to forward a valid container");
-                logger->flush();
+
                 return err;
             });
 
@@ -478,12 +468,11 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                   transport::MessageFormat::binary)
             .transform([&] {
                 logger->info("[OM] Replied a success execution report: {}", execution_report);
-                logger->flush();
             })
             .transform_error([&](int err) -> int {
                 logger->error("[OM] Failed to reply a success execution report: {}",
                               execution_report);
-                logger->flush();
+
                 return err;
             });
     } else {
@@ -496,12 +485,11 @@ void forward_and_reply(bool is_container_valid, const core::Container& container
                   transport::MessageFormat::binary)
             .transform([&] {
                 logger->info("[OM] Replied a rejection execution report: {}", execution_report);
-                logger->flush();
             })
             .transform_error([&](int err) -> int {
                 logger->error("[OM] Failed to reply a rejection execution report: {}",
                               execution_report);
-                logger->flush();
+
                 return err;
             });
     }
@@ -561,7 +549,7 @@ generate_rejection_report_container(const core::Container& container,
 
     auto catch_all_handler{[](const auto&) {
         logger->error("Unreachable");
-        logger->flush();
+
         std::terminate();
         return core::ExecutionReportContainer{};
     }};
@@ -701,11 +689,10 @@ void return_execution_report(const core::Container& container,
             .send(taker_order_arrival_gateway_id, transport::serialize_container(taker_exec_report))
             .transform([&] {
                 logger->info("Successfully returned execution report: {}", taker_exec_report);
-                logger->flush();
             })
             .transform_error([&](int err) {
                 logger->info("Failed to returned execution report: {}", taker_exec_report);
-                logger->flush();
+
                 return err;
             });
 
@@ -715,11 +702,10 @@ void return_execution_report(const core::Container& container,
             .send(maker_order_arrival_gateway_id, transport::serialize_container(maker_exec_report))
             .transform([&] {
                 logger->info("Successfully returned execution report: {}", maker_exec_report);
-                logger->flush();
             })
             .transform_error([&](int err) {
                 logger->info("Failed to returned execution report: {}", maker_exec_report);
-                logger->flush();
+
                 return err;
             });
     }};
@@ -732,17 +718,16 @@ void return_execution_report(const core::Container& container,
             .send(orig_order_arrival_gateway_id, transport::serialize_container(exec_report))
             .transform([&] {
                 logger->info("Successfully returned execution report: {}", exec_report);
-                logger->flush();
             })
             .transform_error([&](int err) {
                 logger->info("Failed to returned execution report: {}", exec_report);
-                logger->flush();
+
                 return err;
             });
     }};
     auto catch_all_handler{[](const auto&) {
         logger->error("Unreachable");
-        logger->flush();
+
         std::terminate();
     }};
 
