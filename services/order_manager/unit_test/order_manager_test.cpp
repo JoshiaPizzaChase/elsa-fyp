@@ -357,7 +357,7 @@ TEST_F(PreprocessContainerTest, MarketBidNewOrder) {
 
             EXPECT_EQ(query->symbol, "AAPL");
             EXPECT_EQ(query->quantity, 10);
-            EXPECT_EQ(query->side, core::Side::bid);
+            EXPECT_EQ(query->side, core::Side::ask);
 
             return std::expected<void, int>{};
         }));
@@ -424,7 +424,6 @@ TEST_F(PreprocessContainerTest, MarketBidNewOrderFillCostQueryFail) {
                                        username_user_id_map, 0, mock_order_request_client, 0)
                       .transform([](std::optional<int>) { ADD_FAILURE(); })
                       .transform_error([](std::string&& err) -> std::string {
-                          // TODO: Check correct error after error enums are established
                           SUCCEED();
                           return err;
                       });
@@ -591,7 +590,7 @@ TEST_F(ValidateContainerTest, InvalidMarketBid) {
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
 }
 
-TEST_F(ValidateContainerDeathTest, MissingFillCost) {
+TEST_F(ValidateContainerTest, MissingFillCost) {
     constexpr core::Container new_order =
         core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
                                       .target_comp_id = "OM",
@@ -606,7 +605,9 @@ TEST_F(ValidateContainerDeathTest, MissingFillCost) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_DEATH(validate_container(new_order, balance_checker), "");
+    EXPECT_NE(validate_container(new_order, balance_checker, std::nullopt), "ok");
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
 }
 
 TEST_F(ValidateContainerTest, ValidLimitAsk) {

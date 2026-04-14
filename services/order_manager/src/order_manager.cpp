@@ -274,7 +274,7 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
             const auto fill_cost_query =
                 core::FillCostQueryContainer{.symbol = new_order.symbol,
                                              .quantity = new_order.order_qty,
-                                             .side = new_order.side};
+                                             .side = core::Side::ask};
             return order_request_ws_client
                 .send(order_request_connection_id, transport::serialize_container(fill_cost_query))
                 .transform([&] -> std::optional<int> {
@@ -372,15 +372,19 @@ std::string validate_container(const core::Container& container, BalanceChecker&
                                                -new_order.price.value() * new_order.order_qty);
                 break;
             case core::OrderType::market:
-                assert(market_bid_fill_cost.has_value());
+                return market_bid_fill_cost
+                    .transform([&](int fill_cost) {
+                        if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id,
+                                                                    USD_SYMBOL, -fill_cost)) {
+                            return "User has insufficient USD balance";
+                        }
 
-                if (!balance_checker.has_sufficient_balance(new_order.sender_comp_id, USD_SYMBOL,
-                                                            -market_bid_fill_cost.value())) {
-                    return "User has insufficient USD balance";
-                }
+                        balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
+                                                       -fill_cost);
 
-                balance_checker.update_balance(new_order.sender_comp_id, USD_SYMBOL,
-                                               -market_bid_fill_cost.value());
+                        return "ok";
+                    })
+                    .value_or("User has insufficient USD balance");
 
                 break;
             default:
