@@ -287,6 +287,52 @@ TEST_F(PreprocessContainerTest, NewOrderUnknownSender) {
         });
 }
 
+TEST_F(PreprocessContainerTest, NewOrderDuplicateClOrdId) {
+    core::Container new_order_1 =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = std::nullopt,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    core::Container new_order_2 =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = std::nullopt,
+                                      .cl_ord_id = 100,
+                                      .symbol = "AAPL",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    preprocess_container(new_order_1, order_id_map, order_info_map, username_user_id_map, 0,
+                         mock_order_request_client, 0)
+        .transform([&](std::optional<int>) {
+            EXPECT_EQ(order_id_map.left.at(
+                          std::get<core::NewOrderSingleContainer>(new_order_1).order_id.value()),
+                      100 * core::constants::max_user_count + 1);
+        })
+        .transform_error([](std::string&& err) -> std::string {
+            ADD_FAILURE();
+            return err;
+        });
+
+    preprocess_container(new_order_2, order_id_map, order_info_map, username_user_id_map, 0,
+                         mock_order_request_client, 0)
+        .transform([](std::optional<int>) { ADD_FAILURE(); })
+        .transform_error([](std::string&& err) -> std::string {
+            SUCCEED();
+            return err;
+        });
+}
+
 TEST_F(PreprocessContainerTest, NonMarketBidNewOrder) {
     core::Container new_order =
         core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",

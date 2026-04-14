@@ -253,9 +253,15 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
             return std::unexpected{std::string{"Order request contains unknown username"}};
         }
 
-        order_id_map.insert(OrderManager::OrderIdPair(
-            new_order.order_id.value(), new_order.cl_ord_id * core::constants::max_user_count +
-                                            username_user_id_map.at(new_order.sender_comp_id)));
+        const auto transformed_cl_ord_id = new_order.cl_ord_id * core::constants::max_user_count +
+                                           username_user_id_map.at(new_order.sender_comp_id);
+
+        if (order_id_map.right.find(transformed_cl_ord_id) == order_id_map.right.end()) {
+            order_id_map.insert(
+                OrderManager::OrderIdPair(new_order.order_id.value(), transformed_cl_ord_id));
+        } else {
+            return std::unexpected{std::string{"Client order id has already been used"}};
+        }
 
         order_info_map.emplace(new_order.order_id.value(),
                                OrderInfo{.sender_comp_id = new_order.sender_comp_id,
