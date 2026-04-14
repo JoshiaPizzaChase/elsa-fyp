@@ -18,6 +18,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent
 TEMPLATE_DIR = REPO_ROOT / "template"
 BUILD_SERVICES_DIR = REPO_ROOT / "build" / "services"
+BUILD_SIMULATION_DEPLOYMENT_DIR = REPO_ROOT / "build" / "simulation" / "deployment"
 INSTALL_BASE_DIR = Path("/usr/local/bin")
 SYSTEMD_DIR = Path("/etc/systemd/system")
 LOGGER = logging.getLogger("deployment_server")
@@ -44,10 +45,39 @@ SUPPORTED_SERVICES = {
         "template_service": "oms.service",
     },
     "gateway": {
+        "build_base_dir": BUILD_SERVICES_DIR,
         "build_rel": Path("gateway/gateway"),
         "executable": "gateway",
         "template_toml": "gateway.toml",
         "template_service": "gateway.service",
+    },
+    "mm": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_n_market_makers"),
+        "executable": "create_n_market_makers",
+        "template_toml": "mm_config.toml",
+        "template_service": "mm.service",
+    },
+    "nt": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_n_noise_traders"),
+        "executable": "create_n_noise_traders",
+        "template_toml": "nt_config.toml",
+        "template_service": "nt.service",
+    },
+    "it": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_n_informed_traders"),
+        "executable": "create_n_informed_traders",
+        "template_toml": "it_config.toml",
+        "template_service": "it.service",
+    },
+    "oracle": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_oracle"),
+        "executable": "create_oracle",
+        "template_toml": "oracle_config.toml",
+        "template_service": "oracle.service",
     },
 }
 
@@ -227,6 +257,23 @@ def _resolve_listen_port(
     return None
 
 
+def _parse_non_negative_int(value: Any, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise DeploymentError(f"'{field_name}' must be a non-negative integer")
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = int(value.strip())
+        except ValueError as exc:
+            raise DeploymentError(f"'{field_name}' must be a non-negative integer") from exc
+    else:
+        raise DeploymentError(f"'{field_name}' must be a non-negative integer")
+    if parsed < 0:
+        raise DeploymentError(f"'{field_name}' must be a non-negative integer")
+    return parsed
+
+
 def _wait_until_port_released(port: int, timeout_seconds: float) -> None:
     deadline = time.monotonic() + timeout_seconds
     while True:
@@ -308,11 +355,13 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
             f"Unsupported service_name '{service_name}'. "
             f"Supported values: {', '.join(sorted(SUPPORTED_SERVICES))}"
         )
+    service_key = service_name
 
     _validate_server_name(server_name)
 
-    spec = SUPPORTED_SERVICES[service_name]
-    executable_src = BUILD_SERVICES_DIR / spec["build_rel"]
+    spec = SUPPORTED_SERVICES[service_key]
+    build_base_dir = spec.get("build_base_dir", BUILD_SERVICES_DIR)
+    executable_src = build_base_dir / spec["build_rel"]
     toml_template_path = TEMPLATE_DIR / spec["template_toml"]
     service_template_path = TEMPLATE_DIR / spec["template_service"]
     LOGGER.info(
@@ -341,11 +390,16 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
 
     gateway_special_keys = {"fix_server_port", "whitelist"}
     me_mdp_oms_special_keys = {"active_symbols"}
+    simulation_special_keys = {"gateway_host", "gateway_port", "active_symbols"}
     
-    if service_name == "gateway":
+    if service_key == "gateway":
         allowed_non_template_keys = gateway_special_keys
-    elif service_name in {"me", "mdp", "oms"}:
+    elif service_key in {"me", "mdp", "oms"}:
         allowed_non_template_keys = me_mdp_oms_special_keys
+    elif service_key in {"mm", "nt", "it"}:
+        allowed_non_template_keys = simulation_special_keys
+    elif service_key == "oracle":
+        allowed_non_template_keys = {"active_symbols"}
     else:
         allowed_non_template_keys = set()
     
@@ -361,12 +415,20 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     server_name_placeholder = "<server name placeholder>"
 
     for key, value in params.items():
-        if key == "active_symbols" and service_name in {"me", "mdp", "oms"}:
+        if key == "active_symbols" and service_key in {"me", "mdp", "oms"}:
             final_config["active_symbols"] = _parse_csv_string(value, "active_symbols")
             LOGGER.info(
                 "%s active_symbols parsed: count=%d",
-                service_name.upper(),
+                service_key.upper(),
                 len(final_config["active_symbols"]),
+            )
+            continue
+        if key == "active_symbols" and service_key in {"mm", "nt", "it", "oracle"}:
+            final_config["tickers"] = _parse_csv_string(value, "active_symbols")
+            LOGGER.info(
+                "%s tickers parsed from active_symbols: count=%d",
+                service_key.upper(),
+                len(final_config["tickers"]),
             )
             continue
         if key in template_data:
@@ -395,7 +457,8 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     config_dest.write_text(_render_toml(final_config), encoding="utf-8")
 
     gateway_cfg_dest: Path | None = None
-    if service_name == "gateway":
+    simulation_cfg_files: list[str] = []
+    if service_key == "gateway":
         if "fix_server_port" not in params:
             raise DeploymentError("Gateway deployment requires 'fix_server_port'")
         if "whitelist" not in params:
@@ -432,20 +495,64 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
         gateway_cfg_dest = install_dir / "gateway_server.cfg"
         LOGGER.info("Writing gateway cfg: %s", gateway_cfg_dest)
         gateway_cfg_dest.write_text(cfg_text, encoding="utf-8")
+    elif service_key in {"mm", "nt", "it"}:
+        if "gateway_host" not in params:
+            raise DeploymentError(f"{service_key} deployment requires 'gateway_host'")
+        if "gateway_port" not in params:
+            raise DeploymentError(f"{service_key} deployment requires 'gateway_port'")
+        gateway_host = str(params["gateway_host"]).strip()
+        if not gateway_host:
+            raise DeploymentError("'gateway_host' cannot be empty")
+        gateway_port = _parse_port(params["gateway_port"], "gateway_port")
+
+        count_key_by_service = {
+            "mm": "num_market_makers",
+            "nt": "num_noise_traders",
+            "it": "num_informed_traders",
+        }
+        count_key = count_key_by_service[service_key]
+        bot_count = _parse_non_negative_int(final_config.get(count_key, 0), count_key)
+        cfg_prefix_value = final_config.get("cfg_prefix", "")
+        if not isinstance(cfg_prefix_value, str) or not cfg_prefix_value.strip():
+            raise DeploymentError(f"'{count_key}' requires a non-empty cfg_prefix")
+        cfg_prefix = cfg_prefix_value.strip()
+
+        fix_cfg_template = TEMPLATE_DIR / "simulation_client.cfg"
+        if not fix_cfg_template.is_file():
+            raise DeploymentError(f"Simulation client cfg template not found: {fix_cfg_template}")
+        cfg_text_template = fix_cfg_template.read_text(encoding="utf-8")
+
+        store_dir = install_dir / "store"
+        log_dir = install_dir / "log"
+        store_dir.mkdir(parents=True, exist_ok=True)
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        for index in range(1, bot_count + 1):
+            sender_comp_id = f"{service_key}{index}"
+            rendered = cfg_text_template
+            rendered = rendered.replace("<sender_comp_id>", sender_comp_id)
+            rendered = rendered.replace("<target_comp_id>", server_name)
+            rendered = rendered.replace("<gateway_host>", gateway_host)
+            rendered = rendered.replace("<gateway_port>", str(gateway_port))
+            rendered = rendered.replace("<store_path>", str(store_dir))
+            rendered = rendered.replace("<log_path>", str(log_dir))
+            cfg_path = install_dir / f"{cfg_prefix}_{index}.cfg"
+            cfg_path.write_text(rendered, encoding="utf-8")
+            simulation_cfg_files.append(str(cfg_path))
 
     service_template_text = service_template_path.read_text(encoding="utf-8")
     service_text = service_template_text
     service_text = service_text.replace("<service name>", service_name)
     service_text = service_text.replace(server_name_placeholder, server_name)
-    service_text = service_text.replace(f"/usr/local/bin/{service_name}", str(install_dir))
+    service_text = service_text.replace(f"/usr/local/bin/{service_key}", str(install_dir))
     service_text = service_text.replace(
-        f"Alias={service_name}.service", f"Alias={instance_name}.service"
+        f"Alias={service_key}.service", f"Alias={instance_name}.service"
     )
 
     service_dest = SYSTEMD_DIR / f"{instance_name}.service"
     LOGGER.info("Writing systemd unit file: %s", service_dest)
     service_dest.write_text(service_text, encoding="utf-8")
-    listen_port = _resolve_listen_port(service_name, params, final_config)
+    listen_port = _resolve_listen_port(service_key, params, final_config)
 
     # On SELinux-enabled systems, copied files can inherit an incorrect context
     # (e.g., user_home_t), causing systemd EXEC permission failures.
@@ -479,12 +586,14 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
 
     result = {
         "service_name": service_name,
+        "service_key": service_key,
         "server_name": server_name,
         "instance_name": instance_name,
         "install_dir": str(install_dir),
         "executable": str(executable_dest),
         "config_file": str(config_dest),
         "gateway_server_cfg": str(gateway_cfg_dest) if gateway_cfg_dest else None,
+        "simulation_client_cfgs": simulation_cfg_files,
         "unit_file": str(service_dest),
     }
     LOGGER.info("Deployment completed: %s", result)
@@ -502,6 +611,7 @@ def remove_service(service_type: str, server_name: str) -> dict[str, Any]:
             f"Unsupported service_type '{service_type}'. "
             f"Supported values: {', '.join(sorted(SUPPORTED_SERVICES))}"
         )
+    service_key = service_type
 
     _validate_server_name(server_name)
 
@@ -533,6 +643,7 @@ def remove_service(service_type: str, server_name: str) -> dict[str, Any]:
 
     result = {
         "service_type": service_type,
+        "service_key": service_key,
         "server_name": server_name,
         "instance_name": instance_name,
         "unit_file": str(service_dest),

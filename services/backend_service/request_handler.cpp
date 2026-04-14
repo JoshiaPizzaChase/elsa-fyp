@@ -5,12 +5,14 @@
 #include <boost/beast/http.hpp>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <iostream>
 #include <limits>
 #include <ranges>
 #include <thread>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace backend {
@@ -538,8 +540,258 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         return res;
     }
 
+    auto parse_int_value = [](const bj::value& value, const std::string& field_name,
+                              int default_value) -> std::expected<int, std::string> {
+        if (value.is_null()) {
+            return default_value;
+        }
+        long long parsed = 0;
+        if (value.is_int64()) {
+            parsed = value.as_int64();
+        } else if (value.is_uint64()) {
+            const auto raw = value.as_uint64();
+            if (raw > static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+                return std::unexpected{std::format("{} must be <= {}", field_name,
+                                                   std::numeric_limits<int>::max())};
+            }
+            parsed = static_cast<long long>(raw);
+        } else if (value.is_double()) {
+            const double raw = value.as_double();
+            if (std::trunc(raw) != raw) {
+                return std::unexpected{std::format("{} must be an integer", field_name)};
+            }
+            parsed = static_cast<long long>(raw);
+        } else {
+            return std::unexpected{std::format("{} must be an integer", field_name)};
+        }
+        if (parsed < 0 || parsed > std::numeric_limits<int>::max()) {
+            return std::unexpected{std::format("{} must be between 0 and {}", field_name,
+                                               std::numeric_limits<int>::max())};
+        }
+        return static_cast<int>(parsed);
+    };
+
+    auto parse_double_value = [](const bj::value& value, const std::string& field_name,
+                                 double default_value) -> std::expected<double, std::string> {
+        if (value.is_null()) {
+            return default_value;
+        }
+        if (value.is_double()) {
+            const double parsed = value.as_double();
+            if (parsed < 0.0) {
+                return std::unexpected{std::format("{} must be non-negative", field_name)};
+            }
+            return parsed;
+        }
+        if (value.is_int64()) {
+            const auto parsed = static_cast<double>(value.as_int64());
+            if (parsed < 0.0) {
+                return std::unexpected{std::format("{} must be non-negative", field_name)};
+            }
+            return parsed;
+        }
+        if (value.is_uint64()) {
+            return static_cast<double>(value.as_uint64());
+        }
+        return std::unexpected{std::format("{} must be numeric", field_name)};
+    };
+
+    struct BotCreateConfig {
+        std::string service_name;
+        int count = 0;
+        int initial_usd = 100000;
+        double initial_inventory = 100.0;
+        std::unordered_map<std::string, double> inventory_by_symbol;
+        bj::object deploy_params;
+        std::vector<int> user_ids;
+        std::vector<std::string> usernames;
+    };
+
+    const std::unordered_set<std::string> active_symbol_set(symbols.begin(), symbols.end());
+
+    auto parse_bot_config = [&](const bj::object* bots_obj, const std::string& bot_key,
+                                const std::string& username_prefix,
+                                const std::string& service_name, const std::string& count_key,
+                                int default_count, double default_initial_inventory,
+                                const std::vector<std::pair<std::string, double>>& param_defaults)
+        -> std::expected<BotCreateConfig, std::string> {
+        BotCreateConfig config;
+        config.service_name = service_name;
+        config.count = default_count;
+        config.initial_usd = initial_usd;
+        config.initial_inventory = default_initial_inventory;
+        config.deploy_params[count_key] = default_count;
+        config.deploy_params["cfg_prefix"] = username_prefix;
+        config.deploy_params["initial_inventory"] = default_initial_inventory;
+        for (const auto& [key, default_value] : param_defaults) {
+            config.deploy_params[key] = default_value;
+        }
+
+        const bj::object* type_obj = nullptr;
+        if (bots_obj != nullptr) {
+            if (auto it = bots_obj->find(bot_key); it != bots_obj->end() && it->value().is_object()) {
+                type_obj = &it->value().as_object();
+            }
+        }
+        if (type_obj == nullptr) {
+            config.deploy_params[count_key] = 0;
+            config.count = 0;
+            return config;
+        }
+
+        if (auto it = type_obj->find("count"); it != type_obj->end()) {
+            auto parsed = parse_int_value(it->value(), bot_key + ".count", default_count);
+            if (!parsed.has_value())
+                return std::unexpected{parsed.error()};
+            config.count = parsed.value();
+        }
+        if (auto it = type_obj->find("initial_usd"); it != type_obj->end()) {
+            auto parsed = parse_int_value(it->value(), bot_key + ".initial_usd", initial_usd);
+            if (!parsed.has_value())
+                return std::unexpected{parsed.error()};
+            config.initial_usd = parsed.value();
+        }
+        if (auto it = type_obj->find("initial_inventory"); it != type_obj->end()) {
+            auto parsed = parse_double_value(it->value(), bot_key + ".initial_inventory",
+                                             default_initial_inventory);
+            if (!parsed.has_value())
+                return std::unexpected{parsed.error()};
+            config.initial_inventory = parsed.value();
+        }
+        config.deploy_params[count_key] = config.count;
+
+        for (const auto& symbol : symbols) {
+            if (symbol == "USD") {
+                continue;
+            }
+            config.inventory_by_symbol.emplace(symbol, config.initial_inventory);
+        }
+        if (auto it = type_obj->find("inventory_by_symbol"); it != type_obj->end()) {
+            if (!it->value().is_object()) {
+                return std::unexpected{std::format("{}.inventory_by_symbol must be an object",
+                                                   bot_key)};
+            }
+            for (const auto& [key, val] : it->value().as_object()) {
+                const std::string symbol = std::string(key);
+                if (!active_symbol_set.contains(symbol)) {
+                    return std::unexpected{
+                        std::format("{}.inventory_by_symbol has unknown symbol: {}", bot_key, symbol)};
+                }
+                auto parsed = parse_double_value(val,
+                                                 std::format("{}.inventory_by_symbol.{}", bot_key, symbol),
+                                                 config.initial_inventory);
+                if (!parsed.has_value()) {
+                    return std::unexpected{parsed.error()};
+                }
+                config.inventory_by_symbol[symbol] = parsed.value();
+            }
+        }
+        if (!symbols.empty()) {
+            const auto first_symbol_it = std::ranges::find_if(symbols, [](const std::string& symbol) {
+                return symbol != "USD";
+            });
+            if (first_symbol_it != symbols.end()) {
+                config.initial_inventory = config.inventory_by_symbol[*first_symbol_it];
+            }
+        }
+        config.deploy_params["initial_inventory"] = config.initial_inventory;
+
+        if (auto it = type_obj->find("params"); it != type_obj->end()) {
+            if (!it->value().is_object()) {
+                return std::unexpected{std::format("{}.params must be an object", bot_key)};
+            }
+            const auto& params_obj = it->value().as_object();
+            for (const auto& [key, default_value] : param_defaults) {
+                double parsed_value = default_value;
+                if (auto param_it = params_obj.find(key); param_it != params_obj.end()) {
+                    auto parsed = parse_double_value(param_it->value(),
+                                                     std::format("{}.params.{}", bot_key, key),
+                                                     default_value);
+                    if (!parsed.has_value())
+                        return std::unexpected{parsed.error()};
+                    parsed_value = parsed.value();
+                }
+                config.deploy_params[key] = parsed_value;
+            }
+        }
+
+        return config;
+    };
+
+    const bj::object* bots_obj = nullptr;
+    if (auto it = body.find("bots"); it != body.end()) {
+        if (!it->value().is_object()) {
+            res["error"] = "bots must be an object";
+            return res;
+        }
+        bots_obj = &it->value().as_object();
+    }
+
+    auto mm_cfg_result =
+        parse_bot_config(bots_obj, "mm", "market_maker", "mm", "num_market_makers", 0, 100.0,
+                         {{"lot_size", 1.0}, {"gamma", 0.1}, {"k", 1.5}, {"terminal_time", 1.0}});
+    if (!mm_cfg_result.has_value()) {
+        res["error"] = mm_cfg_result.error();
+        return res;
+    }
+    auto nt_cfg_result =
+        parse_bot_config(bots_obj, "nt", "noise_trader", "nt", "num_noise_traders", 0, 100.0,
+                         {{"lambda_eps", 20.0},
+                          {"bernoulli", 0.5},
+                          {"pareto_scale", 1.0},
+                          {"pareto_shape", 2.0}});
+    if (!nt_cfg_result.has_value()) {
+        res["error"] = nt_cfg_result.error();
+        return res;
+    }
+    auto it_cfg_result =
+        parse_bot_config(bots_obj, "it", "informed_trader", "it", "num_informed_traders", 0, 100.0,
+                         {{"epsilon", 0.05}, {"trade_qty", 10.0}, {"max_inventory", 1000.0}});
+    if (!it_cfg_result.has_value()) {
+        res["error"] = it_cfg_result.error();
+        return res;
+    }
+
+    std::vector<BotCreateConfig> bot_configs;
+    bot_configs.push_back(mm_cfg_result.value());
+    bot_configs.push_back(nt_cfg_result.value());
+    bot_configs.push_back(it_cfg_result.value());
+
+    constexpr std::string_view kBotPassword = "eduxpassword";
+    for (auto& bot_cfg : bot_configs) {
+        for (int i = 1; i <= bot_cfg.count; ++i) {
+            const std::string username = std::format("{}{}", bot_cfg.service_name, i);
+            bot_cfg.usernames.push_back(username);
+            auto user_result = m_db_client.get_user(username);
+            if (!user_result.has_value()) {
+                res["error"] = user_result.error();
+                return res;
+            }
+            if (user_result.value().has_value()) {
+                bot_cfg.user_ids.push_back(user_result.value()->user_id);
+                continue;
+            }
+            auto create_user_result = m_db_client.create_user(username, kBotPassword);
+            if (!create_user_result.has_value()) {
+                res["error"] = create_user_result.error();
+                return res;
+            }
+            bot_cfg.user_ids.push_back(create_user_result.value().user_id);
+        }
+    }
+
+    std::vector<std::string> all_allowlist_names = allowlist_names;
+    std::unordered_set<std::string> allowlist_set(all_allowlist_names.begin(), all_allowlist_names.end());
+    for (const auto& bot_cfg : bot_configs) {
+        for (const auto& bot_username : bot_cfg.usernames) {
+            if (allowlist_set.insert(bot_username).second) {
+                all_allowlist_names.push_back(bot_username);
+            }
+        }
+    }
+
     // Resolve allowlist usernames to user IDs
-    auto ids_result = m_db_client.resolve_user_ids(allowlist_names);
+    auto ids_result = m_db_client.resolve_user_ids(all_allowlist_names);
     if (!ids_result.has_value()) {
         res["error"] = ids_result.error();
         return res;
@@ -670,27 +922,56 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
 
     auto create_result =
         m_db_client.create_server_with_services(server_name, caller_id, description, symbols,
-                                                ids_result.value(), service_rows, initial_usd);
+                                                 ids_result.value(), service_rows, initial_usd);
     if (!create_result.has_value()) {
         res["error"] = create_result.error();
         return res;
     }
     int server_id = create_result.value();
 
-    std::vector<int> balance_user_ids = ids_result.value();
-    if (std::ranges::find(balance_user_ids, caller_id) == balance_user_ids.end()) {
-        balance_user_ids.push_back(caller_id);
+    std::unordered_map<int, int> initial_usd_by_user_id;
+    for (const int user_id : ids_result.value()) {
+        initial_usd_by_user_id[user_id] = initial_usd;
     }
-    for (const int user_id : balance_user_ids) {
+    initial_usd_by_user_id[caller_id] = initial_usd;
+    for (const auto& bot_cfg : bot_configs) {
+        for (const int bot_user_id : bot_cfg.user_ids) {
+            initial_usd_by_user_id[bot_user_id] = bot_cfg.initial_usd;
+        }
+    }
+
+    const auto balance_multiplier = static_cast<std::int64_t>(core::constants::decimal_to_int_multiplier);
+    const auto usd_multiplier = balance_multiplier * balance_multiplier;
+
+    for (const auto& [user_id, user_initial_usd] : initial_usd_by_user_id) {
         const std::int64_t initial_usd_scaled =
-            static_cast<std::int64_t>(static_cast<double>(initial_usd) *
-                                      core::constants::decimal_to_int_multiplier *
-                                      core::constants::decimal_to_int_multiplier);
-        auto balance_result = m_db_client.insert_balance(
-            user_id, server_id, "USD", initial_usd_scaled);
+            static_cast<std::int64_t>(user_initial_usd) * usd_multiplier;
+        auto balance_result = m_db_client.insert_balance(user_id, server_id, "USD", initial_usd_scaled);
         if (!balance_result.has_value()) {
             res["error"] = balance_result.error();
             return res;
+        }
+    }
+
+    for (const auto& bot_cfg : bot_configs) {
+        for (const int bot_user_id : bot_cfg.user_ids) {
+            for (const auto& symbol : symbols) {
+                if (symbol == "USD") {
+                    continue;
+                }
+                const auto inventory_it = bot_cfg.inventory_by_symbol.find(symbol);
+                const double inventory = (inventory_it != bot_cfg.inventory_by_symbol.end())
+                                             ? inventory_it->second
+                                             : bot_cfg.initial_inventory;
+                const std::int64_t inventory_scaled = static_cast<std::int64_t>(std::llround(
+                    inventory * static_cast<double>(balance_multiplier)));
+                auto balance_result = m_db_client.insert_balance(
+                    bot_user_id, server_id, symbol, inventory_scaled);
+                if (!balance_result.has_value()) {
+                    res["error"] = balance_result.error();
+                    return res;
+                }
+            }
         }
     }
 
@@ -735,11 +1016,40 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     gateway_params["downstream_order_manager_host"] = machine_ip;
     gateway_params["downstream_order_manager_port"] = oms_port;
     gateway_params["fix_server_port"] = gateway_port;
-    gateway_params["whitelist"] = join_csv(allowlist_names);
+    gateway_params["whitelist"] = join_csv(all_allowlist_names);
     auto gateway_deploy_result = deploy_service("gateway", gateway_params);
     if (!gateway_deploy_result.has_value()) {
         res["error"] = gateway_deploy_result.error();
         return res;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    const auto it_cfg_it = std::ranges::find_if(
+        bot_configs, [](const BotCreateConfig& cfg) { return cfg.service_name == "it"; });
+    const int it_count = (it_cfg_it != bot_configs.end()) ? it_cfg_it->count : 0;
+    if (it_count > 0) {
+        bj::object oracle_params;
+        oracle_params["active_symbols"] = join_csv(symbols);
+        auto oracle_deploy_result = deploy_service("oracle", oracle_params);
+        if (!oracle_deploy_result.has_value()) {
+            res["error"] = oracle_deploy_result.error();
+            return res;
+        }
+    }
+
+    for (const auto& bot_cfg : bot_configs) {
+        if (bot_cfg.count <= 0) {
+            continue;
+        }
+        bj::object bot_deploy_params = bot_cfg.deploy_params;
+        bot_deploy_params["gateway_host"] = machine_ip;
+        bot_deploy_params["gateway_port"] = gateway_port;
+        bot_deploy_params["active_symbols"] = join_csv(symbols);
+        auto bot_deploy_result = deploy_service(bot_cfg.service_name, bot_deploy_params);
+        if (!bot_deploy_result.has_value()) {
+            res["error"] = bot_deploy_result.error();
+            return res;
+        }
     }
     auto create_table_res = m_db_client.create_quest_tables(server_name);
     if (!create_table_res.has_value()) {
@@ -760,7 +1070,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     res["active_symbols"] = std::move(sym_arr);
 
     bj::array al_arr;
-    for (const auto& u : allowlist_names)
+    for (const auto& u : all_allowlist_names)
         al_arr.emplace_back(u);
     res["allowlist"] = std::move(al_arr);
 
@@ -917,6 +1227,17 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
     }
 
     constexpr int deployment_port = 10000;
+    auto gateway_endpoint_result = m_db_client.get_service_endpoint(server_name, Service::gateway);
+    if (!gateway_endpoint_result.has_value()) {
+        res["error"] = gateway_endpoint_result.error();
+        return res;
+    }
+    if (!gateway_endpoint_result.value().has_value()) {
+        res["error"] = "Service endpoint not found for gateway on server " + server_name;
+        return res;
+    }
+    const std::string deployment_server_ip = gateway_endpoint_result.value()->ip;
+
     auto remove_service = [&](const std::string& service_type,
                               Service service_enum) -> std::expected<void, std::string> {
         auto deployment_endpoint_result =
@@ -984,6 +1305,61 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
         }
     };
 
+    auto remove_simulation_service = [&](const std::string& service_type)
+        -> std::expected<void, std::string> {
+        try {
+            net::io_context ioc;
+            tcp::resolver resolver{ioc};
+            beast::tcp_stream stream{ioc};
+            stream.connect(resolver.resolve(deployment_server_ip, std::to_string(deployment_port)));
+
+            bj::object payload;
+            payload["service_type"] = service_type;
+            payload["server_name"] = server_name;
+
+            http::request<http::string_body> remove_req{http::verb::post, "/remove_server", 11};
+            remove_req.set(http::field::host, deployment_server_ip);
+            remove_req.set(http::field::content_type, "application/json");
+            remove_req.set(http::field::connection, "close");
+            remove_req.body() = bj::serialize(payload);
+            remove_req.prepare_payload();
+
+            http::write(stream, remove_req);
+
+            beast::flat_buffer buffer;
+            http::response<http::string_body> remove_res;
+            http::read(stream, buffer, remove_res);
+
+            beast::error_code ec;
+            stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            if (remove_res.result() != http::status::ok) {
+                return std::unexpected{std::format(
+                    "deployment_server {}:{} returned status {} for remove {}: {}",
+                    deployment_server_ip, deployment_port,
+                    static_cast<unsigned>(remove_res.result_int()), service_type, remove_res.body())};
+            }
+
+            bj::value parsed = bj::parse(remove_res.body());
+            if (!parsed.is_object()) {
+                return std::unexpected{
+                    std::format("Invalid response body from deployment_server for remove {}: {}",
+                                service_type, remove_res.body())};
+            }
+            const auto& obj = parsed.as_object();
+            if (!obj.contains("status") || !obj.at("status").is_string() ||
+                obj.at("status").as_string() != "removed") {
+                return std::unexpected{
+                    std::format("Remove failed for {}: {}", service_type, remove_res.body())};
+            }
+            return {};
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error calling deployment_server {}:{} for remove {}: {}",
+                            deployment_server_ip, deployment_port, service_type, e.what())};
+        }
+    };
+
     auto mdp_remove_result = remove_service("mdp", Service::mdp);
     if (!mdp_remove_result.has_value()) {
         res["error"] = mdp_remove_result.error();
@@ -1005,6 +1381,30 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
     auto gateway_remove_result = remove_service("gateway", Service::gateway);
     if (!gateway_remove_result.has_value()) {
         res["error"] = gateway_remove_result.error();
+        return res;
+    }
+
+    auto mm_remove_result = remove_simulation_service("mm");
+    if (!mm_remove_result.has_value()) {
+        res["error"] = mm_remove_result.error();
+        return res;
+    }
+
+    auto nt_remove_result = remove_simulation_service("nt");
+    if (!nt_remove_result.has_value()) {
+        res["error"] = nt_remove_result.error();
+        return res;
+    }
+
+    auto it_remove_result = remove_simulation_service("it");
+    if (!it_remove_result.has_value()) {
+        res["error"] = it_remove_result.error();
+        return res;
+    }
+
+    auto oracle_remove_result = remove_simulation_service("oracle");
+    if (!oracle_remove_result.has_value()) {
+        res["error"] = oracle_remove_result.error();
         return res;
     }
 

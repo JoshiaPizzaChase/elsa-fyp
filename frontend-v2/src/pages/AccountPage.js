@@ -12,6 +12,37 @@ import './AccountPage.css';
 
 const DEFAULT_INITIAL_USD = 100000;
 const SERVER_NAME_MAX_LENGTH = 11;
+const BOT_TYPES = ['mm', 'nt', 'it'];
+const BOT_META = {
+    mm: {label: 'Market Maker', shortLabel: 'MM', countLabel: 'Market Makers'},
+    nt: {label: 'Noise Trader', shortLabel: 'NT', countLabel: 'Noise Traders'},
+    it: {label: 'Informed Trader', shortLabel: 'IT', countLabel: 'Informed Traders'},
+};
+const DEFAULT_BOT_CONFIG = {
+    mm: {
+        count: 1,
+        initial_usd: DEFAULT_INITIAL_USD,
+        initial_inventory: 100,
+        inventory_by_symbol: {},
+        params: {lot_size: 1, gamma: 0.1, k: 1.5, terminal_time: 1},
+    },
+    nt: {
+        count: 5,
+        initial_usd: DEFAULT_INITIAL_USD,
+        initial_inventory: 100,
+        inventory_by_symbol: {},
+        params: {lambda_eps: 20, bernoulli: 0.5, pareto_scale: 1, pareto_shape: 2},
+    },
+    it: {
+        count: 1,
+        initial_usd: DEFAULT_INITIAL_USD,
+        initial_inventory: 100,
+        inventory_by_symbol: {},
+        params: {epsilon: 0.05, trade_qty: 10, max_inventory: 1000},
+    },
+};
+
+const createDefaultBotConfig = () => JSON.parse(JSON.stringify(DEFAULT_BOT_CONFIG));
 
 const PIE_COLORS = [
     '#a29bfe', '#6c5ce7', '#74b9ff', '#0984e3',
@@ -162,6 +193,112 @@ function AllowlistInput({label, tags, onChange, placeholder}) {
     );
 }
 
+function BotSettingsModal({botType, config, symbols, onChange, onClose}) {
+    if (!botType || !config) return null;
+    const botMeta = BOT_META[botType];
+    const paramEntries = Object.entries(config.params ?? {});
+
+    return (
+        <div className="sm-bot-settings-overlay" onClick={onClose}>
+            <div className="sm-bot-settings-modal" onClick={e => e.stopPropagation()}>
+                <div className="sm-bot-settings-header">
+                    <h3 className="sm-bot-settings-title">{botMeta.label} Settings</h3>
+                    <button type="button" className="sm-x-btn" onClick={onClose} title="Close">✕</button>
+                </div>
+
+                <div className="sm-bot-settings-grid">
+                    <div className="sm-field">
+                        <label className="sm-label">Initial USD</label>
+                        <input
+                            className="sm-input"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={config.initial_usd}
+                            onChange={e => onChange(botType, 'initial_usd', e.target.value)}
+                        />
+                    </div>
+                    <div className="sm-field">
+                        <label className="sm-label">Initial Inventory</label>
+                        <input
+                            className="sm-input"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={config.initial_inventory}
+                            onChange={e => onChange(botType, 'initial_inventory', e.target.value)}
+                        />
+                    </div>
+                    {symbols.map((symbol) => (
+                        <div className="sm-field" key={`inv-${symbol}`}>
+                            <label className="sm-label">Inventory ({symbol})</label>
+                            <input
+                                className="sm-input"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={config.inventory_by_symbol?.[symbol] ?? config.initial_inventory ?? 0}
+                                onChange={e => onChange(botType, `inventory_by_symbol.${symbol}`, e.target.value)}
+                            />
+                        </div>
+                    ))}
+                    {paramEntries.map(([paramKey, paramValue]) => (
+                        <div className="sm-field" key={paramKey}>
+                            <label className="sm-label">{paramKey.replaceAll('_', ' ')}</label>
+                            <input
+                                className="sm-input"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={paramValue}
+                                onChange={e => onChange(botType, `params.${paramKey}`, e.target.value)}
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="sm-actions">
+                    <button type="button" className="sm-save-btn" onClick={onClose}>Done</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function BotCard({botType, config, onCountChange, onOpenSettings}) {
+    const botMeta = BOT_META[botType];
+    return (
+        <div className="sm-bot-card">
+            <div className="sm-bot-card-header">
+                <div>
+                    <div className="sm-bot-card-title">{botMeta.label}</div>
+                    <div className="sm-bot-card-subtitle">{botMeta.shortLabel}</div>
+                </div>
+                <button
+                    type="button"
+                    className="sm-bot-settings-btn"
+                    onClick={() => onOpenSettings(botType)}
+                    title={`Configure ${botMeta.label}`}
+                    aria-label={`Configure ${botMeta.label}`}
+                >
+                    ⚙
+                </button>
+            </div>
+            <div className="sm-field">
+                <label className="sm-label">{botMeta.countLabel}</label>
+                <input
+                    className="sm-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={config.count}
+                    onChange={e => onCountChange(botType, e.target.value)}
+                />
+            </div>
+        </div>
+    );
+}
+
 // ── ServerModal ───────────────────────────────────────────────────────────────
 function ServerModal({server, username, onClose, onSaved}) {
     const isNew = server === null;
@@ -185,6 +322,8 @@ function ServerModal({server, username, onClose, onSaved}) {
     const [initialUsd, setInitialUsd] = useState(
         isNew ? DEFAULT_INITIAL_USD : (server.initial_usd ?? DEFAULT_INITIAL_USD)
     );
+    const [botConfig, setBotConfig] = useState(createDefaultBotConfig());
+    const [activeBotSettings, setActiveBotSettings] = useState(null);
 
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState(null); // {type:'success'|'error', msg}
@@ -194,6 +333,26 @@ function ServerModal({server, username, onClose, onSaved}) {
         setToast({type, msg});
         setTimeout(() => setToast(null), 4000);
     };
+
+    useEffect(() => {
+        if (!isNew) return;
+        setBotConfig(prev => {
+            const next = {...prev};
+            BOT_TYPES.forEach((botType) => {
+                const current = next[botType] ?? createDefaultBotConfig()[botType];
+                const nextInventory = {};
+                symbols.forEach((symbol) => {
+                    nextInventory[symbol] =
+                        current.inventory_by_symbol?.[symbol] ?? current.initial_inventory ?? 100;
+                });
+                next[botType] = {
+                    ...current,
+                    inventory_by_symbol: nextInventory,
+                };
+            });
+            return next;
+        });
+    }, [symbols, isNew]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -207,12 +366,40 @@ function ServerModal({server, username, onClose, onSaved}) {
         }
 
         setSaving(true);
+        const normalizedBots = BOT_TYPES.reduce((acc, botType) => {
+            const current = botConfig[botType];
+            const normalized = {
+                count: Number.isFinite(Number(current.count)) ? Math.max(0, Math.floor(Number(current.count))) : 0,
+                initial_usd: Number.isFinite(Number(current.initial_usd))
+                    ? Math.max(0, Math.floor(Number(current.initial_usd)))
+                    : DEFAULT_INITIAL_USD,
+                initial_inventory: 0,
+                inventory_by_symbol: {},
+                params: {},
+            };
+            const symbolInventories = symbols.reduce((inv, symbol) => {
+                const rawInventory = current.inventory_by_symbol?.[symbol];
+                inv[symbol] = Number.isFinite(Number(rawInventory)) ? Math.max(0, Number(rawInventory)) : 0;
+                return inv;
+            }, {});
+            normalized.inventory_by_symbol = symbolInventories;
+            const firstSymbol = symbols[0];
+            normalized.initial_inventory = firstSymbol
+                ? (symbolInventories[firstSymbol] ?? 0)
+                : (Number.isFinite(Number(current.initial_inventory)) ? Math.max(0, Number(current.initial_inventory)) : 0);
+            Object.entries(current.params ?? {}).forEach(([key, value]) => {
+                normalized.params[key] = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+            });
+            acc[botType] = normalized;
+            return acc;
+        }, {});
         const payload = {
             server_name: serverName,
             description: description.trim(),
             active_symbols: symbols,
             allowlist,
             initial_usd: Number.isFinite(Number(initialUsd)) ? Number(initialUsd) : DEFAULT_INITIAL_USD,
+            ...(isNew ? {bots: normalizedBots} : {}),
         };
 
         try {
@@ -326,6 +513,31 @@ function ServerModal({server, username, onClose, onSaved}) {
                         placeholder="Type symbols separated by space or comma…"
                     />
 
+                    {isNew && (
+                        <div className="sm-field">
+                            <label className="sm-label">Simulation Bots</label>
+                            <div className="sm-bot-grid">
+                                {BOT_TYPES.map((botType) => (
+                                    <BotCard
+                                        key={botType}
+                                        botType={botType}
+                                        config={botConfig[botType]}
+                                        onCountChange={(targetType, value) => {
+                                            setBotConfig(prev => ({
+                                                ...prev,
+                                                [targetType]: {
+                                                    ...prev[targetType],
+                                                    count: value,
+                                                },
+                                            }));
+                                        }}
+                                        onOpenSettings={setActiveBotSettings}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Allowlist */}
                     <AllowlistInput
                         label="Allowed Users (Allowlist)"
@@ -345,6 +557,34 @@ function ServerModal({server, username, onClose, onSaved}) {
                     </div>
                 </form>
             </div>
+            {isNew && (
+                <BotSettingsModal
+                    botType={activeBotSettings}
+                    config={activeBotSettings ? botConfig[activeBotSettings] : null}
+                    symbols={symbols}
+                    onClose={() => setActiveBotSettings(null)}
+                    onChange={(targetType, keyPath, rawValue) => {
+                        setBotConfig(prev => {
+                            const next = {...prev};
+                            const target = {...next[targetType]};
+                            if (keyPath.startsWith('params.')) {
+                                const paramKey = keyPath.slice('params.'.length);
+                                target.params = {...target.params, [paramKey]: rawValue};
+                            } else if (keyPath.startsWith('inventory_by_symbol.')) {
+                                const symbolKey = keyPath.slice('inventory_by_symbol.'.length);
+                                target.inventory_by_symbol = {
+                                    ...(target.inventory_by_symbol ?? {}),
+                                    [symbolKey]: rawValue,
+                                };
+                            } else {
+                                target[keyPath] = rawValue;
+                            }
+                            next[targetType] = target;
+                            return next;
+                        });
+                    }}
+                />
+            )}
         </div>
     );
 }

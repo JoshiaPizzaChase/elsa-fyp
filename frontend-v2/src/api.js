@@ -92,7 +92,7 @@ export async function getServerMdpEndpoint(server_name) {
 /**
  * Create a new trading server.
  * @param {string} username - the logged-in admin's username (used for auth token)
- * @param {{ server_name, description, active_symbols: string[], allowlist: string[], initial_usd: number }} payload
+ * @param {{ server_name, description, active_symbols: string[], allowlist: string[], initial_usd: number, bots?: object }} payload
  */
 export async function createServer(username, payload) {
     return postJSON('/create_server', payload, username);

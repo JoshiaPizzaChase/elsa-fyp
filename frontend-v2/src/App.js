@@ -196,8 +196,9 @@ function App() {
 
     // Load historical trades on mount and whenever the ticker changes
     useEffect(() => {
+        if (!serverName || !selectedTicker) return;
         let cancelled = false;
-        const after_ts_ms = Date.now() - 2 * 60 * 60 * 1000;
+        const after_ts_ms = 0;
         getHistoricalTrades(serverName, selectedTicker, after_ts_ms).then((data) => {
             if (cancelled) return;
             const trades = data.trades ?? [];
@@ -209,6 +210,8 @@ function App() {
 
             // Render the currently-selected timeframe
             rebuildCandles(selectedTimeframeRef.current.ms);
+        }).catch((err) => {
+            console.error('Failed to fetch historical trades:', err);
         });
         return () => {
             cancelled = true;
