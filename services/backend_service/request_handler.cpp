@@ -5,6 +5,7 @@
 #include <boost/beast/http.hpp>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <format>
 #include <iostream>
 #include <limits>
@@ -681,10 +682,12 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         balance_user_ids.push_back(caller_id);
     }
     for (const int user_id : balance_user_ids) {
+        const std::int64_t initial_usd_scaled =
+            static_cast<std::int64_t>(static_cast<double>(initial_usd) *
+                                      core::constants::decimal_to_int_multiplier *
+                                      core::constants::decimal_to_int_multiplier);
         auto balance_result = m_db_client.insert_balance(
-            user_id, server_id, "USD",
-            static_cast<double>(initial_usd) * core::constants::decimal_to_int_multiplier *
-                core::constants::decimal_to_int_multiplier);
+            user_id, server_id, "USD", initial_usd_scaled);
         if (!balance_result.has_value()) {
             res["error"] = balance_result.error();
             return res;

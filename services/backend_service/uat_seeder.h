@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cmath>
 #include <print>
 #include <random>
@@ -91,10 +92,10 @@ public:
 
         // Initial balances: USD cash + stock holdings per user.
         // Balance in DB should be multiplied by square of decimal_to_int_multiplier
-        const int balance_multiplier_squared = static_cast<int>(
+        const std::int64_t balance_multiplier_squared = static_cast<std::int64_t>(
             core::constants::decimal_to_int_multiplier * core::constants::decimal_to_int_multiplier);
         
-        struct BalanceSeed { int user_id; std::string symbol; int balance; };
+        struct BalanceSeed { int user_id; std::string symbol; std::int64_t balance; };
         const std::vector<BalanceSeed> balances = {
             {admin_id,   "USD",   100000}, {admin_id,   "AAPL",  50},
             {admin_id,   "GOOGL", 30},     {admin_id,   "TSLA",  20},
@@ -105,7 +106,7 @@ public:
         };
 
         for (const auto& b : balances) {
-            const int scaled_balance = b.balance * balance_multiplier_squared;
+            const std::int64_t scaled_balance = b.balance * balance_multiplier_squared;
             auto res = m_db.insert_balance(b.user_id, server_id, b.symbol, scaled_balance);
             if (!res.has_value())
                 std::println("[UAT] Warning: balance insert failed (user={} sym={}): {}",

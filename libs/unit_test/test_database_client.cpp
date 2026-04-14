@@ -5,6 +5,7 @@
 #include <core/orders.h>
 #include <pqxx/pqxx>
 #include <atomic>
+#include <cstdint>
 #include <set>
 #include <thread>
 #include <chrono>
@@ -40,9 +41,10 @@ static constexpr int         TEST_NON_EXIST_USER_ID = 67676767;
 static constexpr int         TEST_SERVER_ID         = 1;
 static constexpr const char* TEST_USERNAME       = "test_db_user_99999";
 static constexpr const char* TEST_SERVER_NAME    = "test_server_1";
+static constexpr const char* TEST_QUESTDB_SERVER_NAME = "";
 static constexpr const char* TEST_PASSWORD       = "test_password";
 static constexpr const char* TEST_SYMBOL         = "USD";
-static constexpr int         TEST_INITIAL_BALANCE = 5000;
+static constexpr std::int64_t TEST_INITIAL_BALANCE = 5000;
 
 // ===========================================================================
 //  Fixture: seeds a test user + balance row, tears down after each section.
@@ -114,7 +116,7 @@ TEST_CASE_METHOD(BalanceFixture,
 TEST_CASE_METHOD(BalanceFixture,
                  "update_balance changes the balance and read_balance reflects it",
                  "[DatabaseClient][balance]") {
-    const int new_balance = TEST_INITIAL_BALANCE + 100;
+    const std::int64_t new_balance = TEST_INITIAL_BALANCE + 100;
 
     auto update_result = db.update_balance(
         TEST_USER_ID, TEST_SERVER_ID, TEST_SYMBOL, new_balance);
@@ -134,7 +136,7 @@ TEST_CASE("insert_order succeeds and row is queryable", "[DatabaseClient][orders
     DatabaseClient db;
 
     // Clean slate.
-    auto truncate_result = db.truncate_orders();
+    auto truncate_result = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(truncate_result.has_value());
     wait_for_questdb_ingestion();
 
@@ -155,7 +157,7 @@ TEST_CASE("insert_order succeeds and row is queryable", "[DatabaseClient][orders
 
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= 1);
 
@@ -178,17 +180,17 @@ TEST_CASE("insert_order succeeds and row is queryable", "[DatabaseClient][orders
     REQUIRE(found);
 
     // Cleanup.
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ===========================================================================
-//  insert_cancel_request  (QuestDB – orders table via ILP, status CANCELED)
+//  insert_cancel_request  (QuestDB – orders table via ILP, status PENDING_CANCEL)
 // ===========================================================================
 
 TEST_CASE("insert_cancel_request succeeds and row is queryable", "[DatabaseClient][orders]") {
     DatabaseClient db;
 
-    auto truncate_result = db.truncate_orders();
+    auto truncate_result = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(truncate_result.has_value());
     wait_for_questdb_ingestion();
 
@@ -208,25 +210,26 @@ TEST_CASE("insert_cancel_request succeeds and row is queryable", "[DatabaseClien
 
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= 1);
 
     bool found = false;
     for (const auto& r : rows.value()) {
-        if (r.order_id == 42 && r.cl_order_id == 1002) {
+        // Cancel request rows store orig_cl_ord_id in cl_order_id.
+        if (r.order_id == 42 && r.cl_order_id == 1001) {
             CHECK(r.symbol       == "AAPL");
             CHECK(r.side         == "ASK");
             CHECK(r.order_qty    == 25);
             CHECK(r.filled_qty   == 0);
-            CHECK(r.order_status == "CANCELED");
+            CHECK(r.order_status == "PENDING_CANCEL");
             found = true;
             break;
         }
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ===========================================================================
@@ -238,7 +241,7 @@ struct MultiSymbolBalanceFixture {
     pqxx::connection conn{CORE_DB_CONN_STR};
     DatabaseClient   db;
 
-    static constexpr int AAPL_INITIAL_BALANCE = 200;
+    static constexpr std::int64_t AAPL_INITIAL_BALANCE = 200;
 
     MultiSymbolBalanceFixture() {
         cleanup_quietly();
@@ -333,7 +336,7 @@ TEST_CASE_METHOD(BalanceFixture,
                  "update_balance is idempotent – same value twice yields same result",
                  "[DatabaseClient][balance][comprehensive]") {
     const auto uid = TEST_USER_ID;
-    const int val = 4242;
+    const std::int64_t val = 4242;
 
     REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, val).has_value());
     REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, val).has_value());
@@ -383,7 +386,7 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
     REQUIRE(result->size() == 2);
 
     // Collect into a map for order-independent comparison.
-    std::unordered_map<std::string, int> by_symbol;
+    std::unordered_map<std::string, std::int64_t> by_symbol;
     for (const auto& row : result.value())
         by_symbol[row.symbol] = row.balance;
 
@@ -405,14 +408,14 @@ TEST_CASE_METHOD(MultiSymbolBalanceFixture,
                  "read_balances reflects updated balance after update_balance",
                  "[DatabaseClient][balance][read_balances]") {
     const auto uid = TEST_USER_ID;
-    const int new_usd = 9876;
+    const std::int64_t new_usd = 9876;
 
     REQUIRE(db.update_balance(uid, TEST_SERVER_ID, TEST_SYMBOL, new_usd).has_value());
 
     auto result = db.read_balances(uid, TEST_SERVER_ID);
     REQUIRE(result.has_value());
 
-    std::unordered_map<std::string, int> by_symbol;
+    std::unordered_map<std::string, std::int64_t> by_symbol;
     for (const auto& row : result.value())
         by_symbol[row.symbol] = row.balance;
 
@@ -428,7 +431,7 @@ TEST_CASE("insert_order market order stores price as 0",
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_orders();
+    auto trunc = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -449,7 +452,7 @@ TEST_CASE("insert_order market order stores price as 0",
 
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
 
     bool found = false;
@@ -468,14 +471,14 @@ TEST_CASE("insert_order market order stores price as 0",
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("insert_order multiple orders are all queryable",
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_orders();
+    auto trunc = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -505,7 +508,7 @@ TEST_CASE("insert_order multiple orders are all queryable",
 
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= 3);
 
@@ -531,7 +534,7 @@ TEST_CASE("insert_order multiple orders are all queryable",
     }
     REQUIRE(found_count == 3);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ===========================================================================
@@ -542,7 +545,7 @@ TEST_CASE("order lifecycle: insert_order followed by insert_cancel_request produ
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_orders();
+    auto trunc = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -566,27 +569,27 @@ TEST_CASE("order lifecycle: insert_order followed by insert_cancel_request produ
 
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
-    // QuestDB is append-only; both the NEW row and CANCELED row exist.
+    // QuestDB is append-only; both the NEW row and PENDING_CANCEL row exist.
     REQUIRE(rows->size() >= 2);
 
-    bool found_new = false, found_canceled = false;
+    bool found_new = false, found_pending_cancel = false;
     for (const auto& r : rows.value()) {
         if (r.order_id == 600 && r.order_status == "NEW") {
             CHECK(r.cl_order_id == 6001);
             found_new = true;
         }
-        if (r.order_id == 600 && r.order_status == "CANCELED") {
-            CHECK(r.cl_order_id == 6002);
+        if (r.order_id == 600 && r.order_status == "PENDING_CANCEL") {
+            CHECK(r.cl_order_id == 6001);
             CHECK(r.filled_qty  == 0);
-            found_canceled = true;
+            found_pending_cancel = true;
         }
     }
     CHECK(found_new);
-    CHECK(found_canceled);
+    CHECK(found_pending_cancel);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ===========================================================================
@@ -597,7 +600,7 @@ TEST_CASE("insert_execution fully filled order",
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_orders();
+    auto trunc = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -624,7 +627,7 @@ TEST_CASE("insert_execution fully filled order",
     REQUIRE(db.insert_execution(exec).has_value());
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
 
     bool found = false;
@@ -643,14 +646,14 @@ TEST_CASE("insert_execution fully filled order",
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
-TEST_CASE("insert_execution with no time_in_force stores UNKNOWN",
+TEST_CASE("insert_execution with explicit GTC time_in_force stores GTC",
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_orders();
+    auto trunc = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -677,13 +680,13 @@ TEST_CASE("insert_execution with no time_in_force stores UNKNOWN",
     REQUIRE(db.insert_execution(exec).has_value());
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
 
     bool found = false;
     for (const auto& r : rows.value()) {
         if (r.order_id == 900 && r.cl_order_id == 9001) {
-            CHECK(r.time_in_force == "UNKNOWN");
+            CHECK(r.time_in_force == "GTC");
             CHECK(r.order_status  == "NEW");
             found = true;
             break;
@@ -691,14 +694,14 @@ TEST_CASE("insert_execution with no time_in_force stores UNKNOWN",
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("insert_execution with no price stores 0",
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_orders();
+    auto trunc = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -725,7 +728,7 @@ TEST_CASE("insert_execution with no price stores 0",
     REQUIRE(db.insert_execution(exec).has_value());
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
 
     bool found = false;
@@ -738,14 +741,14 @@ TEST_CASE("insert_execution with no price stores 0",
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("insert_execution progression: partial fill then full fill produces two rows",
           "[DatabaseClient][orders][comprehensive]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_orders();
+    auto trunc = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -795,7 +798,7 @@ TEST_CASE("insert_execution progression: partial fill then full fill produces tw
 
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     // Append-only: both execution rows exist.
     REQUIRE(rows->size() >= 2);
@@ -817,13 +820,13 @@ TEST_CASE("insert_execution progression: partial fill then full fill produces tw
     CHECK(found_partial);
     CHECK(found_filled);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("insert_execution succeeds and row is queryable", "[DatabaseClient][orders]") {
     DatabaseClient db;
 
-    auto truncate_result = db.truncate_orders();
+    auto truncate_result = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(truncate_result.has_value());
     wait_for_questdb_ingestion();
 
@@ -852,7 +855,7 @@ TEST_CASE("insert_execution succeeds and row is queryable", "[DatabaseClient][or
 
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_orders();
+    auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= 1);
 
@@ -872,7 +875,7 @@ TEST_CASE("insert_execution succeeds and row is queryable", "[DatabaseClient][or
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_orders();
+    [[maybe_unused]] auto cleanup = db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ===========================================================================
@@ -1101,7 +1104,7 @@ TEST_CASE("concurrent insert_order from multiple clients",
           "[DatabaseClient][orders][concurrency]") {
     {
         DatabaseClient setup;
-        auto trunc = setup.truncate_orders();
+        auto trunc = setup.truncate_orders(TEST_QUESTDB_SERVER_NAME);
         REQUIRE(trunc.has_value());
     }
     wait_for_questdb_ingestion();
@@ -1140,7 +1143,7 @@ TEST_CASE("concurrent insert_order from multiple clients",
     wait_for_questdb_ingestion();
 
     DatabaseClient verifier;
-    auto rows = verifier.query_orders();
+    auto rows = verifier.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= static_cast<size_t>(NUM_THREADS * ORDERS_PER_THREAD));
 
@@ -1157,14 +1160,14 @@ TEST_CASE("concurrent insert_order from multiple clients",
 
     REQUIRE(found_ids == expected_ids);
 
-    [[maybe_unused]] auto cleanup = verifier.truncate_orders();
+    [[maybe_unused]] auto cleanup = verifier.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("concurrent insert_cancel_request from multiple clients",
           "[DatabaseClient][orders][concurrency]") {
     {
         DatabaseClient setup;
-        auto trunc = setup.truncate_orders();
+        auto trunc = setup.truncate_orders(TEST_QUESTDB_SERVER_NAME);
         REQUIRE(trunc.has_value());
     }
     wait_for_questdb_ingestion();
@@ -1202,25 +1205,25 @@ TEST_CASE("concurrent insert_cancel_request from multiple clients",
     wait_for_questdb_ingestion();
 
     DatabaseClient verifier;
-    auto rows = verifier.query_orders();
+    auto rows = verifier.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= static_cast<size_t>(NUM_THREADS * CANCELS_PER_THREAD));
 
-    int canceled_count = 0;
+    int pending_cancel_count = 0;
     for (const auto& r : rows.value())
-        if (r.order_status == "CANCELED" && r.symbol == "GOOG")
-            ++canceled_count;
+        if (r.order_status == "PENDING_CANCEL" && r.symbol == "GOOG")
+            ++pending_cancel_count;
 
-    REQUIRE(canceled_count >= NUM_THREADS * CANCELS_PER_THREAD);
+    REQUIRE(pending_cancel_count >= NUM_THREADS * CANCELS_PER_THREAD);
 
-    [[maybe_unused]] auto cleanup = verifier.truncate_orders();
+    [[maybe_unused]] auto cleanup = verifier.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("concurrent insert_execution from multiple clients",
           "[DatabaseClient][orders][concurrency]") {
     {
         DatabaseClient setup;
-        auto trunc = setup.truncate_orders();
+        auto trunc = setup.truncate_orders(TEST_QUESTDB_SERVER_NAME);
         REQUIRE(trunc.has_value());
     }
     wait_for_questdb_ingestion();
@@ -1267,7 +1270,7 @@ TEST_CASE("concurrent insert_execution from multiple clients",
     wait_for_questdb_ingestion();
 
     DatabaseClient verifier;
-    auto rows = verifier.query_orders();
+    auto rows = verifier.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= static_cast<size_t>(NUM_THREADS * EXECS_PER_THREAD));
 
@@ -1278,7 +1281,7 @@ TEST_CASE("concurrent insert_execution from multiple clients",
 
     REQUIRE(filled_count >= NUM_THREADS * EXECS_PER_THREAD);
 
-    [[maybe_unused]] auto cleanup = verifier.truncate_orders();
+    [[maybe_unused]] auto cleanup = verifier.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ---------------------------------------------------------------------------
@@ -1289,7 +1292,7 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel_request, insert_executio
           "[DatabaseClient][orders][concurrency]") {
     {
         DatabaseClient setup;
-        auto trunc = setup.truncate_orders();
+        auto trunc = setup.truncate_orders(TEST_QUESTDB_SERVER_NAME);
         REQUIRE(trunc.has_value());
     }
     wait_for_questdb_ingestion();
@@ -1386,11 +1389,11 @@ TEST_CASE("concurrent mixed insert_order, insert_cancel_request, insert_executio
     constexpr int EXPECTED_TOTAL = 2 * OPS_PER_TYPE * 3;
 
     DatabaseClient verifier;
-    auto rows = verifier.query_orders();
+    auto rows = verifier.query_orders(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= static_cast<size_t>(EXPECTED_TOTAL));
 
-    [[maybe_unused]] auto cleanup = verifier.truncate_orders();
+    [[maybe_unused]] auto cleanup = verifier.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ---------------------------------------------------------------------------
@@ -1401,7 +1404,7 @@ TEST_CASE("concurrent query_orders reads while inserting",
           "[DatabaseClient][orders][concurrency]") {
     {
         DatabaseClient setup;
-        auto trunc = setup.truncate_orders();
+        auto trunc = setup.truncate_orders(TEST_QUESTDB_SERVER_NAME);
         REQUIRE(trunc.has_value());
     }
     wait_for_questdb_ingestion();
@@ -1443,7 +1446,7 @@ TEST_CASE("concurrent query_orders reads while inserting",
             DatabaseClient db;
             int ops = 0;
             while (!writer_done.load() || ops < READS_PER) {
-                auto rows = db.query_orders();
+                auto rows = db.query_orders(TEST_QUESTDB_SERVER_NAME);
                 if (!rows.has_value()) ++read_errors;
                 ++ops;
                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -1458,7 +1461,7 @@ TEST_CASE("concurrent query_orders reads while inserting",
     CHECK(read_errors.load()  == 0);
 
     [[maybe_unused]] DatabaseClient cleanup_db;
-    [[maybe_unused]] auto cleanup = cleanup_db.truncate_orders();
+    [[maybe_unused]] auto cleanup = cleanup_db.truncate_orders(TEST_QUESTDB_SERVER_NAME);
 }
 
 // ===========================================================================
@@ -1501,7 +1504,7 @@ TEST_CASE("insert_trade succeeds and row is queryable via query_trades",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_trades();
+    auto trunc = db.truncate_trades(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -1509,7 +1512,7 @@ TEST_CASE("insert_trade succeeds and row is queryable via query_trades",
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_trades();
+    auto rows = db.query_trades(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->size() >= 1);
 
@@ -1530,14 +1533,14 @@ TEST_CASE("insert_trade succeeds and row is queryable via query_trades",
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_trades();
+    [[maybe_unused]] auto cleanup = db.truncate_trades(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
 
-    auto trunc = db.truncate_trades();
+    auto trunc = db.truncate_trades(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(trunc.has_value());
     wait_for_questdb_ingestion();
 
@@ -1545,7 +1548,7 @@ TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_trades();
+    auto rows = db.query_trades(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
 
     bool found = false;
@@ -1558,7 +1561,7 @@ TEST_CASE("insert_trade with is_taker_buyer false stores correct value",
     }
     REQUIRE(found);
 
-    [[maybe_unused]] auto cleanup = db.truncate_trades();
+    [[maybe_unused]] auto cleanup = db.truncate_trades(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("truncate_trades clears all trade rows", "[DatabaseClient][trades]") {
@@ -1568,10 +1571,10 @@ TEST_CASE("truncate_trades clears all trade rows", "[DatabaseClient][trades]") {
     REQUIRE(db.insert_trade(trade).has_value());
     wait_for_questdb_ingestion();
 
-    REQUIRE(db.truncate_trades().has_value());
+    REQUIRE(db.truncate_trades(TEST_QUESTDB_SERVER_NAME).has_value());
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_trades();
+    auto rows = db.query_trades(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->empty());
 }
@@ -1579,10 +1582,10 @@ TEST_CASE("truncate_trades clears all trade rows", "[DatabaseClient][trades]") {
 TEST_CASE("query_trades returns empty after truncate", "[DatabaseClient][trades]") {
     DatabaseClient db;
 
-    REQUIRE(db.truncate_trades().has_value());
+    REQUIRE(db.truncate_trades(TEST_QUESTDB_SERVER_NAME).has_value());
     wait_for_questdb_ingestion();
 
-    auto rows = db.query_trades();
+    auto rows = db.query_trades(TEST_QUESTDB_SERVER_NAME);
     REQUIRE(rows.has_value());
     REQUIRE(rows->empty());
 }
@@ -1595,7 +1598,7 @@ TEST_CASE("query_trades returns inserted trades for symbol",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
 
-    REQUIRE(db.truncate_trades().has_value());
+    REQUIRE(db.truncate_trades(TEST_QUESTDB_SERVER_NAME).has_value());
     wait_for_questdb_ingestion();
 
     Trade t1{"NVDA", 40000, 8,  "77771", "300", "301", 3001, 3002, true};
@@ -1604,7 +1607,7 @@ TEST_CASE("query_trades returns inserted trades for symbol",
     REQUIRE(db.insert_trade(t2).has_value());
     wait_for_questdb_ingestion();
 
-    auto result = db.query_trades("NVDA", 0);
+    auto result = db.query_trades(TEST_QUESTDB_SERVER_NAME, "NVDA", 0);
     REQUIRE(result.has_value());
     REQUIRE(result->size() >= 2);
 
@@ -1615,14 +1618,14 @@ TEST_CASE("query_trades returns inserted trades for symbol",
         CHECK(row.ts_ms    >  0);
     }
 
-    [[maybe_unused]] auto cleanup = db.truncate_trades();
+    [[maybe_unused]] auto cleanup = db.truncate_trades(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("query_trades does not return rows for a different symbol",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
 
-    REQUIRE(db.truncate_trades().has_value());
+    REQUIRE(db.truncate_trades(TEST_QUESTDB_SERVER_NAME).has_value());
     wait_for_questdb_ingestion();
 
     Trade trade{"AAPL", 15000, 10, "12399", "101", "102", 1001, 1002, true};
@@ -1630,17 +1633,17 @@ TEST_CASE("query_trades does not return rows for a different symbol",
     wait_for_questdb_ingestion();
 
     // Query for a symbol we never inserted.
-    auto result = db.query_trades("TSLA", 0);
+    auto result = db.query_trades(TEST_QUESTDB_SERVER_NAME, "TSLA", 0);
     REQUIRE(result.has_value());
     CHECK(result->empty());
 
-    [[maybe_unused]] auto cleanup = db.truncate_trades();
+    [[maybe_unused]] auto cleanup = db.truncate_trades(TEST_QUESTDB_SERVER_NAME);
 }
 
 TEST_CASE("query_trades returns empty for unknown symbol",
           "[DatabaseClient][trades]") {
     DatabaseClient db;
-    auto result = db.query_trades("UNKNOWN_ZZZ", 0);
+    auto result = db.query_trades(TEST_QUESTDB_SERVER_NAME, "UNKNOWN_ZZZ", 0);
     REQUIRE(result.has_value());
     CHECK(result->empty());
 }
