@@ -181,7 +181,7 @@ class WebsocketManager {
             m_logger->error("Failed to close some ids during destruction.");
         }
 
-        if (m_thread->joinable()) {
+        if (m_thread && m_thread->joinable()) {
             m_thread->join();
         }
     }

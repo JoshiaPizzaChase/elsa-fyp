@@ -1,11 +1,13 @@
 # Project
 build*/
-store/
+store*/
 *.pb.cc
 *.pb.h
 logs/*
 Testing
 deps/
+*.cfg
+*.toml
 configs
 
 # Usual ignores

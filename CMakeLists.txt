@@ -48,7 +48,7 @@ find_package(reflectcpp REQUIRED)
 #    find_package(spdlog REQUIRED)
 #endif()
 if (BUILD_EXAMPLES)
-    add_subdirectory(logger_examples)
+  add_subdirectory(logger_examples)
 endif ()
 
 # JSON
@@ -56,13 +56,13 @@ find_package(nlohmann_json REQUIRED)
 
 # Catch 2
 if (BUILD_TESTS)
-    find_package(Catch2 3 REQUIRED)
+  find_package(Catch2 3 REQUIRED)
 endif ()
 
 # Googletest
 if (BUILD_TESTS)
-    include(FetchContent)
-    FetchContent_Declare(
+  include(FetchContent)
+  FetchContent_Declare(
             googletest
             URL https://github.com/google/googletest/archive/52eb8108c5bdec04579160ae17225d66034bd723.zip
     )
@@ -107,10 +107,11 @@ set_target_properties(pqxx::pqxx PROPERTIES
 
 # Building our code
 if (BUILD_TESTS)
-    enable_testing()
-    include(CTest)
-    add_subdirectory(integration_test)
-    add_subdirectory(libs/unit_test)
+  enable_testing()
+  include(CTest)
+  add_subdirectory(integration_test)
+  add_subdirectory(libs/unit_test)
+  add_subdirectory(simulation/tests)
 endif ()
 
 if (BUILD_BENCHMARKS)
@@ -124,6 +125,8 @@ add_subdirectory(libs/transport/websocket)
 add_subdirectory(
         deps/c-questdb-client
         EXCLUDE_FROM_ALL)
+
+add_subdirectory(simulation/deployment)
 
 # Add new services here
 add_subdirectory(services/gateway)
