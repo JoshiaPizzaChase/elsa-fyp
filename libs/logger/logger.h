@@ -1,9 +1,9 @@
 #pragma once
 
-#include "spdlog/cfg/env.h"
-#include "spdlog/spdlog.h"
 #include "spdlog/async.h"
+#include "spdlog/cfg/env.h"
 #include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/spdlog.h"
 #include <csignal>
 #include <cstdlib>
 #include <string>
@@ -23,6 +23,7 @@ inline auto init_spdlog_res = [] {
     std::atexit([] { spdlog::shutdown(); });
     std::signal(SIGINT, shutdown_handler);
     std::signal(SIGTERM, shutdown_handler);
+    std::signal(SIGABRT, shutdown_handler);
 #ifdef SIGQUIT
     std::signal(SIGQUIT, shutdown_handler);
 #endif

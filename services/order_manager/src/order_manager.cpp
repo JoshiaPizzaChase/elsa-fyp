@@ -1,8 +1,7 @@
 #include "order_manager.h"
+#include "logger/logger.h"
 #include "transport/messaging.h"
 
-#include "spdlog/async.h"
-#include "spdlog/sinks/basic_file_sink.h"
 #include <boost/contract.hpp>
 #include <boost/uuid.hpp>
 
@@ -13,7 +12,7 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 
-static std::shared_ptr<spdlog::logger> logger{spdlog::basic_logger_mt<spdlog::async_factory>(
+static std::shared_ptr<spdlog::logger> logger{logger::create_logger(
     "order_manager_logger",
     std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
