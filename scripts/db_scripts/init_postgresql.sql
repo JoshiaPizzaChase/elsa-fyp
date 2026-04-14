@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS balances
     user_id INT REFERENCES users(user_id),
     server_id INT REFERENCES servers(server_id),
     symbol VARCHAR(10) NOT NULL,
-    balance INT NOT NULL,
+    balance BIGINT NOT NULL,
     created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(user_id, symbol, server_id)
