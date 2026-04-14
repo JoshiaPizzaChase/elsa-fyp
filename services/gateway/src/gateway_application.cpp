@@ -201,8 +201,8 @@ void GatewayApplication::process_report() {
             std::visit([this](auto&& arg) {
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, core::ExecutionReportContainer>) {
-                    FIX::TargetCompID targetCompID(arg.sender_comp_id);
-                    FIX::SenderCompID senderCompID(arg.target_comp_id);
+                    FIX::TargetCompID targetCompID(arg.target_comp_id);
+                    FIX::SenderCompID senderCompID(arg.sender_comp_id);
                     
                     FIX::OrderID orderId(std::to_string(arg.order_id));
                     FIX::ExecID execId(arg.exec_id);
