@@ -213,11 +213,6 @@ void OrderManager::start() {
             auto container = transport::deserialize_container(new_message.value());
 
             if (const auto trade_container = std::get_if<core::TradeContainer>(&container)) {
-                logger->info("Trade container received");
-                logger->info("trade qty: {}", trade_container->quantity);
-                logger->info("taker id: {}", trade_container->taker_id);
-                logger->info("maker_id: {}", trade_container->maker_id);
-
                 update_order_info(*trade_container, order_info_map);
             }
 
@@ -614,6 +609,8 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
             BOOST_CONTRACT_ASSERT(valid_container.has_value());
         });
 
+        logger->info("Persisting New Order: {}", new_order);
+
         database_client.insert_order(new_order.order_id.value(), new_order,
                                      valid_container.value());
     }};
@@ -622,7 +619,8 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
         boost::contract::check c = boost::contract::function().precondition(
             [&] { BOOST_CONTRACT_ASSERT(valid_container.has_value()); });
 
-        database_client.insert_cancel_request(cancel_request, valid_container.value());
+        logger->info("Persisting Cancel Request: {}", cancel_request);
+ database_client.insert_cancel_request(cancel_request, valid_container.value());
     }};
 
     auto execution_report_handler{[&](const core::ExecutionReportContainer& execution_report) {
@@ -631,11 +629,14 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
     }};
 
     auto trade_handler{[&](const core::TradeContainer& trade) {
-        std::cout << "inserting trade into db" << std::endl;
+        logger->info("Persisting Trade: {}", trade);
+
         database_client.insert_trade(trade);
     }};
 
     auto cancel_response_handler{[&](const core::CancelOrderResponseContainer& cancel_response) {
+        logger->info("Persisting Cancel Response: {}", cancel_response);
+
         database_client.insert_cancel_response(cancel_response);
     }};
 

@@ -1669,3 +1669,142 @@ TEST_F(ReturnExecutionReportTest, CancelResponseContainerSendsExecutionReportToO
 
     return_execution_report(container, order_id_map, order_info_map, mock_inbound_server);
 }
+
+class UpdateDatabaseTest : public testing::Test {
+  protected:
+    MockDatabaseClient mock_db;
+};
+
+using UpdateDatabaseDeathTest = UpdateDatabaseTest;
+
+TEST_F(UpdateDatabaseTest, NewOrderPersistsOrderWithValidationFlag) {
+    const core::NewOrderSingleContainer new_order{.sender_comp_id = "CLIENT",
+                                                  .target_comp_id = "OM",
+                                                  .order_id = 42,
+                                                  .cl_ord_id = 100,
+                                                  .symbol = "AAPL",
+                                                  .side = core::Side::ask,
+                                                  .order_qty = 10,
+                                                  .ord_type = core::OrderType::limit,
+                                                  .price = 123,
+                                                  .time_in_force = core::TimeInForce::gtc};
+
+    core::Container container = new_order;
+
+    EXPECT_CALL(mock_db, insert_order(_, _, _))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, mock_db, true);
+}
+
+TEST_F(UpdateDatabaseTest, CancelRequestPersistsRequestWithValidationFlag) {
+    const core::CancelOrderRequestContainer cancel_request{.sender_comp_id = "CLIENT",
+                                                           .target_comp_id = "OM",
+                                                           .order_id = 7,
+                                                           .orig_cl_ord_id = 100,
+                                                           .cl_ord_id = 101,
+                                                           .symbol = "AAPL",
+                                                           .side = core::Side::bid,
+                                                           .order_qty = 5};
+
+    core::Container container = cancel_request;
+
+    EXPECT_CALL(mock_db, insert_cancel_request(_, _))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, mock_db, false);
+}
+
+TEST_F(UpdateDatabaseTest, TradePersistsTradeWithoutValidationFlag) {
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 4,
+                                     .trade_id = "T-1",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 11,
+                                     .maker_order_id = 22,
+                                     .is_taker_buyer = true};
+
+    core::Container container = trade;
+
+    EXPECT_CALL(mock_db, insert_trade(_))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, mock_db);
+}
+
+TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) {
+    const core::CancelOrderResponseContainer cancel_response{.order_id = 33,
+                                                             .cl_ord_id = 404,
+                                                             .success = true};
+
+    core::Container container = cancel_response;
+
+    EXPECT_CALL(mock_db, insert_cancel_response(_))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, mock_db);
+}
+
+TEST_F(UpdateDatabaseTest, ExecutionReportDoesNotPersistAnything) {
+    const core::ExecutionReportContainer execution_report{.sender_comp_id = SERVER_NAME,
+                                                          .target_comp_id = "CLIENT",
+                                                          .order_id = 11,
+                                                          .cl_order_id = 22,
+                                                          .orig_cl_ord_id = std::nullopt,
+                                                          .exec_id = "exec-1",
+                                                          .exec_trans_type = core::ExecTransType::exec_trans_new,
+                                                          .exec_type = core::ExecType::status_new,
+                                                          .ord_status = core::OrderStatus::status_new,
+                                                          .text = std::nullopt,
+                                                          .symbol = "AAPL",
+                                                          .side = core::Side::ask,
+                                                          .price = 123,
+                                                          .time_in_force = core::TimeInForce::gtc,
+                                                          .leaves_qty = 10,
+                                                          .cum_qty = 0,
+                                                          .avg_px = 0};
+
+    core::Container container = execution_report;
+
+    EXPECT_CALL(mock_db, insert_order(_, _, _)).Times(0);
+    EXPECT_CALL(mock_db, insert_cancel_request(_, _)).Times(0);
+    EXPECT_CALL(mock_db, insert_trade(_)).Times(0);
+    EXPECT_CALL(mock_db, insert_cancel_response(_)).Times(0);
+
+    update_database(container, mock_db);
+}
+
+TEST_F(UpdateDatabaseDeathTest, NewOrderWithoutValidityFlagDies) {
+    const core::NewOrderSingleContainer new_order{.sender_comp_id = "CLIENT",
+                                                  .target_comp_id = "OM",
+                                                  .order_id = 42,
+                                                  .cl_ord_id = 100,
+                                                  .symbol = "AAPL",
+                                                  .side = core::Side::ask,
+                                                  .order_qty = 10,
+                                                  .ord_type = core::OrderType::limit,
+                                                  .price = 123,
+                                                  .time_in_force = core::TimeInForce::gtc};
+
+    core::Container container = new_order;
+
+    EXPECT_DEATH(update_database(container, mock_db, std::nullopt), "");
+}
+
+TEST_F(UpdateDatabaseDeathTest, CancelRequestWithoutValidityFlagDies) {
+    const core::CancelOrderRequestContainer cancel_request{.sender_comp_id = "CLIENT",
+                                                           .target_comp_id = "OM",
+                                                           .order_id = 7,
+                                                           .orig_cl_ord_id = 100,
+                                                           .cl_ord_id = 101,
+                                                           .symbol = "AAPL",
+                                                           .side = core::Side::bid,
+                                                           .order_qty = 5};
+
+    core::Container container = cancel_request;
+
+    EXPECT_DEATH(update_database(container, mock_db, std::nullopt), "");
+}
+
