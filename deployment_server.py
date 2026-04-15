@@ -274,6 +274,14 @@ def _parse_non_negative_int(value: Any, field_name: str) -> int:
     return parsed
 
 
+def _validate_group_tag(tag: str) -> None:
+    if not tag:
+        raise DeploymentError("'group_tag' cannot be empty")
+    for ch in tag:
+        if not (ch.isalnum() or ch in {"-", "_"}):
+            raise DeploymentError("'group_tag' can only contain letters, digits, '-' and '_'")
+
+
 def _wait_until_port_released(port: int, timeout_seconds: float) -> None:
     deadline = time.monotonic() + timeout_seconds
     while True:
@@ -390,7 +398,13 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
 
     gateway_special_keys = {"fix_server_port", "whitelist"}
     me_mdp_oms_special_keys = {"active_symbols"}
-    simulation_special_keys = {"gateway_host", "gateway_port", "active_symbols"}
+    simulation_special_keys = {
+        "gateway_host",
+        "gateway_port",
+        "active_symbols",
+        "group_tag",
+        "sender_comp_ids",
+    }
     
     if service_key == "gateway":
         allowed_non_template_keys = gateway_special_keys
@@ -435,7 +449,13 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
             final_config[key] = _convert_value_to_template_type(template_data[key], value)
             LOGGER.info("Applied config override: %s=%r", key, final_config[key])
 
-    instance_name = f"{service_name}-{server_name}"
+    group_tag: str | None = None
+    if service_key in {"mm", "nt", "it"} and "group_tag" in params:
+        group_tag = str(params["group_tag"]).strip()
+        _validate_group_tag(group_tag)
+    instance_name = (
+        f"{service_name}-{group_tag}-{server_name}" if group_tag else f"{service_name}-{server_name}"
+    )
     install_dir = INSTALL_BASE_DIR / instance_name
     LOGGER.info("Ensuring install directory exists: %s", install_dir)
     install_dir.mkdir(parents=True, exist_ok=True)
@@ -527,8 +547,31 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
         store_dir.mkdir(parents=True, exist_ok=True)
         log_dir.mkdir(parents=True, exist_ok=True)
 
+        sender_comp_ids_raw = params.get("sender_comp_ids")
+        sender_comp_ids: list[str] | None = None
+        if sender_comp_ids_raw is not None:
+            if not isinstance(sender_comp_ids_raw, list):
+                raise DeploymentError("'sender_comp_ids' must be a list of strings")
+            parsed_sender_ids: list[str] = []
+            for idx, sender in enumerate(sender_comp_ids_raw):
+                if not isinstance(sender, str) or not sender.strip():
+                    raise DeploymentError(
+                        f"'sender_comp_ids[{idx}]' must be a non-empty string"
+                    )
+                parsed_sender_ids.append(sender.strip())
+            if len(parsed_sender_ids) != bot_count:
+                raise DeploymentError(
+                    f"'sender_comp_ids' length ({len(parsed_sender_ids)}) must match "
+                    f"{count_key} ({bot_count})"
+                )
+            sender_comp_ids = parsed_sender_ids
+
         for index in range(1, bot_count + 1):
-            sender_comp_id = f"{service_key}{index}"
+            sender_comp_id = (
+                sender_comp_ids[index - 1]
+                if sender_comp_ids is not None
+                else f"{service_key}{index}"
+            )
             rendered = cfg_text_template
             rendered = rendered.replace("<sender_comp_id>", sender_comp_id)
             rendered = rendered.replace("<target_comp_id>", server_name)
@@ -615,41 +658,56 @@ def remove_service(service_type: str, server_name: str) -> dict[str, Any]:
 
     _validate_server_name(server_name)
 
-    instance_name = f"{service_type}-{server_name}"
-    service_unit = f"{instance_name}.service"
-    service_dest = SYSTEMD_DIR / service_unit
-    install_dir = INSTALL_BASE_DIR / instance_name
+    grouped_service = service_type in {"mm", "nt", "it"}
+    if grouped_service:
+        pattern = f"{service_type}-*-{server_name}.service"
+        matching_service_paths = [p for p in SYSTEMD_DIR.glob(pattern) if p.is_file()]
+        legacy_service_path = SYSTEMD_DIR / f"{service_type}-{server_name}.service"
+        if legacy_service_path.is_file():
+            matching_service_paths.append(legacy_service_path)
+        seen_paths: set[str] = set()
+        deduped_service_paths: list[Path] = []
+        for path in matching_service_paths:
+            path_str = str(path)
+            if path_str in seen_paths:
+                continue
+            seen_paths.add(path_str)
+            deduped_service_paths.append(path)
+        matching_service_paths = deduped_service_paths
+    else:
+        matching_service_paths = [SYSTEMD_DIR / f"{service_type}-{server_name}.service"]
 
-    service_file_existed = service_dest.is_file()
-    install_dir_existed = install_dir.exists()
-
-    if service_file_existed:
+    removed_instances: list[str] = []
+    for service_path in matching_service_paths:
+        if not service_path.is_file():
+            continue
+        service_unit = service_path.name
+        instance_name = service_unit[: -len(".service")]
+        install_dir = INSTALL_BASE_DIR / instance_name
         LOGGER.info("Stopping and disabling service unit: %s", service_unit)
         _run_cmd("systemctl", "stop", service_unit)
         _run_cmd("systemctl", "disable", service_unit)
-        LOGGER.info("Removing unit file: %s", service_dest)
-        service_dest.unlink()
-    else:
-        LOGGER.info("Unit file not found, skipping service stop/remove: %s", service_dest)
-
-    if install_dir_existed:
-        LOGGER.info("Removing install directory: %s", install_dir)
-        shutil.rmtree(install_dir)
-    else:
-        LOGGER.info("Install directory not found, skipping: %s", install_dir)
+        LOGGER.info("Removing unit file: %s", service_path)
+        service_path.unlink()
+        if install_dir.exists():
+            LOGGER.info("Removing install directory: %s", install_dir)
+            shutil.rmtree(install_dir)
+        removed_instances.append(instance_name)
 
     LOGGER.info("Reloading systemd daemon after removal")
     _run_cmd("systemctl", "daemon-reload")
 
+    default_instance_name = f"{service_type}-{server_name}"
     result = {
         "service_type": service_type,
         "service_key": service_key,
         "server_name": server_name,
-        "instance_name": instance_name,
-        "unit_file": str(service_dest),
-        "install_dir": str(install_dir),
-        "removed_unit_file": service_file_existed,
-        "removed_install_dir": install_dir_existed,
+        "instance_name": default_instance_name,
+        "unit_file": str(SYSTEMD_DIR / f"{default_instance_name}.service"),
+        "install_dir": str(INSTALL_BASE_DIR / default_instance_name),
+        "removed_unit_file": len(removed_instances) > 0,
+        "removed_install_dir": len(removed_instances) > 0,
+        "removed_instances": removed_instances,
     }
     LOGGER.info("Removal completed: %s", result)
     return result

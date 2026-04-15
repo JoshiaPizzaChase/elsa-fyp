@@ -129,6 +129,9 @@ function App() {
         candlesRef.current = tfMap;
         const sorted = Array.from(tfMap.values()).sort((a, b) => a.time - b.time);
         seriesRef.current.setData(sorted);
+        if (sorted.length > 0 && chartRef.current) {
+            chartRef.current.timeScale().fitContent();
+        }
 
         if (volumeSeriesRef.current) {
             const volMap = allVolumesRef.current.get(intervalMs) ?? new Map();
@@ -138,12 +141,21 @@ function App() {
         }
     }, []);
 
+    const normalizeTimestampMs = useCallback((rawTs) => {
+        const ts = Number(rawTs);
+        if (!Number.isFinite(ts) || ts <= 0) return null;
+        // Accept second / millisecond / microsecond timestamps from mixed deployments.
+        if (ts >= 1e14) return Math.floor(ts / 1000); // micros -> millis
+        if (ts <= 1e11) return Math.floor(ts * 1000); // seconds -> millis
+        return Math.floor(ts); // already millis
+    }, []);
+
     // -----------------------------------------------------------------------
     // Shared trade ingestion: aggregates a single trade into allCandlesRef /
     // allVolumesRef for every timeframe.  Returns true if the active timeframe
     // was updated so the caller can decide whether to push to the live series.
     // -----------------------------------------------------------------------
-    const ingestTrade = useCallback((price, quantity, tradeTime) => {
+    const ingestTrade = useCallback((price, quantity, tradeTime, pushLive = true) => {
         const activeIntervalMs = selectedTimeframeRef.current.ms;
 
         for (const tf of TIMEFRAMES) {
@@ -183,40 +195,74 @@ function App() {
             }
 
             // Live-push to chart only for the active timeframe
-            if (intervalMs === activeIntervalMs && seriesRef.current) {
+            if (pushLive && intervalMs === activeIntervalMs && seriesRef.current) {
                 candlesRef.current = tfMap;
-                seriesRef.current.update(candle);
-                if (volumeSeriesRef.current) {
-                    volumeRef.current = volMap;
-                    volumeSeriesRef.current.update(vol);
+                try {
+                    seriesRef.current.update(candle);
+                    if (volumeSeriesRef.current) {
+                        volumeRef.current = volMap;
+                        volumeSeriesRef.current.update(vol);
+                    }
+                } catch (err) {
+                    // Recover from out-of-order WS trades by rebuilding the full timeframe dataset.
+                    console.warn('Chart live update failed; rebuilding candles:', err);
+                    rebuildCandles(activeIntervalMs);
                 }
             }
         }
-    }, []);
+    }, [rebuildCandles]);
 
     // Load historical trades on mount and whenever the ticker changes
     useEffect(() => {
         if (!serverName || !selectedTicker) return;
         let cancelled = false;
         const after_ts_ms = 0;
-        getHistoricalTrades(serverName, selectedTicker, after_ts_ms).then((data) => {
+        const loadHistoricalTrades = async () => {
+            const initial = await getHistoricalTrades(serverName, selectedTicker, after_ts_ms);
+            if (initial?.error) {
+                throw new Error(initial.error);
+            }
+            let trades = initial?.trades ?? [];
+
+            // Some deployments persist symbols in lowercase while UI uses uppercase ticker routes.
+            if (trades.length === 0 && selectedTicker !== selectedTicker.toLowerCase()) {
+                const fallback = await getHistoricalTrades(
+                    serverName,
+                    selectedTicker.toLowerCase(),
+                    after_ts_ms
+                );
+                if (fallback?.error) {
+                    throw new Error(fallback.error);
+                }
+                trades = fallback?.trades ?? [];
+            }
+
             if (cancelled) return;
-            const trades = data.trades ?? [];
 
             // Aggregate all historical trades into the candle maps
             for (const t of trades) {
-                ingestTrade(t.price, t.quantity ?? 0, t.create_timestamp);
+                const price = Number(t.price ?? t.px);
+                const quantity = Number(t.quantity ?? t.qty ?? 0);
+                const tsMs = normalizeTimestampMs(
+                    t.create_timestamp ?? t.timestamp_ms ?? t.ts_ms ?? t.timestamp ?? t.ts
+                );
+                if (!Number.isFinite(price) || !Number.isFinite(quantity) || tsMs === null) {
+                    continue;
+                }
+                ingestTrade(price, quantity, tsMs, false);
             }
 
             // Render the currently-selected timeframe
             rebuildCandles(selectedTimeframeRef.current.ms);
-        }).catch((err) => {
+        };
+
+        loadHistoricalTrades().catch((err) => {
             console.error('Failed to fetch historical trades:', err);
         });
         return () => {
             cancelled = true;
         };
-    }, [selectedTicker, serverName, ingestTrade, rebuildCandles]);
+    }, [selectedTicker, serverName, ingestTrade, rebuildCandles, normalizeTimestampMs]);
 
     const normalizeBookLevels = useCallback((levels) => {
         if (!Array.isArray(levels)) return [];
@@ -274,9 +320,16 @@ function App() {
                 seenTradeIdsRef.current.add(data.trade_id);
                 setRecentTrades(prev => [data, ...prev].slice(0, 10));
             }
-            ingestTrade(data.price, data.quantity ?? 0, data.create_timestamp);
+            const tradeTsMs = normalizeTimestampMs(
+                data.create_timestamp ?? data.timestamp_ms ?? data.ts_ms ?? data.timestamp ?? data.ts
+            );
+            const tradePrice = Number(data.price ?? data.px);
+            const tradeQty = Number(data.quantity ?? data.qty ?? 0);
+            if (tradeTsMs !== null && Number.isFinite(tradePrice) && Number.isFinite(tradeQty)) {
+                ingestTrade(tradePrice, tradeQty, tradeTsMs);
+            }
         }
-    }, [ingestTrade, normalizeBookLevels]);
+    }, [ingestTrade, normalizeBookLevels, normalizeTimestampMs]);
 
     const {isConnected} = useWebSocket(mdpEndpoint, handleMessage);
 

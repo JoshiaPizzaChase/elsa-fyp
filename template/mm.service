@@ -1,0 +1,13 @@
+[Unit]
+Description=EduX Market Maker Bot Runner
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/mm
+ExecStart=/usr/local/bin/mm/create_n_market_makers
+Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
+Environment="SPDLOG_LEVEL=info"
+
+[Install]
+Alias=mm.service
