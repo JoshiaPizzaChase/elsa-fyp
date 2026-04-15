@@ -1,0 +1,169 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{hyperref}
+\usepackage{setspace}
+
+\begin{document}
+
+% --- Front Page ---
+\begin{titlepage}
+    \begin{center}
+        \vspace*{2cm}
+
+        \Huge
+        \textbf{Market Simulation for Algorithmic Trading}
+
+        \vspace{1.5cm}
+
+        \Large
+        \textbf{by} \\
+        \vspace{0.5cm}
+        BHANDARI Om Raj \\
+        CHOY Ping Hang Gordon \\
+        KWONG Wing Fung Josh
+
+        \vspace{1.5cm}
+
+        \textbf{Advised by} \\
+        \vspace{0.5cm}
+        Prof. Pedro SANDER
+
+        \vspace{2cm}
+
+        \Large
+        Submitted in partial fulfillment of the requirements for COMP 4981 \\
+        (PSAN4)
+
+        \vspace{1cm}
+
+        \Large
+        in the \\
+        \textbf{Department of Computer Science} \\
+        \textbf{The Hong Kong University of Science and Technology}
+
+        \vfill
+
+        \Large
+        2025-2026
+
+    \end{center}
+\end{titlepage}
+
+% --- Table of Contents ---
+\newpage
+\tableofcontents
+\newpage
+
+% --- Sections and Subsections ---
+
+\begin{abstract}
+% Abstract content goes here
+\end{abstract}
+
+\newpage
+
+\section{Introduction}
+
+\subsection{Overview}
+
+\subsubsection{Introduction to Algorithmic Trading}
+Financial markets are complex, dynamic systems where algorithmic trading plays a crucial role in price discovery, liquidity provision, and market efficiency. Hong Kong, as one of the world's leading financial hubs, attracts top institutions and professionals who leverage advanced trading algorithms to remain competitive, including investment banks, hedge funds, and market makers. However, there is minimal access to high-quality, open-source algorithmic trading platforms that allow newcomers, such as university students, to interact with limit order books.
+
+\subsubsection{Need for Trading Simulation}
+We were inspired by algorithmic trading competitions such as IMC Prosperity that demonstrate the educational value of simulated markets. Participants design systematic strategies and deploy them against unseen market data containing IMC-proprietary bots that are configured with diverse behaviours, such as market making. Unfortunately, the code is closed-source and inaccessible for independent learning. This project seeks to fill the gap by creating an educational trading simulator.
+
+\subsubsection{Project Contributions}
+This project contributes an extensible algorithmic trading simulator and a systematic empirical study of limit order book implementations, with particular emphasis on data structure design and low-latency performance characteristics in high-volume settings. The simulator recreates the environment of real-world trading by supporting multiple assets, heterogeneous agent populations, and configurable market regimes, thereby providing a controlled testbed for both strategy evaluation and microstructure experimentation.
+
+The primary technical contribution lies in successfully ``white-boxing'' the traditionally opaque and highly complex architecture of public financial exchanges. While real-world exchanges operate as proprietary black boxes, this project scales these massive systems down into an accessible educational format---a process of systematic architectural downscaling. By synthesizing industry research and structural estimations, we engineered a transparent, functional system. Specifically, we contribute the design, implementation, and comparative evaluation of several financial exchange backends that realize the same matching logic over different underlying data structures, such as node-based containers (e.g. balanced binary search tree-style price maps with per-level linked queues) versus contiguously stored containers (e.g. vector-like arrays of price levels with in-place order queues). This enables a direct comparison of how memory layout, pointer indirection, and CPU cache locality affect core operations such as insertion, cancellation, best-quote retrieval, and full-book traversal. We also experimented with and implemented modular architectures which utilize concurrency techniques such as lock-free ring buffers.
+
+The secondary educational contribution is the parameterizable multi-scenario configurations that expose microstructural variables to the user, such as agent order-submission intensities, volatility and regime dynamics, tick size, and artificial latency. These scenarios support different classes of agents (e.g. market makers, noise traders, momentum and value strategies) and can be instantiated per symbol and per ``trading day''. Alongside the simulations, the project contributes a visual analytics layer that presents a time series of prices, spreads, depths, and selected microstructural indicators derived from the simulated LOB state. The simulation and visualizations make the platform suitable for instructional use in courses on market microstructure and algorithmic trading.
+
+\subsection{Objective}
+The goal of this project is to provide a safe and realistic venue for beginners in algorithmic trading to learn and test their skills. To facilitate this, we designed and implemented a robust simulated market platform for real-time trading. This platform allows users to test their trading strategies in realistic market scenarios and refine their skills through trial and error. Therefore, our objectives revolve around realistic market simulation and the ability to handle large volumes of trades, mimicking a real-world stock exchange.
+
+The main objectives of the project were as follows:
+
+\begin{enumerate}
+    \item To build an efficient limit order book that could handle incoming orders at the lowest latency possible.
+    \item To provide an intuitive method for users to submit orders.
+    \item To provide a clear and clean interface for visualising market information.
+    \item To design an efficient and robust system architecture that can handle high user traffic.
+    \item To implement realistic and configurable market simulation mechanisms.
+\end{enumerate}
+
+For objectives 1 and 4, we conducted research on existing limit order book designs, stock exchange architecture diagrams, and C++ conferences (cppcon). The researched results were then benchmarked to arrive at the most efficient solutions. To achieve objective 2, we designed and implemented a Software Development Kit (SDK) in C++ with Python bindings, as Python is one of the most beginner-friendly programming languages. To satisfy objective 3, we studied interfaces of commonly used brokerage applications, including IBKR and Webull. Our study allowed us to pinpoint necessary information to display and understand how data should be presented in a clear manner. For objective 4, we built a distributed architecture that can support a high volume of user-submitted orders. Finally, for objective 5, we reviewed research papers proposing theoretically plausible methods of market simulation, narrowing them down to several methods that we closely tested and monitored.
+
+\subsection{Literature Survey}
+This literature survey examines existing work on the three major components of a financial exchange: the limit order book, system-level architecture, and simulation methodologies.
+
+\subsubsection{Limit order book architecture}
+The limit order book sits at the core of an exchange. In real exchanges, limit order books handle message rates up to 500,000 per second with microsecond latencies [3]. Correct and efficient implementation is crucial. Essentially, it must implement add, cancel, and execute operations for orders, with efficient queries such as getting the best bid and ask prices, current volume information, and the status of the order submitted by a specific user. For a detailed explanation, refer to Appendix 6.1. Current designs utilise binary trees as the primary data structure to store orders, with each node referring to a limit price. Each node then contains a doubly linked list of order nodes corresponding to those that users submit. To solve the issue of efficient queries, two hashmaps store references to limit price nodes of the tree and order nodes in the linked list, respectively [5]. However, current designs do not explicitly define which type of binary tree to use for keeping the trees balanced, as the average time complexity may grow if left unmaintained. Furthermore, the literature typically only considers theoretical time complexity and lacks empirical performance metrics, such as benchmarked latency and its distributions. It also frequently ignores computer architecture considerations, such as cache locality and cache line optimization.
+
+\subsubsection{System-level architecture}
+Modern exchanges handle thousands of assets, each with its own limit order book, and multiple concurrent users submitting orders. An exchange faces upwards of 3,000,000 messages per second at peak levels [3]. Most exchanges do not reveal their source code due to competitive advantages. Hence, existing literature only describes the architecture of exchanges at a high level [1]. Users first send messages regarding their order intentions to an exchange gateway layer, which performs validation on message integrity and runs on a separate computer from the core limit order books. This layer contains multiple parallel gateways for users to choose from and send messages to. To handle simultaneous messages and introduce a level of randomness to message handling, a sequencer first materialises the incoming messages into a single stream of ordered messages. This stream is then passed on to the limit order books for order matching, addition, or cancellation. However, current literature does not concretely define the implementation details of this architecture, such as the message and network connection protocols, load-balancing mechanisms, and inter-service communication.
+
+\subsubsection{Simulation methodologies}
+It is often useful to include order simulation to model behaviours of market participants. Existing exchange simulation tools provide historical market data replay mechanisms and simple random order generation to model noise, but do not provide support for advanced mathematical and AI-based models [4]. By contrast, quantitative finance literature provides limit order book simulation frameworks for various categories, such as point process models using the Poisson process and Hawkes process, but does not provide source code to implement such processes in a stock exchange program [2].
+
+The surveyed literature demonstrated useful designs for the core components of our exchange project. However, most works remained high-level in terms of implementation. Our project aimed to integrate all three of these component designs to implement an efficient and scalable platform that is educational and supports advanced simulation methods.
+
+
+\section{Methodology}
+
+\subsection{Design}
+\subsubsection{User Access Layer: SDK \& Graphical Interface}
+\subsubsection{Network \& Security Layer: FIX Gateways}
+\subsubsection{Order Validation \& Persistence Layer: Order Manager}
+\subsubsection{The Core: Matching Engine \& LOB Data Structures}
+\subsubsection{Distribution Layer: Market Data Processor}
+\subsubsection{Simulation Layer: Agents \& Market Regimes}
+
+\subsection{Implementation}
+\subsubsection{Dual-Language SDK Development (C++ \& Python)}
+\subsubsection{FIX Gateway and Protocol Handling}
+\subsubsection{Order Manager and Persistence Layer}
+\subsubsection{Matching Engine and LOB Data Structures}
+\subsubsection{Market Data Processor}
+\subsubsection{Agent Simulation Layer}
+
+\subsection{Testing}
+\subsubsection{Test Plan and Methodology}
+\subsubsection{Locating Logic Errors and Bugs}
+\subsubsection{Simulation Realism}
+\subsubsection{User Experience and Potential Failures}
+
+\subsection{Evaluation}
+\subsubsection{Limit Order Book Efficiency}
+\subsubsection{User Accessibility \& Visual Analytics}
+\subsubsection{Distributed System Architecture}
+\subsubsection{Simulation Effectiveness}
+
+
+\section{Discussion}
+
+
+\section{Conclusions}
+
+
+\section{References}
+% (References will go here, typically using BibTeX)
+
+
+\newpage
+\section{Appendix}
+
+\subsection{Explanation on Limit Order Books}
+
+\subsection{Project Planning}
+\subsubsection{Distribution of Work \& Gantt Chart}
+
+\subsection{Required hardware \& software}
+\subsubsection{Hardware}
+\subsubsection{Software}
+
+\end{document}
