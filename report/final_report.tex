@@ -439,8 +439,74 @@ This discovery prompted us to adopt the Design by Contract principle, writing mo
 
 \subsection{Evaluation}
 \subsubsection{Benchmarking}
-We perform benchmarking using Google Benchmark.
-Add benchmarks here.
+We used Google Benchmark across four branches. The baseline is the benchmark branch, built in Release mode with assertions and contract checks disabled. The lob-dsa, mem-pool, and template branches are exploratory prototypes for potential future improvements, rather than immediate production defaults.
+
+\noindent\textbf{Matching Engine}
+
+Figure \ref{fig:branch_benchmark_10k} compares the 10,000-order workload across the main latency-sensitive operations. The memory-pool branch is the only variant that consistently improves end-to-end performance over the baseline. Its strongest gain is in no-match order insertion (\texttt{BM\_MatchingEngine\_NewOrderNoMatchBurstLatency}), where latency is reduced from 0.807 ms to 0.434 ms ($\sim$1.86$\times$ faster). It also reduces pure LOB insertion latency from 0.672 ms to 0.257 ms ($\sim$2.61$\times$ faster). In contrast, the template-specialization branch is mostly neutral to slightly slower, and the lob-dsa branch is effectively neutral for these engine-level benchmarks.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{assets/benchmark_branch_comparison_10k.png}
+    \caption{Matching-engine latency comparison across optimization branches at workload size 10,000 (log-scale y-axis).}
+    \label{fig:branch_benchmark_10k}
+\end{figure}
+
+To isolate the data-structure effect explored in the lob-dsa branch, we also benchmarked a realistic mixed-flow LOB scenario up to 1,000,000 orders (Figure \ref{fig:lob_dsa_scaling}). The vector-based level layout improves large-scale throughput versus the map/list baseline (631.11 ms $\rightarrow$ 353.48 ms at 1,000,000 orders, $\sim$1.79$\times$ faster), while the flat-vector variant degrades sharply at scale due to expensive shifting and maintenance costs under heavy mixed updates. This result indicates that contiguous storage can outperform node-based structures when the access pattern remains locality-friendly, but only when insertion/cancellation costs are controlled.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{assets/lob_dsa_structure_scaling.png}
+    \caption{LOB data-structure scaling in realistic mixed-flow benchmarks on the lob-dsa branch (log-scale axes).}
+    \label{fig:lob_dsa_scaling}
+\end{figure}
+
+Table \ref{tab:me_throughput} reports baseline matching-engine throughput for core 10,000-order workloads. Depending on operation type, throughput ranges from 2.28 million to 12.40 million operations per second.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{|l|r|r|}
+        \hline
+        \textbf{Benchmark (10,000 workload)} & \textbf{Latency (ms)} & \textbf{Throughput (ops/s)} \\
+        \hline
+        New order (crossing, with matching) & 4.391 & 2,277,274 \\
+        New order (no match) & 0.807 & 12,395,537 \\
+        Cancel order & 0.882 & 11,333,297 \\
+        Trade serialization & 2.233 & 4,478,941 \\
+        \hline
+    \end{tabular}
+    \caption{Baseline matching-engine throughput on the \texttt{benchmark} branch.}
+    \label{tab:me_throughput}
+\end{table}
+
+\noindent\textbf{MPSC Lock-Free Ring Buffer}
+
+For the ring buffer component, we measured average per-event latency across different input amounts (events per burst). The measured averages are 27.37 ns (64 events), 11.61 ns (512 events), and 10.71 ns (4096 events), as shown in Figure \ref{fig:ring_latency_input}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{assets/ring_buffer_latency_by_input.png}
+    \caption{MPSC ring buffer average latency by input amount.}
+    \label{fig:ring_latency_input}
+\end{figure}
+
+\noindent\textbf{WebSocket}
+
+For the websocket benchmark on the baseline branch, \texttt{BM\_Websocket\_ClientToServerRoundTripLatency} measures mean round-trip latency at three payload sizes:
+\begin{itemize}
+    \item 64 B: 4.045 ms (\(\sim\)247 round-trips/s)
+    \item 512 B: 4.066 ms (\(\sim\)246 round-trips/s)
+    \item 4096 B: 4.132 ms (\(\sim\)242 round-trips/s)
+\end{itemize}
+This indicates near-constant websocket round-trip cost over small-to-moderate payload sizes in our local setup.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{assets/websocket_latency_by_input.png}
+    \caption{WebSocket average round-trip latency by input amount.}
+    \label{fig:websocket_latency_input}
+\end{figure}
 
 \subsubsection{Simulation Realism}
 Discuss stylized facts here.
@@ -562,8 +628,9 @@ Prepare Presentation Deck & O & & & & & & & & \cellcolor{gray!80} & \cellcolor{g
 \subsubsection{Hardware}
 
 \begin{itemize}
-    \item Linux Machine with 32 GB RAM
-    \item X86-based CPU architecture
+    \item Linux x86\_64 machine (Fedora 43, kernel 6.19.8)
+    \item CPU: AMD Ryzen 5 6600H (6 cores / 12 threads, up to 4.57 GHz)
+    \item Memory: 32 GiB RAM
 \end{itemize}
 
 \subsubsection{Software}
