@@ -200,16 +200,16 @@ void OrderManager::run() {
                                           validation_result);
                     }
 
-                    update_database(container, server_id, username_user_id_map, balance_checker,
-                                    *database_client, validation_result == "ok");
+                    update_database(container, server_id, username_user_id_map, order_info_map,
+                                    balance_checker, *database_client, validation_result == "ok");
                 })
                 .transform_error([&](std::string&& err) {
                     forward_and_reply(false, container, order_info_map, *gateway_ids_it,
                                       *order_request_outbound_client, order_request_connection_id,
                                       *inbound_server, err);
 
-                    update_database(container, server_id, username_user_id_map, balance_checker,
-                                    *database_client, false);
+                    update_database(container, server_id, username_user_id_map, order_info_map,
+                                    balance_checker, *database_client, false);
                     return err;
                 });
 
@@ -230,8 +230,8 @@ void OrderManager::run() {
 
                 return_execution_report(container, order_id_map, order_info_map, *inbound_server);
 
-                update_database(container, server_id, username_user_id_map, balance_checker,
-                                *database_client);
+                update_database(container, server_id, username_user_id_map, order_info_map,
+                                balance_checker, *database_client);
 
                 return new_message;
             });
@@ -624,6 +624,7 @@ generate_success_report_container(const core::Container& container,
 
 void update_database(const core::Container& container, int server_id,
                      const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     const OrderManager::OrderInfoMapContainer& order_info_map,
                      const BalanceChecker& balance_checker, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
@@ -677,6 +678,24 @@ void update_database(const core::Container& container, int server_id,
         logger->info("Persisting Cancel Response: {}", cancel_response);
 
         database_client.insert_cancel_response(cancel_response);
+
+        if (cancel_response.success) {
+            const auto& order_info = order_info_map.at(cancel_response.order_id);
+            if (order_info.side == core::Side::bid) {
+                assert(order_info.price.has_value() && "Only limit order should be cancellable");
+
+                database_client.update_balance(
+                    server_id, username_user_id_map.at(order_info.sender_comp_id), USD_SYMBOL,
+                    balance_checker.get_balance(order_info.sender_comp_id, USD_SYMBOL));
+            } else {
+                assert(order_info.price.has_value() && "Only limit order should be cancellable");
+
+                database_client.update_balance(
+                    server_id, username_user_id_map.at(order_info.sender_comp_id),
+                    order_info.symbol,
+                    balance_checker.get_balance(order_info.sender_comp_id, order_info.symbol));
+            }
+        }
     }};
 
     auto catch_all_handler{[&](const auto&) { assert(false && "UNREACHABLE"); }};

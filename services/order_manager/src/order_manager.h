@@ -108,6 +108,7 @@ generate_success_report_container(const core::Container& container,
 
 void update_database(const core::Container& container, int server_id,
                      const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     const OrderManager::OrderInfoMapContainer& order_info_map,
                      const BalanceChecker& balance_checker, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container = std::nullopt);
 
