@@ -482,24 +482,24 @@ Table \ref{tab:me_throughput} reports baseline matching-engine throughput for co
 
 \noindent\textbf{MPSC Lock-Free Ring Buffer}
 
-For the ring buffer component, we measured average per-event latency across different input amounts (events per burst). The measured averages are 27.37 ns (64 events), 11.61 ns (512 events), and 10.71 ns (4096 events), as shown in Figure \ref{fig:ring_latency_input}.
+For the ring buffer component, we measured single-event producer-consumer handoff latency. On the benchmark-branch rerun, we observed 771 ns in a single run, with aggregate mean 648.76 ns (manual-time) and 673 ns (CPU-time). This benchmark currently has one configured input amount (one event handoff), shown in Figure \ref{fig:ring_latency_input}.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{assets/ring_buffer_latency_by_input.png}
-    \caption{MPSC ring buffer average latency by input amount.}
+    \includegraphics[width=0.7\textwidth]{assets/ring_buffer_latency_by_input.png}
+    \caption{MPSC ring buffer average latency by configured input amount.}
     \label{fig:ring_latency_input}
 \end{figure}
 
 \noindent\textbf{WebSocket}
 
-For the websocket benchmark on the baseline branch, \texttt{BM\_Websocket\_ClientToServerRoundTripLatency} measures mean round-trip latency at three payload sizes:
+For the websocket benchmark on the baseline branch, we measured mean round-trip latency at three payload sizes:
 \begin{itemize}
-    \item 64 B: 4.045 ms (\(\sim\)247 round-trips/s)
-    \item 512 B: 4.066 ms (\(\sim\)246 round-trips/s)
-    \item 4096 B: 4.132 ms (\(\sim\)242 round-trips/s)
+    \item 64 B: 0.03698 ms (\(\sim\)27,042 round-trips/s)
+    \item 512 B: 0.04106 ms (\(\sim\)24,353 round-trips/s)
+    \item 4096 B: 0.06227 ms (\(\sim\)16,059 round-trips/s)
 \end{itemize}
-This indicates near-constant websocket round-trip cost over small-to-moderate payload sizes in our local setup.
+This shows clear latency growth as payload size increases in our local setup.
 
 \begin{figure}[H]
     \centering
