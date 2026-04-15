@@ -1820,6 +1820,7 @@ class UpdateDatabaseTest : public testing::Test {
     MockDatabaseClient mock_db;
     int server_id = 1;
     OrderManager::UsernameToUserIdMapContainer username_user_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
     BalanceChecker balance_checker;
 };
 
@@ -1842,7 +1843,8 @@ TEST_F(UpdateDatabaseTest, NewOrderPersistsOrderWithValidationFlag) {
     EXPECT_CALL(mock_db, insert_order(_, _, _))
         .WillOnce(Return(std::expected<void, std::string>{}));
 
-    update_database(container, server_id, username_user_id_map, balance_checker, mock_db, true);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db, true);
 }
 
 TEST_F(UpdateDatabaseTest, CancelRequestPersistsRequestWithValidationFlag) {
@@ -1860,7 +1862,8 @@ TEST_F(UpdateDatabaseTest, CancelRequestPersistsRequestWithValidationFlag) {
     EXPECT_CALL(mock_db, insert_cancel_request(_, _))
         .WillOnce(Return(std::expected<void, std::string>{}));
 
-    update_database(container, server_id, username_user_id_map, balance_checker, mock_db, false);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db, false);
 }
 
 TEST_F(UpdateDatabaseTest, TradePersistsTradeWithoutValidationFlag) {
@@ -1897,7 +1900,8 @@ TEST_F(UpdateDatabaseTest, TradePersistsTradeWithoutValidationFlag) {
             .WillOnce(Return(std::expected<void, std::string>{}));
     }
 
-    update_database(container, server_id, username_user_id_map, balance_checker, mock_db);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
 }
 
 TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) {
@@ -1906,10 +1910,26 @@ TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) 
 
     core::Container container = cancel_response;
 
+    username_user_id_map.emplace("CLIENT", 8);
+    order_info_map.emplace(33, OrderInfo{.sender_comp_id = "CLIENT",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 250,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 2,
+                                         .cum_qty = 8,
+                                         .avg_px = 249,
+                                         .arrival_gateway_id = 0});
+    balance_checker.update_balance("CLIENT", "AAPL", 2);
+
     EXPECT_CALL(mock_db, insert_cancel_response(_))
         .WillOnce(Return(std::expected<void, std::string>{}));
 
-    update_database(container, server_id, username_user_id_map, balance_checker, mock_db);
+    EXPECT_CALL(mock_db, update_balance(server_id, 8, std::string_view{"AAPL"}, 2))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
 }
 
 TEST_F(UpdateDatabaseTest, ExecutionReportDoesNotPersistAnything) {
@@ -1939,7 +1959,8 @@ TEST_F(UpdateDatabaseTest, ExecutionReportDoesNotPersistAnything) {
     EXPECT_CALL(mock_db, insert_trade(_)).Times(0);
     EXPECT_CALL(mock_db, insert_cancel_response(_)).Times(0);
 
-    update_database(container, server_id, username_user_id_map, balance_checker, mock_db);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
 }
 
 TEST_F(UpdateDatabaseDeathTest, NewOrderWithoutValidityFlagDies) {
@@ -1957,8 +1978,8 @@ TEST_F(UpdateDatabaseDeathTest, NewOrderWithoutValidityFlagDies) {
     core::Container container = new_order;
 
     EXPECT_DEATH(
-        update_database(container, server_id, username_user_id_map, balance_checker, mock_db,
-                        std::nullopt),
+        update_database(container, server_id, username_user_id_map, order_info_map,
+                        balance_checker, mock_db, std::nullopt),
         "");
 }
 
@@ -1975,7 +1996,7 @@ TEST_F(UpdateDatabaseDeathTest, CancelRequestWithoutValidityFlagDies) {
     core::Container container = cancel_request;
 
     EXPECT_DEATH(
-        update_database(container, server_id, username_user_id_map, balance_checker, mock_db,
-                        std::nullopt),
+        update_database(container, server_id, username_user_id_map, order_info_map,
+                        balance_checker, mock_db, std::nullopt),
         "");
 }
