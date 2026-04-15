@@ -8,6 +8,7 @@
 #include "websocket_client.h"
 
 #include <boost/bimap.hpp>
+#include <unordered_set>
 
 namespace om {
 inline const std::string USD_SYMBOL = "USD";
@@ -38,7 +39,7 @@ struct OrderManagerDependencyFactory {
 
 class OrderManager {
   public:
-    OrderManager(std::string_view host, int port,
+    OrderManager(std::string_view host, int port, const std::vector<std::string>& active_symbols,
                  const OrderManagerDependencyFactory& dependency_factory);
     void init();
     void wait_for_connections() const;
@@ -51,6 +52,8 @@ class OrderManager {
     using UsernameToUserIdMapContainer = std::unordered_map<std::string, int>;
 
   private:
+    const std::unordered_set<std::string> active_symbols;
+
     std::vector<int> gateway_connection_ids;
     int order_request_connection_id;
     int order_response_connection_id;
@@ -82,7 +85,9 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
                      int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                      int order_request_connection_id);
 
-std::string validate_container(const core::Container& container, BalanceChecker& balance_checker,
+std::string validate_container(const core::Container& container,
+                               const std::unordered_set<std::string>& active_symbols,
+                               BalanceChecker& balance_checker,
                                std::optional<int> fill_cost = std::nullopt);
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,

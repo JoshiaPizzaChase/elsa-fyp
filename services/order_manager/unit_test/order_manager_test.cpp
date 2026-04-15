@@ -6,6 +6,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <unordered_set>
+#include <vector>
+
 using namespace om;
 
 using testing::_;
@@ -60,6 +63,7 @@ class BaseOrderManagerTest : public testing::Test {
     MockOutboundClient* mock_order_request_client;
     MockOutboundClient* mock_order_response_client;
     MockDatabaseClient* mock_database_client;
+    const std::vector<std::string> active_symbols{"AAPL"};
     OrderManagerDependencyFactory dependency_factory;
     OrderManager test_om;
 
@@ -91,7 +95,7 @@ class BaseOrderManagerTest : public testing::Test {
                   mock_database_client = db.get();
                   return db;
               };
-              return OrderManager(TEST_HOST, TEST_PORT, dependency_factory);
+              return OrderManager(TEST_HOST, TEST_PORT, active_symbols, dependency_factory);
           }()} {
     }
 
@@ -553,6 +557,7 @@ TEST_F(PreprocessContainerTest, InvalidCancelRequest) {
 class ValidateContainerTest : public testing::Test {
   protected:
     BalanceChecker balance_checker;
+    const std::unordered_set<std::string> active_symbols{"AAPL"};
 };
 using ValidateContainerDeathTest = ValidateContainerTest;
 
@@ -571,7 +576,7 @@ TEST_F(ValidateContainerTest, ValidLimitBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
 }
@@ -591,7 +596,7 @@ TEST_F(ValidateContainerTest, InvalidLimitBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 10);
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 10);
 }
@@ -611,7 +616,7 @@ TEST_F(ValidateContainerTest, ValidMarketBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker, 1000), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker, 1000), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
 }
@@ -631,7 +636,7 @@ TEST_F(ValidateContainerTest, InvalidMarketBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_NE(validate_container(new_order, balance_checker, 100000), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker, 100000), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
 }
@@ -651,7 +656,7 @@ TEST_F(ValidateContainerTest, MissingFillCost) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_NE(validate_container(new_order, balance_checker, std::nullopt), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker, std::nullopt), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
 }
@@ -671,7 +676,7 @@ TEST_F(ValidateContainerTest, ValidLimitAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 10);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
 }
@@ -691,7 +696,7 @@ TEST_F(ValidateContainerTest, InvalidLimitAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 1);
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
 }
 
@@ -710,7 +715,7 @@ TEST_F(ValidateContainerTest, ValidMarketAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 10);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
 }
@@ -730,7 +735,7 @@ TEST_F(ValidateContainerTest, InvalidMarketAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 1);
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
 }
@@ -748,7 +753,23 @@ TEST_F(ValidateContainerTest, NoRecordInBalanceChecker) {
                                       .price = 100,
                                       .time_in_force = core::TimeInForce::gtc};
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
+}
+
+TEST_F(ValidateContainerTest, UnsupportedSymbolIsRejected) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "MSFT",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
 }
 
 TEST_F(ValidateContainerTest, ValidCancelRequest) {
@@ -762,7 +783,7 @@ TEST_F(ValidateContainerTest, ValidCancelRequest) {
                                           .side = core::Side::bid,
                                           .order_qty = 10};
 
-    EXPECT_EQ(validate_container(cancel_request, balance_checker), "ok");
+    EXPECT_EQ(validate_container(cancel_request, active_symbols, balance_checker), "ok");
 }
 
 TEST_F(ValidateContainerTest, InvalidCancelRequest) {
@@ -776,7 +797,7 @@ TEST_F(ValidateContainerTest, InvalidCancelRequest) {
                                           .side = core::Side::bid,
                                           .order_qty = 10};
 
-    EXPECT_NE(validate_container(cancel_request, balance_checker), "ok");
+    EXPECT_NE(validate_container(cancel_request, active_symbols, balance_checker), "ok");
 }
 
 class GenerateRejectionReportContainerTest : public testing::Test {

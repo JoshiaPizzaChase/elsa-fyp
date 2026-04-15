@@ -18,10 +18,11 @@ static std::shared_ptr<spdlog::logger> logger{logger::create_logger(
     std::format("{}/logs/{}/order_manager.log", std::string(PROJECT_SOURCE_DIR), SERVER_NAME))};
 
 OrderManager::OrderManager(std::string_view host, int port,
+                           const std::vector<std::string>& active_symbols,
                            const OrderManagerDependencyFactory& dependency_factory)
-    : order_request_connection_id{-1}, order_response_connection_id{-1},
-      inbound_server{
-          dependency_factory.create_inbound_server(host, port, logger, gateway_connection_ids)},
+    : active_symbols{active_symbols.begin(), active_symbols.end()}, order_request_connection_id{-1},
+      order_response_connection_id{-1}, inbound_server{dependency_factory.create_inbound_server(
+                                            host, port, logger, gateway_connection_ids)},
       order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
       order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
       database_client{dependency_factory.create_database_client(true)} {
@@ -167,7 +168,8 @@ void OrderManager::run() {
                                  order_request_connection_id)
                 .transform([&](std::optional<int>&& market_bid_fill_cost) {
                     const std::string validation_result =
-                        validate_container(container, balance_checker, market_bid_fill_cost);
+                        validate_container(container, active_symbols,balance_checker,
+                            market_bid_fill_cost);
 
                     if (validation_result == "ok") {
                         forward_and_reply(true, container, order_info_map, *gateway_ids_it,
@@ -326,10 +328,16 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
                       container);
 }
 
-std::string validate_container(const core::Container& container, BalanceChecker& balance_checker,
+std::string validate_container(const core::Container& container,
+                               const std::unordered_set<std::string>& active_symbols,
+                               BalanceChecker& balance_checker,
                                std::optional<int> market_bid_fill_cost) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) -> std::string {
         logger->info("[OM] Validating New Order Single: {}", new_order);
+
+        if (!active_symbols.contains(new_order.symbol)) {
+            return "Unrecognized symbol";
+        }
 
         // A broker must at least have a record for USD at the start
         if (!balance_checker.broker_id_exists(new_order.sender_comp_id)) {

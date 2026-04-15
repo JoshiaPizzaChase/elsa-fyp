@@ -32,7 +32,8 @@ int main(int argc, char* argv[]) {
             [](bool ensure_init) { return std::make_unique<DatabaseClientWrapper>(ensure_init); }};
 
     OrderManager order_manager{order_manager_config.order_manager_host,
-                               order_manager_config.order_manager_port, dependency_factory};
+                               order_manager_config.order_manager_port,
+                               order_manager_config.active_symbols, dependency_factory};
 
     order_manager.init();
     order_manager.wait_for_connections();
