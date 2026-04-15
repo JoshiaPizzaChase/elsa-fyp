@@ -43,7 +43,7 @@ class OrderManager {
     void init();
     void wait_for_connections() const;
     void connect_matching_engine(std::string host, int port, int try_attempts = 5);
-    [[noreturn]] void start();
+    [[noreturn]] void run();
 
     using OrderIdMapContainer = boost::bimap<int, int>;
     using OrderIdPair = OrderIdMapContainer::value_type;

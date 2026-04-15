@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
     order_manager.connect_matching_engine(order_manager_config.downstream_matching_engine_host,
                                           order_manager_config.downstream_matching_engine_port);
 
-    order_manager.start();
+    order_manager.run();
 
     return 0;
 }

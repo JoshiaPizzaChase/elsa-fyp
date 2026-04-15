@@ -154,7 +154,7 @@ void OrderManager::connect_matching_engine(std::string host, int port, int try_a
     assert(order_response_res.has_value() && "Order Response connection failed to establish");
 }
 
-void OrderManager::start() {
+void OrderManager::run() {
     auto gateway_ids_it = gateway_connection_ids.cbegin();
 
     while (true) {
