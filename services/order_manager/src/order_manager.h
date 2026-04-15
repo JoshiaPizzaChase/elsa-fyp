@@ -103,8 +103,9 @@ generate_success_report_container(const core::Container& container,
 void update_database(const core::Container& container, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container = std::nullopt);
 
-void update_order_info(const core::TradeContainer& trade_container,
-                       OrderManager::OrderInfoMapContainer& order_info_map);
+void update_internal_data(const core::Container& container,
+                          OrderManager::OrderInfoMapContainer& order_info_map,
+                          BalanceChecker& balance_checker);
 
 void return_execution_report(const core::Container& container,
                              const OrderManager::OrderIdMapContainer& order_id_map,

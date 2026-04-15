@@ -159,67 +159,59 @@ void OrderManager::start() {
 
     while (true) {
         // Process an incoming request
-        std::ignore =
-            inbound_server->dequeue_message(*gateway_ids_it)
-                .transform([&](std::string&& new_message) {
-                    auto container = transport::deserialize_container(new_message);
+        inbound_server->dequeue_message(*gateway_ids_it).transform([&](std::string&& new_message) {
+            auto container = transport::deserialize_container(new_message);
 
-                    std::ignore =
-                        preprocess_container(container, order_id_map, order_info_map,
-                                             username_user_id_map, *gateway_ids_it,
-                                             *order_request_outbound_client,
-                                             order_request_connection_id)
-                            .transform([&](std::optional<int>&& market_bid_fill_cost) {
-                                const std::string validation_result = validate_container(
-                                    container, balance_checker, market_bid_fill_cost);
+            preprocess_container(container, order_id_map, order_info_map, username_user_id_map,
+                                 *gateway_ids_it, *order_request_outbound_client,
+                                 order_request_connection_id)
+                .transform([&](std::optional<int>&& market_bid_fill_cost) {
+                    const std::string validation_result =
+                        validate_container(container, balance_checker, market_bid_fill_cost);
 
-                                if (validation_result == "ok") {
-                                    forward_and_reply(true, container, order_info_map,
-                                                      *gateway_ids_it,
-                                                      *order_request_outbound_client,
-                                                      order_request_connection_id, *inbound_server);
-                                } else {
-                                    forward_and_reply(
-                                        false, container, order_info_map, *gateway_ids_it,
-                                        *order_request_outbound_client, order_request_connection_id,
-                                        *inbound_server, validation_result);
-                                }
+                    if (validation_result == "ok") {
+                        forward_and_reply(true, container, order_info_map, *gateway_ids_it,
+                                          *order_request_outbound_client,
+                                          order_request_connection_id, *inbound_server);
+                    } else {
+                        forward_and_reply(false, container, order_info_map, *gateway_ids_it,
+                                          *order_request_outbound_client,
+                                          order_request_connection_id, *inbound_server,
+                                          validation_result);
+                    }
 
-                                update_database(container, *database_client,
-                                                validation_result == "ok");
-                            })
-                            .transform_error([&](std::string&& err) {
-                                forward_and_reply(false, container, order_info_map, *gateway_ids_it,
-                                                  *order_request_outbound_client,
-                                                  order_request_connection_id, *inbound_server,
-                                                  err);
+                    update_database(container, *database_client, validation_result == "ok");
+                })
+                .transform_error([&](std::string&& err) {
+                    forward_and_reply(false, container, order_info_map, *gateway_ids_it,
+                                      *order_request_outbound_client, order_request_connection_id,
+                                      *inbound_server, err);
 
-                                update_database(container, *database_client, false);
-                                return err;
-                            });
-
-                    return new_message;
+                    update_database(container, *database_client, false);
+                    return err;
                 });
+
+            return new_message;
+        });
 
         ++gateway_ids_it;
         if (gateway_ids_it == gateway_connection_ids.cend()) {
             gateway_ids_it = gateway_connection_ids.cbegin();
         }
 
-        // Process a returned message container
-        if (auto new_message =
-                order_response_outbound_client->dequeue_message(order_response_connection_id);
-            new_message.has_value()) {
-            auto container = transport::deserialize_container(new_message.value());
+        // Process a response container from matching engine
+        order_response_outbound_client->dequeue_message(order_response_connection_id)
+            .transform([&](std::string&& new_message) {
+                const auto container = transport::deserialize_container(new_message);
 
-            if (const auto trade_container = std::get_if<core::TradeContainer>(&container)) {
-                update_order_info(*trade_container, order_info_map);
-            }
+                update_internal_data(container, order_info_map, balance_checker);
 
-            return_execution_report(container, order_id_map, order_info_map, *inbound_server);
+                return_execution_report(container, order_id_map, order_info_map, *inbound_server);
 
-            update_database(container, *database_client);
-        }
+                update_database(container, *database_client);
+
+                return new_message;
+            });
     }
 }
 
@@ -620,7 +612,7 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
             [&] { BOOST_CONTRACT_ASSERT(valid_container.has_value()); });
 
         logger->info("Persisting Cancel Request: {}", cancel_request);
- database_client.insert_cancel_request(cancel_request, valid_container.value());
+        database_client.insert_cancel_request(cancel_request, valid_container.value());
     }};
 
     auto execution_report_handler{[&](const core::ExecutionReportContainer& execution_report) {
@@ -647,26 +639,79 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
                container);
 }
 
-void update_order_info(const core::TradeContainer& trade_container,
-                       OrderManager::OrderInfoMapContainer& order_info_map) {
-    boost::contract::check c = boost::contract::function().precondition([&] {
-        BOOST_CONTRACT_ASSERT(order_info_map.contains(trade_container.taker_order_id));
-        BOOST_CONTRACT_ASSERT(order_info_map.contains(trade_container.maker_order_id));
-    });
+void update_internal_data(const core::Container& container,
+                          OrderManager::OrderInfoMapContainer& order_info_map,
+                          BalanceChecker& balance_checker) {
+    auto trade_handler{[&](const core::TradeContainer& trade) {
+        boost::contract::check c = boost::contract::function().precondition([&] {
+            BOOST_CONTRACT_ASSERT(order_info_map.contains(trade.taker_order_id));
+            BOOST_CONTRACT_ASSERT(order_info_map.contains(trade.maker_order_id));
+        });
 
-    auto& taker_order_info = order_info_map.at(trade_container.taker_order_id);
-    taker_order_info.avg_px = (taker_order_info.avg_px * taker_order_info.cum_qty +
-                               trade_container.price * trade_container.quantity) /
-                              (trade_container.quantity + taker_order_info.cum_qty);
-    taker_order_info.leaves_qty -= trade_container.quantity;
-    taker_order_info.cum_qty += trade_container.quantity;
+        auto& taker_order_info = order_info_map.at(trade.taker_order_id);
+        taker_order_info.avg_px =
+            (taker_order_info.avg_px * taker_order_info.cum_qty + trade.price * trade.quantity) /
+            (trade.quantity + taker_order_info.cum_qty);
+        taker_order_info.leaves_qty -= trade.quantity;
+        taker_order_info.cum_qty += trade.quantity;
 
-    auto& maker_order_info = order_info_map.at(trade_container.maker_order_id);
-    maker_order_info.avg_px = (maker_order_info.avg_px * maker_order_info.cum_qty +
-                               trade_container.price * trade_container.quantity) /
-                              (trade_container.quantity + maker_order_info.cum_qty);
-    maker_order_info.leaves_qty -= trade_container.quantity;
-    maker_order_info.cum_qty += trade_container.quantity;
+        auto& maker_order_info = order_info_map.at(trade.maker_order_id);
+        maker_order_info.avg_px =
+            (maker_order_info.avg_px * maker_order_info.cum_qty + trade.price * trade.quantity) /
+            (trade.quantity + maker_order_info.cum_qty);
+        maker_order_info.leaves_qty -= trade.quantity;
+        maker_order_info.cum_qty += trade.quantity;
+
+        // Buyer's stock balance should increase from buying
+        const auto& buyer_id = trade.is_taker_buyer ? trade.taker_id : trade.maker_id;
+        balance_checker.update_balance(buyer_id, trade.ticker, trade.quantity);
+
+        // A limit buyer may pay a lower price than the original order stated, refund the
+        // excess deducted balance
+        const auto buyer_order_id =
+            trade.is_taker_buyer ? trade.taker_order_id : trade.maker_order_id;
+
+        order_info_map.at(buyer_order_id).price.transform([&](int price) {
+            const auto price_improvement = price - trade.price;
+            assert(price_improvement >= 0 && "Only price improvement should happen");
+
+            if (price_improvement > 0)
+                balance_checker.update_balance(buyer_id, USD_SYMBOL,
+                                               price_improvement * trade.quantity);
+
+            return price;
+        });
+
+        // Seller's USD balance should increase from selling stocks
+        const auto& seller_id = trade.is_taker_buyer ? trade.maker_id : trade.taker_id;
+        balance_checker.update_balance(seller_id, USD_SYMBOL, trade.price * trade.quantity);
+    }};
+
+    auto cancel_response_handler{[&](const core::CancelOrderResponseContainer& cancel_response) {
+        if (cancel_response.success) {
+            const auto& order_info = order_info_map.at(cancel_response.order_id);
+
+            if (order_info.side == core::Side::bid) {
+                assert(order_info.price.has_value() && "Only limit order should be cancellable");
+
+                balance_checker.update_balance(order_info.sender_comp_id, USD_SYMBOL,
+                                               order_info.price.value() * order_info.leaves_qty);
+            } else {
+                assert(order_info.price.has_value() && "Only limit order should be cancellable");
+
+                balance_checker.update_balance(order_info.sender_comp_id, order_info.symbol,
+                                               order_info.leaves_qty);
+            }
+        }
+    }};
+
+    auto catch_all_handler{[](const auto&) {
+        logger->error("Unreachable");
+
+        std::terminate();
+    }};
+
+    std::visit(overloaded{trade_handler, cancel_response_handler, catch_all_handler}, container);
 }
 
 void return_execution_report(const core::Container& container,

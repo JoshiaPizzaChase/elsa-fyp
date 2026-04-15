@@ -1154,12 +1154,13 @@ TEST_F(ForwardAndReplyDeathTest, PreconditionViolationValidWithReason) {
                  "");
 }
 
-class UpdateOrderInfoTest : public testing::Test {
+class UpdateInternalDataTest : public testing::Test {
   protected:
     OrderManager::OrderInfoMapContainer order_info_map;
+    BalanceChecker balance_checker;
 };
 
-TEST_F(UpdateOrderInfoTest, UpdatesBothOrdersOnInitialTradeFill) {
+TEST_F(UpdateInternalDataTest, UpdatesBothOrdersOnInitialTradeFill) {
     order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER",
                                          .symbol = "AAPL",
                                          .side = core::Side::bid,
@@ -1190,7 +1191,9 @@ TEST_F(UpdateOrderInfoTest, UpdatesBothOrdersOnInitialTradeFill) {
                                      .maker_order_id = 22,
                                      .is_taker_buyer = true};
 
-    update_order_info(trade, order_info_map);
+    balance_checker.update_balance("TAKER", USD_SYMBOL, 10'000);
+
+    update_internal_data(trade, order_info_map, balance_checker);
 
     const auto& taker = order_info_map.at(11);
     EXPECT_EQ(taker.avg_px, 100);
@@ -1201,9 +1204,12 @@ TEST_F(UpdateOrderInfoTest, UpdatesBothOrdersOnInitialTradeFill) {
     EXPECT_EQ(maker.avg_px, 100);
     EXPECT_EQ(maker.leaves_qty, 0);
     EXPECT_EQ(maker.cum_qty, 7);
+
+    EXPECT_EQ(balance_checker.get_balance("TAKER", "AAPL"), 7);
+    EXPECT_EQ(balance_checker.get_balance("MAKER", USD_SYMBOL), 700);
 }
 
-TEST_F(UpdateOrderInfoTest, UpdatesOneMakerAcrossTwoTakersAndSecondTakerDrainsMaker) {
+TEST_F(UpdateInternalDataTest, UpdatesOneMakerAcrossTwoTakersAndSecondTakerDrainsMaker) {
     order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER1",
                                          .symbol = "AAPL",
                                          .side = core::Side::bid,
@@ -1254,7 +1260,10 @@ TEST_F(UpdateOrderInfoTest, UpdatesOneMakerAcrossTwoTakersAndSecondTakerDrainsMa
                                             .maker_order_id = 22,
                                             .is_taker_buyer = true};
 
-    update_order_info(first_trade, order_info_map);
+    balance_checker.update_balance("TAKER1", USD_SYMBOL, 10'000);
+    balance_checker.update_balance("TAKER2", USD_SYMBOL, 10'000);
+
+    update_internal_data(first_trade, order_info_map, balance_checker);
 
     const auto& taker_one = order_info_map.at(11);
     EXPECT_EQ(taker_one.avg_px, 100);
@@ -1266,7 +1275,7 @@ TEST_F(UpdateOrderInfoTest, UpdatesOneMakerAcrossTwoTakersAndSecondTakerDrainsMa
     EXPECT_EQ(maker_after_first_fill.leaves_qty, 6);
     EXPECT_EQ(maker_after_first_fill.cum_qty, 4);
 
-    update_order_info(second_trade, order_info_map);
+    update_internal_data(second_trade, order_info_map, balance_checker);
 
     const auto& taker_two = order_info_map.at(12);
     EXPECT_EQ(taker_two.avg_px, 100);
@@ -1277,11 +1286,121 @@ TEST_F(UpdateOrderInfoTest, UpdatesOneMakerAcrossTwoTakersAndSecondTakerDrainsMa
     EXPECT_EQ(maker_after_second_fill.avg_px, 100);
     EXPECT_EQ(maker_after_second_fill.leaves_qty, 0);
     EXPECT_EQ(maker_after_second_fill.cum_qty, 10);
+
+    EXPECT_EQ(balance_checker.get_balance("TAKER1", "AAPL"), 4);
+    EXPECT_EQ(balance_checker.get_balance("TAKER2", "AAPL"), 6);
+    EXPECT_EQ(balance_checker.get_balance("MAKER", USD_SYMBOL), 1000);
 }
 
-using UpdateOrderInfoDeathTest = UpdateOrderInfoTest;
+TEST_F(UpdateInternalDataTest, TradeWithTakerAsBuyerWithPriceImprovementAndRefundBalances) {
+    order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 101,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 5,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 1});
 
-TEST_F(UpdateOrderInfoDeathTest, MissingTakerOrderInfo) {
+    order_info_map.emplace(22, OrderInfo{.sender_comp_id = "MAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 5,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 2});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 5,
+                                     .trade_id = "T7",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 11,
+                                     .maker_order_id = 22,
+                                     .is_taker_buyer = true};
+
+    balance_checker.update_balance("TAKER", USD_SYMBOL, 1000);
+
+    update_internal_data(trade, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("TAKER", "AAPL"), 5);
+    EXPECT_EQ(balance_checker.get_balance("TAKER", USD_SYMBOL), 1005);
+    EXPECT_EQ(balance_checker.get_balance("MAKER", USD_SYMBOL), 500);
+}
+
+TEST_F(UpdateInternalDataTest, SuccessfulBidCancelResponseRefundsReservedUsd) {
+    constexpr int order_id = 55;
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::bid,
+                                               .price = 100,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 4,
+                                               .cum_qty = 1,
+                                               .avg_px = 122,
+                                               .arrival_gateway_id = 0});
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 10);
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 777, .success = true};
+
+    update_internal_data(cancel_response, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", USD_SYMBOL), 410);
+}
+
+TEST_F(UpdateInternalDataTest, SuccessfulAskCancelResponseRefundsRemainingShares) {
+    constexpr int order_id = 66;
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::ask,
+                                               .price = 123,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 3,
+                                               .cum_qty = 2,
+                                               .avg_px = 123,
+                                               .arrival_gateway_id = 0});
+
+    balance_checker.update_balance("CLIENT", "AAPL", 1);
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 888, .success = true};
+
+    update_internal_data(cancel_response, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 4);
+}
+
+TEST_F(UpdateInternalDataTest, RejectedCancelResponseDoesNotChangeBalances) {
+    constexpr int order_id = 77;
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::bid,
+                                               .price = 123,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 5,
+                                               .cum_qty = 0,
+                                               .avg_px = 0,
+                                               .arrival_gateway_id = 0});
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 42);
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 999, .success = false};
+
+    update_internal_data(cancel_response, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", USD_SYMBOL), 42);
+}
+
+using UpdateInternalDataDeathTest = UpdateInternalDataTest;
+
+TEST_F(UpdateInternalDataDeathTest, MissingTakerOrderInfo) {
     order_info_map.emplace(2, OrderInfo{.sender_comp_id = "MAKER",
                                         .symbol = "AAPL",
                                         .side = core::Side::ask,
@@ -1302,10 +1421,10 @@ TEST_F(UpdateOrderInfoDeathTest, MissingTakerOrderInfo) {
                                      .maker_order_id = 2,
                                      .is_taker_buyer = true};
 
-    EXPECT_DEATH(update_order_info(trade, order_info_map), "");
+    EXPECT_DEATH(update_internal_data(trade, order_info_map, balance_checker), "");
 }
 
-TEST_F(UpdateOrderInfoDeathTest, MissingMakerOrderInfo) {
+TEST_F(UpdateInternalDataDeathTest, MissingMakerOrderInfo) {
     order_info_map.emplace(1, OrderInfo{.sender_comp_id = "TAKER",
                                         .symbol = "AAPL",
                                         .side = core::Side::bid,
@@ -1326,7 +1445,7 @@ TEST_F(UpdateOrderInfoDeathTest, MissingMakerOrderInfo) {
                                      .maker_order_id = 2,
                                      .is_taker_buyer = true};
 
-    EXPECT_DEATH(update_order_info(trade, order_info_map), "");
+    EXPECT_DEATH(update_internal_data(trade, order_info_map, balance_checker), "");
 }
 
 class GenerateMatchedOrderReportContainersTest : public testing::Test {
@@ -1728,16 +1847,14 @@ TEST_F(UpdateDatabaseTest, TradePersistsTradeWithoutValidationFlag) {
 
     core::Container container = trade;
 
-    EXPECT_CALL(mock_db, insert_trade(_))
-        .WillOnce(Return(std::expected<void, std::string>{}));
+    EXPECT_CALL(mock_db, insert_trade(_)).WillOnce(Return(std::expected<void, std::string>{}));
 
     update_database(container, mock_db);
 }
 
 TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) {
-    const core::CancelOrderResponseContainer cancel_response{.order_id = 33,
-                                                             .cl_ord_id = 404,
-                                                             .success = true};
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = 33, .cl_ord_id = 404, .success = true};
 
     core::Container container = cancel_response;
 
@@ -1748,23 +1865,24 @@ TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) 
 }
 
 TEST_F(UpdateDatabaseTest, ExecutionReportDoesNotPersistAnything) {
-    const core::ExecutionReportContainer execution_report{.sender_comp_id = SERVER_NAME,
-                                                          .target_comp_id = "CLIENT",
-                                                          .order_id = 11,
-                                                          .cl_order_id = 22,
-                                                          .orig_cl_ord_id = std::nullopt,
-                                                          .exec_id = "exec-1",
-                                                          .exec_trans_type = core::ExecTransType::exec_trans_new,
-                                                          .exec_type = core::ExecType::status_new,
-                                                          .ord_status = core::OrderStatus::status_new,
-                                                          .text = std::nullopt,
-                                                          .symbol = "AAPL",
-                                                          .side = core::Side::ask,
-                                                          .price = 123,
-                                                          .time_in_force = core::TimeInForce::gtc,
-                                                          .leaves_qty = 10,
-                                                          .cum_qty = 0,
-                                                          .avg_px = 0};
+    const core::ExecutionReportContainer execution_report{
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = "CLIENT",
+        .order_id = 11,
+        .cl_order_id = 22,
+        .orig_cl_ord_id = std::nullopt,
+        .exec_id = "exec-1",
+        .exec_trans_type = core::ExecTransType::exec_trans_new,
+        .exec_type = core::ExecType::status_new,
+        .ord_status = core::OrderStatus::status_new,
+        .text = std::nullopt,
+        .symbol = "AAPL",
+        .side = core::Side::ask,
+        .price = 123,
+        .time_in_force = core::TimeInForce::gtc,
+        .leaves_qty = 10,
+        .cum_qty = 0,
+        .avg_px = 0};
 
     core::Container container = execution_report;
 
@@ -1807,4 +1925,3 @@ TEST_F(UpdateDatabaseDeathTest, CancelRequestWithoutValidityFlagDies) {
 
     EXPECT_DEATH(update_database(container, mock_db, std::nullopt), "");
 }
-
