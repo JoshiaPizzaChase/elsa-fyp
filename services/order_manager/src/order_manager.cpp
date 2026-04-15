@@ -167,9 +167,8 @@ void OrderManager::run() {
                                  *gateway_ids_it, *order_request_outbound_client,
                                  order_request_connection_id)
                 .transform([&](std::optional<int>&& market_bid_fill_cost) {
-                    const std::string validation_result =
-                        validate_container(container, active_symbols,balance_checker,
-                            market_bid_fill_cost);
+                    const std::string validation_result = validate_container(
+                        container, active_symbols, balance_checker, market_bid_fill_cost);
 
                     if (validation_result == "ok") {
                         forward_and_reply(true, container, order_info_map, *gateway_ids_it,
@@ -738,7 +737,7 @@ void return_execution_report(const core::Container& container,
                 logger->info("Successfully returned execution report: {}", taker_exec_report);
             })
             .transform_error([&](int err) {
-                logger->info("Failed to returned execution report: {}", taker_exec_report);
+                logger->error("Failed to returned execution report: {}", taker_exec_report);
 
                 return err;
             });
@@ -751,7 +750,7 @@ void return_execution_report(const core::Container& container,
                 logger->info("Successfully returned execution report: {}", maker_exec_report);
             })
             .transform_error([&](int err) {
-                logger->info("Failed to returned execution report: {}", maker_exec_report);
+                logger->error("Failed to returned execution report: {}", maker_exec_report);
 
                 return err;
             });
@@ -766,7 +765,7 @@ void return_execution_report(const core::Container& container,
             .transform(
                 [&] { logger->info("Successfully returned execution report: {}", exec_report); })
             .transform_error([&](int err) {
-                logger->info("Failed to returned execution report: {}", exec_report);
+                logger->error("Failed to returned execution report: {}", exec_report);
 
                 return err;
             });
