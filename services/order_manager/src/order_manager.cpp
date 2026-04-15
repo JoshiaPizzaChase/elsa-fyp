@@ -200,14 +200,16 @@ void OrderManager::run() {
                                           validation_result);
                     }
 
-                    update_database(container, *database_client, validation_result == "ok");
+                    update_database(container, server_id, username_user_id_map, balance_checker,
+                                    *database_client, validation_result == "ok");
                 })
                 .transform_error([&](std::string&& err) {
                     forward_and_reply(false, container, order_info_map, *gateway_ids_it,
                                       *order_request_outbound_client, order_request_connection_id,
                                       *inbound_server, err);
 
-                    update_database(container, *database_client, false);
+                    update_database(container, server_id, username_user_id_map, balance_checker,
+                                    *database_client, false);
                     return err;
                 });
 
@@ -228,7 +230,8 @@ void OrderManager::run() {
 
                 return_execution_report(container, order_id_map, order_info_map, *inbound_server);
 
-                update_database(container, *database_client);
+                update_database(container, server_id, username_user_id_map, balance_checker,
+                                *database_client);
 
                 return new_message;
             });
@@ -619,7 +622,9 @@ generate_success_report_container(const core::Container& container,
                       container);
 }
 
-void update_database(const core::Container& container, OrderManagerDatabase& database_client,
+void update_database(const core::Container& container, int server_id,
+                     const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     const BalanceChecker& balance_checker, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
         boost::contract::check c = boost::contract::function().precondition([&] {
@@ -648,8 +653,24 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
 
     auto trade_handler{[&](const core::TradeContainer& trade) {
         logger->info("Persisting Trade: {}", trade);
-
         database_client.insert_trade(trade);
+
+        const auto& symbol = trade.ticker;
+        const auto& buyer_id = trade.is_taker_buyer ? trade.taker_id : trade.maker_id;
+        const int buyer_user_id = username_user_id_map.at(buyer_id);
+
+        database_client.update_balance(server_id, buyer_user_id, USD_SYMBOL,
+                                       balance_checker.get_balance(buyer_id, USD_SYMBOL));
+        database_client.update_balance(server_id, buyer_user_id, symbol,
+                                       balance_checker.get_balance(buyer_id, symbol));
+
+        const auto& seller_id = trade.is_taker_buyer ? trade.maker_id : trade.taker_id;
+        const int seller_user_id = username_user_id_map.at(seller_id);
+
+        database_client.update_balance(server_id, seller_user_id, USD_SYMBOL,
+                                       balance_checker.get_balance(seller_id, USD_SYMBOL));
+        database_client.update_balance(server_id, seller_user_id, symbol,
+                                       balance_checker.get_balance(seller_id, symbol));
     }};
 
     auto cancel_response_handler{[&](const core::CancelOrderResponseContainer& cancel_response) {
