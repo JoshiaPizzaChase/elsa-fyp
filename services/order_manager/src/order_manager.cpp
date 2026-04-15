@@ -25,7 +25,7 @@ OrderManager::OrderManager(std::string_view host, int port,
                                             host, port, logger, gateway_connection_ids)},
       order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
       order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
-      database_client{dependency_factory.create_database_client(true)} {
+      database_client{dependency_factory.create_database_client(true)}, server_id{-1} {
 }
 
 void OrderManager::init() {
@@ -55,6 +55,25 @@ void OrderManager::init() {
                       });
 
     init_balance_checker(balance_checker, username_user_id_map, *database_client);
+
+    database_client->get_server(SERVER_NAME)
+        .transform([&](std::optional<DbServerRow>&& server_row_res) {
+            std::move(server_row_res)
+                .transform([&](DbServerRow&& server_row) {
+                    server_id = server_row.server_id;
+                    return server_row;
+                })
+                .or_else([] -> std::optional<DbServerRow> {
+                    logger->error("Failed to find Server Info of server {}", SERVER_NAME);
+                    std::terminate();
+                    return std::nullopt;
+                });
+        })
+        .transform_error([](std::string&& err) {
+            logger->error("Error occured while fetching Server Info from DB: {}", err);
+            std::terminate();
+            return err;
+        });
 }
 
 // Load all user balances into the balance_checker

@@ -66,6 +66,7 @@ class OrderManager {
     UsernameToUserIdMapContainer username_user_id_map;
 
     std::unique_ptr<OrderManagerDatabase> database_client;
+    int server_id;
 
     // Left is internal order ID, Right is sender id + client order ID (for preventing a user
     // having duplicate client order ID)

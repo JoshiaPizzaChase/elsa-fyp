@@ -59,6 +59,31 @@ class DatabaseClientWrapper : public OrderManagerDatabase {
         return client.insert_cancel_response(cancel_response);
     }
 
+    std::expected<std::optional<DbServerRow>, std::string>
+    get_server(const std::string_view& server_name) override {
+        return client.get_server(server_name)
+            .transform([](std::optional<database::DatabaseClient::ServerRow>&& server_row_res)
+                           -> std::optional<DbServerRow> {
+                return std::move(server_row_res)
+                    .transform([](database::DatabaseClient::ServerRow&& server_row) {
+                        return DbServerRow{.server_id = server_row.server_id,
+                                           .admin_id = server_row.admin_id,
+                                           .server_name = std::move(server_row.server_name),
+                                           .admin_name = std::move(server_row.admin_name),
+                                           .active_tickers = std::move(server_row.active_tickers),
+                                           .description = std::move(server_row.description),
+                                           .initial_usd = server_row.initial_usd};
+                    });
+            })
+            .transform_error([](std::string&& err) { return err; });
+    }
+
+    std::expected<void, std::string> update_balance(int user_id, int server_id,
+                                                    std::string_view symbol,
+                                                    std::int64_t balance) override {
+        return client.update_balance(user_id, server_id, symbol, balance);
+    }
+
   private:
     database::DatabaseClient client;
 };
