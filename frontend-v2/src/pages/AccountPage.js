@@ -21,20 +21,46 @@ const BOT_META = {
 const DEFAULT_BOT_GROUP = {
     count: 0,
     initial_usd: DEFAULT_INITIAL_USD,
-    initial_inventory: 0,
+    initial_inventory: 100,
     inventory_by_symbol: {},
     params: {},
 };
 const DEFAULT_BOT_CONFIG = {
     mm: {
-        groups: [{...DEFAULT_BOT_GROUP, count: 1, params: {lot_size: 1, gamma: 0.1, k: 1.5, terminal_time: 1}}],
+        groups: [{
+            ...DEFAULT_BOT_GROUP,
+            count: 3,
+            initial_usd: 300000,
+            initial_inventory: 300,
+            params: {lot_size: 1, gamma: 0.6, k: 8, terminal_time: 30},
+        }],
     },
     nt: {
-        groups: [{...DEFAULT_BOT_GROUP, count: 5, params: {lambda_eps: 20, bernoulli: 0.5, pareto_scale: 1, pareto_shape: 2}}],
+        groups: [{
+            ...DEFAULT_BOT_GROUP,
+            count: 4,
+            initial_usd: 80000,
+            initial_inventory: 20,
+            params: {lambda_eps: 0.6, bernoulli: 0.5, pareto_scale: 0.5, pareto_shape: 4},
+        }],
     },
     it: {
-        groups: [{...DEFAULT_BOT_GROUP, count: 1, params: {epsilon: 0.05, trade_qty: 10, max_inventory: 1000}}],
+        groups: [{
+            ...DEFAULT_BOT_GROUP,
+            count: 1,
+            initial_usd: 150000,
+            initial_inventory: 150,
+            params: {epsilon: 0.12, trade_qty: 5, max_inventory: 1200},
+        }],
     },
+};
+const DEFAULT_ORACLE_CONFIG = {
+    mu: 0.0,
+    sigma: 0.03,
+    jump_intensity: 0.12,
+    jump_mean: 0.0,
+    jump_std: 0.01,
+    update_interval_ms: 50,
 };
 
 const createDefaultBotConfig = () => JSON.parse(JSON.stringify(DEFAULT_BOT_CONFIG));
@@ -353,6 +379,7 @@ function ServerModal({server, username, onClose, onSaved}) {
         isNew ? DEFAULT_INITIAL_USD : (server.initial_usd ?? DEFAULT_INITIAL_USD)
     );
     const [botConfig, setBotConfig] = useState(createDefaultBotConfig());
+    const [oracleConfig, setOracleConfig] = useState({...DEFAULT_ORACLE_CONFIG});
     const [activeBotSettings, setActiveBotSettings] = useState(null);
 
     const [saving, setSaving] = useState(false);
@@ -376,7 +403,7 @@ function ServerModal({server, username, onClose, onSaved}) {
                         const nextInventory = {};
                         symbols.forEach((symbol) => {
                             nextInventory[symbol] =
-                                group.inventory_by_symbol?.[symbol] ?? 0;
+                                group.inventory_by_symbol?.[symbol] ?? group.initial_inventory ?? 0;
                         });
                         return {
                             ...group,
@@ -438,6 +465,22 @@ function ServerModal({server, username, onClose, onSaved}) {
             active_symbols: symbols,
             allowlist,
             initial_usd: Number.isFinite(Number(initialUsd)) ? Number(initialUsd) : DEFAULT_INITIAL_USD,
+            oracle: {
+                mu: Number.isFinite(Number(oracleConfig.mu)) ? Number(oracleConfig.mu) : DEFAULT_ORACLE_CONFIG.mu,
+                sigma: Number.isFinite(Number(oracleConfig.sigma)) ? Math.max(0, Number(oracleConfig.sigma)) : DEFAULT_ORACLE_CONFIG.sigma,
+                jump_intensity: Number.isFinite(Number(oracleConfig.jump_intensity))
+                    ? Math.max(0, Number(oracleConfig.jump_intensity))
+                    : DEFAULT_ORACLE_CONFIG.jump_intensity,
+                jump_mean: Number.isFinite(Number(oracleConfig.jump_mean))
+                    ? Number(oracleConfig.jump_mean)
+                    : DEFAULT_ORACLE_CONFIG.jump_mean,
+                jump_std: Number.isFinite(Number(oracleConfig.jump_std))
+                    ? Math.max(0, Number(oracleConfig.jump_std))
+                    : DEFAULT_ORACLE_CONFIG.jump_std,
+                update_interval_ms: Number.isFinite(Number(oracleConfig.update_interval_ms))
+                    ? Math.max(1, Math.floor(Number(oracleConfig.update_interval_ms)))
+                    : DEFAULT_ORACLE_CONFIG.update_interval_ms,
+            },
             ...(isNew ? {bots: normalizedBots} : {}),
         };
 
@@ -554,6 +597,78 @@ function ServerModal({server, username, onClose, onSaved}) {
 
                     {isNew && (
                         <div className="sm-field">
+                            <label className="sm-label">Oracle Service</label>
+                            <div className="sm-bot-settings-grid">
+                                <div className="sm-field">
+                                    <label className="sm-label">mu</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        step="0.001"
+                                        value={oracleConfig.mu}
+                                        onChange={e => setOracleConfig(prev => ({...prev, mu: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">sigma</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="0"
+                                        step="0.001"
+                                        value={oracleConfig.sigma}
+                                        onChange={e => setOracleConfig(prev => ({...prev, sigma: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">jump intensity</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="0"
+                                        step="0.001"
+                                        value={oracleConfig.jump_intensity}
+                                        onChange={e => setOracleConfig(prev => ({...prev, jump_intensity: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">jump mean</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        step="0.001"
+                                        value={oracleConfig.jump_mean}
+                                        onChange={e => setOracleConfig(prev => ({...prev, jump_mean: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">jump std</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="0"
+                                        step="0.001"
+                                        value={oracleConfig.jump_std}
+                                        onChange={e => setOracleConfig(prev => ({...prev, jump_std: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">update interval (ms)</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={oracleConfig.update_interval_ms}
+                                        onChange={e => setOracleConfig(prev => ({...prev, update_interval_ms: e.target.value}))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {isNew && (
+                        <div className="sm-field">
                             <label className="sm-label">Simulation Bots</label>
                             <div className="sm-bot-grid">
                                 {BOT_TYPES.map((botType) => (
@@ -599,7 +714,9 @@ function ServerModal({server, username, onClose, onSaved}) {
                             const templateGroup = target.groups?.[0] ?? {...DEFAULT_BOT_GROUP};
                             const newInventory = {};
                             symbols.forEach((symbol) => {
-                                newInventory[symbol] = templateGroup.inventory_by_symbol?.[symbol] ?? 0;
+                                newInventory[symbol] = templateGroup.inventory_by_symbol?.[symbol]
+                                    ?? templateGroup.initial_inventory
+                                    ?? 0;
                             });
                             const newGroup = {
                                 ...templateGroup,

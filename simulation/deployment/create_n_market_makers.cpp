@@ -5,10 +5,13 @@
 #include <vector>
 #include <filesystem>
 #include <chrono>
+#include <format>
 
+#include "config.h"
 #include "../traders/market_maker.h"
 #include "simulation_config.h"
 #include "rfl/toml/load.hpp"
+#include "logger/logger.h"
 #include <transport/websocket/websocket_client.h>
 
 using namespace simulation;
@@ -16,8 +19,15 @@ using namespace simulation;
 int main() {
     const auto mm_config_path = "mm_config.toml";
     const simulation::MarketMakersConfig config = rfl::toml::load<simulation::MarketMakersConfig>(mm_config_path).value();
+    const std::string log_dir =
+        std::format("{}/logs/{}", std::string(PROJECT_SOURCE_DIR), SERVER_NAME);
+    std::filesystem::create_directories(log_dir);
+    auto market_maker_logger = logger::create_logger(
+        std::format("market_maker_{}_logger", config.cfg_prefix),
+        std::format("{}/{}.log", log_dir, config.cfg_prefix));
 
     std::cout << "Deploying " << config.num_market_makers << " Market Makers..." << '\n';
+    market_maker_logger->info("Deploying {} Market Makers...", config.num_market_makers);
 
     std::vector<std::shared_ptr<transport::WebsocketManagerClient>> ws_clients;
     std::vector<std::shared_ptr<MarketDataHandler>> md_handlers;
@@ -29,27 +39,30 @@ int main() {
 
         if (!std::filesystem::exists(config_path)) {
             std::cerr << "Warning: Expected FIX client config file does not exist at " << config_path << '\n';
+            market_maker_logger->warn(
+                "Expected FIX client config file does not exist at {}", config_path);
             // Continue anyway to let FixClient (QuickFix) throw an exception or handle it
         }
 
         // Create and store the websocket client
         auto ws_client = std::make_shared<transport::WebsocketManagerClient>(config.cfg_prefix + std::to_string(i + 1) + "_logger");
         ws_client->start();
-        ws_client->connect("ws://localhost:9001");
+        ws_client->connect("ws://" + config.mdp_ws_host + ":" + std::to_string(config.mdp_ws_port));
         ws_clients.push_back(ws_client);
 
         // Create and start the market data handler
-        auto md_handler = std::make_shared<MarketDataHandler>(ws_client);
+        auto md_handler = std::make_shared<MarketDataHandler>(ws_client, market_maker_logger);
         md_handler->start();
         md_handlers.push_back(md_handler);
 
         // Create the FIX client for this market maker
-        auto fix_client = std::make_shared<MMFixClient>(config_path);
+        auto fix_client = std::make_shared<MMFixClient>(config_path, market_maker_logger);
 
         try {
             fix_client->connect(5);
         } catch(const std::exception& e) {
             std::cerr << "Error connecting MMFixClient " << i << ": " << e.what() << '\n';
+            market_maker_logger->error("Error connecting MMFixClient {}: {}", i, e.what());
             continue;
         }
 
@@ -61,7 +74,8 @@ int main() {
             config.lot_size,
             config.gamma,
             config.k,
-            config.terminal_time
+            config.terminal_time,
+            market_maker_logger
         );
 
         traders.push_back(trader);
@@ -72,6 +86,7 @@ int main() {
 
     // Keep the main deployment thread alive so the spawned market maker threads can run asynchronously.
     std::cout << "All traders deployed and running. Press Ctrl+C to terminate." << '\n';
+    market_maker_logger->info("All market makers deployed and running.");
 
     while (true) {
         std::this_thread::sleep_for(std::chrono::hours(24));

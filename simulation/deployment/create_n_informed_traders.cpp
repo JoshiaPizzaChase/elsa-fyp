@@ -5,11 +5,13 @@
 #include <vector>
 #include <filesystem>
 #include <chrono>
+#include <format>
 
 #include "../traders/informed_trader.h"
 #include "../traders/oracle_service.h"
 #include "simulation_config.h"
 #include "rfl/toml/load.hpp"
+#include "logger/logger.h"
 #include <transport/websocket/websocket_client.h>
 
 using namespace simulation;
@@ -19,7 +21,14 @@ int main() {
 
     simulation::InformedTradersConfig config = rfl::toml::load<simulation::InformedTradersConfig>(it_config_path).value();
 
+    const std::string log_dir = std::format("{}/logs/{}", std::string(PROJECT_SOURCE_DIR), SERVER_NAME);
+    std::filesystem::create_directories(log_dir);
+    auto informed_trader_logger = logger::create_logger(
+        std::format("informed_trader_{}_logger", config.cfg_prefix),
+        std::format("{}/{}.log", log_dir, config.cfg_prefix));
+
     std::cout << "Deploying " << config.num_informed_traders << " Informed Traders..." << '\n';
+    informed_trader_logger->info("Deploying {} Informed Traders...", config.num_informed_traders);
 
     std::vector<std::shared_ptr<transport::WebsocketManagerClient>> md_ws_clients;
     std::vector<std::shared_ptr<transport::WebsocketManagerClient>> oracle_ws_clients;
@@ -38,7 +47,7 @@ int main() {
         // 1. Market Data Websocket & Handler (Connects to Exchange)
         auto md_ws_client = std::make_shared<transport::WebsocketManagerClient>(config.cfg_prefix + std::to_string(i + 1) + "_logger");
         md_ws_client->start();
-        md_ws_client->connect("ws://localhost:9001");
+        md_ws_client->connect("ws://" + config.mdp_ws_host + ":" + std::to_string(config.mdp_ws_port));
 
         md_ws_clients.push_back(md_ws_client);
 
@@ -49,7 +58,7 @@ int main() {
         // 2. Oracle Websocket & Client (Connects to Fundamental Price Oracle)
         auto oracle_ws_client = std::make_shared<transport::WebsocketManagerClient>("informed_t_for_cl" + std::to_string(i+1));
         oracle_ws_client->start();
-        oracle_ws_client->connect("ws://localhost:9005");
+        oracle_ws_client->connect("ws://" + config.oracle_ws_host + ":" + std::to_string(config.oracle_ws_port));
         oracle_ws_clients.push_back(oracle_ws_client);
 
         auto oracle_client = std::make_shared<OracleClient>(oracle_ws_client);
@@ -57,7 +66,7 @@ int main() {
         oracle_clients.push_back(oracle_client);
 
         // 3. FIX Client (For Order Execution)
-        auto fix_client = std::make_shared<InformedFixClient>(config_path);
+        auto fix_client = std::make_shared<InformedFixClient>(config_path, informed_trader_logger);
         
         try {
             fix_client->connect(5);
@@ -74,7 +83,8 @@ int main() {
             config.initial_inventory,
             config.epsilon,
             config.trade_qty,
-            config.max_inventory
+            config.max_inventory,
+            informed_trader_logger
         );
 
         traders.push_back(trader);
@@ -85,6 +95,7 @@ int main() {
 
     // Keep the main deployment thread alive so the spawned informed trader threads can run asynchronously.
     std::cout << "All informed traders deployed and running. Press Ctrl+C to terminate." << '\n';
+    informed_trader_logger->info("All informed traders deployed and running.");
 
     while (true) {
         std::this_thread::sleep_for(std::chrono::hours(24));

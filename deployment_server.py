@@ -86,6 +86,7 @@ LISTEN_PORT_KEY_BY_SERVICE = {
     "me": "matching_engine_port",
     "oms": "order_manager_port",
     "gateway": "fix_server_port",
+    "oracle": "oracle_ws_port",
 }
 
 

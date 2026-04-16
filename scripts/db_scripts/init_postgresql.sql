@@ -1,9 +1,10 @@
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'service_type_enum') THEN
-CREATE TYPE service_type_enum AS ENUM ('gateway', 'oms', 'me', 'mdp', 'deployment_server');
+CREATE TYPE service_type_enum AS ENUM ('gateway', 'oms', 'me', 'mdp', 'oracle', 'deployment_server');
 ELSE
 ALTER TYPE service_type_enum ADD VALUE IF NOT EXISTS 'deployment_server';
+ALTER TYPE service_type_enum ADD VALUE IF NOT EXISTS 'oracle';
 END IF;
 END $$;
 
