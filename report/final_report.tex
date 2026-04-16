@@ -2,6 +2,8 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage{enumitem} % Add this to your preamble if not already there
+\setlist[enumerate]{noitemsep}
 \usepackage{geometry}
 \geometry{margin=1in}
 \usepackage{hyperref}
@@ -37,6 +39,13 @@
 }
 
 \begin{document}
+\begin{titlepage}
+\vspace*{\fill}
+\begin{center}
+\scalebox{4}{\Huge \textbf{PSAN4}}
+\end{center}
+\vspace*{\fill}
+\end{titlepage}
 \onehalfspacing
 \definecolor{barblue}{RGB}{70,70,70}
 
@@ -66,8 +75,8 @@
         \vspace{1.5cm}
 
         \Large
-        Submitted in partial fulfillment of the requirements for COMP 4981 \\
-        (PSAN4)
+        Submitted in partial fulfillment of the requirements for \\ COMP 4981
+        \\(PSAN4)
 
         \vspace{0.5cm}
 
@@ -149,7 +158,7 @@ The surveyed literature and existing platforms demonstrated useful designs for t
 
 \subsection{Design}
 
-The system architecture of the simulated exchange is engineered as a distributed, modular pipeline, closely mirroring the microstructure of real-world financial exchanges. It is logically partitioned into distinct microservices: user access, message validation, state persistence, core order matching, and market data distribution. The data flow follows a strict, unidirectional path. User order requests enter through the External Facing API Layer, undergo semantic validation and database logging in the Order Manager, and are synchronously routed to the Matching\allowbreak Engine. The engine executes the order matching algorithms and outputs raw trade events. These events are immediately consumed by the Market Data Processor via a shared-memory ring buffer, transformed into aggregated market data, and broadcast to connected clients. This decoupled architecture intentionally isolates the latency-critical matching core from network and database I/O overhead, enabling horizontal scalability under high-volume algorithmic trading scenarios.
+The system architecture of the simulated exchange is engineered as a distributed, modular pipeline, closely mirroring the microstructure of real-world financial exchanges. It is logically partitioned into distinct microservices: user access, message validation, state persistence, core order matching, and market data distribution. The data flow follows a strict, unidirectional path. User order requests enter through the External Facing API Layer, undergo semantic validation and database logging in the Order Manager, and are synchronously routed to the Matching Engine. The engine executes the order matching algorithms and outputs raw trade events. These events are immediately consumed by the Market Data Processor via a shared-memory ring buffer, transformed into aggregated market data, and broadcast to connected clients. This decoupled architecture intentionally isolates the latency-critical matching core from network and database I/O overhead, enabling horizontal scalability under high-volume algorithmic trading scenarios.
 
 \begin{figure}[h]
     \centering
@@ -176,7 +185,7 @@ Once a request passes the gateway, it moves to the Order Manager, which serves a
 \end{itemize}
 After validation, the manager synchronously routes requests to the matching engine and subsequently passes trade confirmations back to the gateway to notify the originating user.
 
-\subsubsection{The Core: Matching\allowbreak Engine \& LOB Data Structures}
+\subsubsection{The Core: Matching Engine \& LOB Data Structures}
 This layer is the performance-critical heart of the exchange. The engine receives a validated request, attempts to match it against the opposite side of the Limit Order Book (LOB), generates trade events if a match occurs, and updates the LOB state.
 \begin{itemize}
     \item \textbf{Matching Logic:} We utilized the Price-Time Priority algorithm, meaning orders with the best price are matched first, whereas orders at the same price level are executed on a first-come-first-served basis.
@@ -184,7 +193,7 @@ This layer is the performance-critical heart of the exchange. The engine receive
 \end{itemize}
 
 \subsubsection{Distribution Layer: Market Data Processor}
-The output from the Matching\allowbreak Engine is raw and high-velocity. The Market Data Processor acts as the system's publisher, transforming core trade events and orderbook updates into accessible formats and broadcasting them to external clients.
+The output from the Matching Engine is raw and high-velocity. The Market Data Processor acts as the system's publisher, transforming core trade events and orderbook updates into accessible formats and broadcasting them to external clients.
 
 To maintain the performance gains achieved by the core engine, the inter-process communication (IPC) channel between the engine and the processor relies on a shared memory mechanism. This architectural choice guarantees that the matching engine is completely decoupled from the unpredictable latency introduced by string serialization and network broadcasts. By strictly delegating these computationally intensive I/O tasks to a separate process, the core engine can continue matching orders unimpeded.
 
@@ -222,7 +231,7 @@ For the purpose of this educational sandbox, the mathematical parameters governi
 
 Our implementation leverages modern C++23, prioritizing low-latency performance and robust type safety. The project uses CMake as its primary build system, facilitating dependency management and modular compilation of the various microservices. External dependencies such as QuickFIX, Boost, Protocol Buffers, and various database clients are integrated directly into the CMake workflow.
 
-To facilitate robust and efficient network communication, we developed a dedicated \texttt{transport} library. For structured message serialization, we utilize Google's Protocol Buffers strictly for internal, inter-service communication (such as routing validated orders from the gateway to the order manager). Their compact binary representation and rapid serialization speeds make them ideal for maintaining a low-latency trading pipeline, whereas text-based formats like JSON are reserved primarily for external communication with the frontend and public APIs. Furthermore, we implemented a custom internal WebSocket library wrapping \texttt{websocketpp}. For architectural convenience, we standardized on WebSockets for almost all internal inter-service communication (with the notable exception of the Matching\allowbreak Engine to Market Data Processor link, which uses a shared-memory ring buffer for ultra-low latency). This same WebSocket infrastructure is seamlessly reused to disseminate real-time market data feeds to the public React frontend.
+To facilitate robust and efficient network communication, we developed a dedicated \texttt{transport} library. For structured message serialization, we utilize Google's Protocol Buffers strictly for internal, inter-service communication (such as routing validated orders from the gateway to the order manager). Their compact binary representation and rapid serialization speeds make them ideal for maintaining a low-latency trading pipeline, whereas text-based formats like JSON are reserved primarily for external communication with the frontend and public APIs. Furthermore, we implemented a custom internal WebSocket library wrapping \texttt{websocketpp}. For architectural convenience, we standardized on WebSockets for almost all internal inter-service communication (with the notable exception of the Matching Engine to Market Data Processor link, which uses a shared-memory ring buffer for ultra-low latency). This same WebSocket infrastructure is seamlessly reused to disseminate real-time market data feeds to the public React frontend.
 
 \subsubsection{User Access Layer: SDK \& Graphical Interface}
 The client SDK was developed entirely in C++ to provide developers with a fast and intuitive interface for connecting to the trading system. It exposes a \texttt{FixClient} class that developers can subclass to interact with the market. Key methods include \texttt{submit\_limit\_order}, \texttt{submit\_market\_order}, and \texttt{cancel\_order}, alongside connection management functions. To handle asynchronous execution reports and cancel rejections, the SDK provides virtual callback methods (\texttt{on\_order\_update} and \texttt{on\_order\_cancel\_rejected}) that users can override to implement custom event-driven trading logic.
@@ -257,7 +266,7 @@ For the graphical trading interface, we built a responsive single-page applicati
 The FIX Gateway was implemented using the QuickFIX C++ engine. It serves as the external-facing API, parsing incoming FIX protocol messages and translating them into internal data structures. By leveraging QuickFIX, the gateway natively handles session management, message sequencing, and heartbeat mechanisms, ensuring reliable communication with connected clients.
 
 \subsubsection{Order Validation \& Persistence Layer: Order Manager}
-The Order Manager acts as a synchronous validator and router. To eliminate race conditions---such as a single user submitting two massive orders simultaneously---the manager processes incoming messages sequentially within a single-threaded event loop. This guarantees that balance constraints and position limits are checked and updated atomically before any request is forwarded to the Matching\allowbreak Engine. To ensure durability without blocking this critical trading path, the persistence layer utilizes a dual-database architecture managed by a custom \texttt{DatabaseClient}.
+The Order Manager acts as a synchronous validator and router. To eliminate race conditions---such as a single user submitting two massive orders simultaneously---the manager processes incoming messages sequentially within a single-threaded event loop. This guarantees that balance constraints and position limits are checked and updated atomically before any request is forwarded to the Matching Engine. To ensure durability without blocking this critical trading path, the persistence layer utilizes a dual-database architecture managed by a custom \texttt{DatabaseClient}.
 
 Relational data, such as account states and user configurations, is managed using a PostgreSQL database accessed via the \texttt{libpqxx} client. Conversely, high-throughput market events and tick data are logged to a QuestDB time-series database. To prevent database I/O from bottlenecking the system, we implemented an \texttt{AsyncWriter} for QuestDB ingestion. This module offloads database writes to a dedicated background thread, buffering operations like order insertions and trade logs into a thread-safe queue. The background thread batches these tasks and flushes them to QuestDB over the Ingress Line Protocol based on configurable thresholds and intervals. While validation and matching engine forwarding are synchronous to ensure correctness, this asynchronous persistence guarantees that database latency does not degrade order processing times.
 
@@ -312,10 +321,10 @@ To illustrate the persistence schema, the time-series definitions for order logs
     \end{minipage}
 \end{table}
 
-\subsubsection{The Core: Matching\allowbreak Engine \& LOB Data Structures}
-At the core of the system is the Matching\allowbreak Engine, which manages the Limit Order Book (LOB). The LOB was implemented using C++ standard library node-based containers to achieve the theoretically optimal time complexities. Specifically, \texttt{std::map} maintains the sorted price levels (acting as the BST), \texttt{std::list} maintains the doubly-linked queue of orders at each price level, and \texttt{std::unordered\_map} provides constant-time lookups to the list iterators for instant order cancellations. To communicate executions and market state changes to downstream services, the matching engine writes to a custom Multiple-Producer Single-Consumer (MPSC) lock-free ring buffer. This ring buffer is backed by POSIX shared memory (\texttt{shm\_open} and \texttt{mmap}).
+\subsubsection{The Core: Matching Engine \& LOB Data Structures}
+At the core of the system is the Matching Engine, which manages the Limit Order Book (LOB). The LOB was implemented using C++ standard library node-based containers to achieve the theoretically optimal time complexities. Specifically, \texttt{std::map} maintains the sorted price levels (acting as the BST), \texttt{std::list} maintains the doubly-linked queue of orders at each price level, and \texttt{std::unordered\_map} provides constant-time lookups to the list iterators for instant order cancellations. To communicate executions and market state changes to downstream services, the matching engine writes to a custom Multiple-Producer Single-Consumer (MPSC) lock-free ring buffer. This ring buffer is backed by POSIX shared memory (\texttt{shm\_open} and \texttt{mmap}).
 
-To achieve optimal IPC throughput, the buffer capacity was constrained to a power of two, replacing expensive modulo operations with bitwise AND operations for index wrapping. Additionally, to prevent false sharing, the internal structures incorporate explicit memory alignment and padding (\texttt{alignas(64)} for x86 architectures), ensuring producer and consumer indices reside on separate CPU cache lines. In the edge case where the Market Data Processor (Consumer) falls behind the Matching\allowbreak Engine (Producer), the lock-free ring buffer will report as full. Currently, the engine utilizes a non-blocking \texttt{try\_push} mechanism (as seen in the \texttt{try\_publish} calls); if the buffer is at capacity, new events are dropped to prevent the core matching logic from blocking, emphasizing the need for appropriately sized buffers and fast consumer polling.
+To achieve optimal IPC throughput, the buffer capacity was constrained to a power of two, replacing expensive modulo operations with bitwise AND operations for index wrapping. Additionally, to prevent false sharing, the internal structures incorporate explicit memory alignment and padding (\texttt{alignas(64)} for x86 architectures), ensuring producer and consumer indices reside on separate CPU cache lines. In the edge case where the Market Data Processor (Consumer) falls behind the Matching Engine (Producer), the lock-free ring buffer will report as full. Currently, the engine utilizes a non-blocking \texttt{try\_push} mechanism (as seen in the \texttt{try\_publish} calls); if the buffer is at capacity, new events are dropped to prevent the core matching logic from blocking, emphasizing the need for appropriately sized buffers and fast consumer polling.
 
 Listing \ref{lst:match_order} demonstrates the critical path logic for crossing an incoming order against resting liquidity. The algorithm sequentially walks the best available price levels, decrementing quantities and generating \texttt{Trade} events until the incoming order is either fully filled or the opposing liquidity at marketable prices is exhausted.
 
@@ -415,7 +424,7 @@ void MarketMaker::make_market(const std::string& ticker) {
 \end{lstlisting}
 
 \subsubsection{Server Setup and Deployment}
-To orchestrate the system across a Linux environment, we developed a custom Python-based deployment script. This application functions as a localized control plane that parses TOML configuration files to manage the lifecycle of the various microservices. It automatically validates service names, resolves listening ports, and ensures services are fully ready or safely terminated. By handling the automated startup and teardown of the components—including the FIX Gateway, Order Manager, Matching\allowbreak Engine, and Market Data Processor—the deployment server provides a reliable and reproducible environment for running extensive market simulations.
+To orchestrate the system across a Linux environment, we developed a custom Python-based deployment script. This application functions as a localized control plane that parses TOML configuration files to manage the lifecycle of the various microservices. It automatically validates service names, resolves listening ports, and ensures services are fully ready or safely terminated. By handling the automated startup and teardown of the components—including the FIX Gateway, Order Manager, Matching Engine, and Market Data Processor—the deployment server provides a reliable and reproducible environment for running extensive market simulations.
 
 \subsubsection{Software Engineering Practices}
 Throughout the development of this complex system, we adhered to modern C++ software engineering principles and best practices to ensure robustness, maintainability, and performance:
@@ -428,7 +437,7 @@ Throughout the development of this complex system, we adhered to modern C++ soft
         \item \textbf{Smart Pointers and RAII:} Resource Acquisition Is Initialization (RAII) and smart pointers (\texttt{std::unique\_ptr}, \texttt{std::shared\_ptr}) were systematically applied across all components. This guaranteed deterministic resource management and strict prevention of memory leaks without relying on manual memory deallocation.
     \end{itemize}
     \item \textbf{Design by Contract \& Assertions:} To catch logic errors early, we adopted the ``Design by Contract'' methodology using the \texttt{boost::contract} library. We liberally applied preconditions, postconditions, and invariant assertions across critical components like the Limit Order Book and Balance Checker. This strict enforcement guarantees that functions only operate when their required state is valid, immediately asserting and failing fast if an invariant (such as an invalid order ID or negative balance) is violated.
-    \item \textbf{Design Patterns \& Abstractions:} We employed various structural and creational design patterns to decouple system components. The Factory Pattern (e.g., \texttt{MatchingEngineDependencyFactory}) was utilized to abstract the instantiation of complex dependencies in the Matching\allowbreak Engine and Order Manager. Furthermore, abstract interfaces (e.g., \texttt{InboundServer}, \texttt{Publisher}) and dependency injection were used throughout the architecture. This allowed us to easily swap out implementations (for instance, substituting a real WebSocket server with a mock server during unit testing) without modifying the core business logic.
+    \item \textbf{Design Patterns \& Abstractions:} We employed various structural and creational design patterns to decouple system components. The Factory Pattern (e.g., \texttt{MatchingEngineDependencyFactory}) was utilized to abstract the instantiation of complex dependencies in the Matching Engine and Order Manager. Furthermore, abstract interfaces (e.g., \texttt{InboundServer}, \texttt{Publisher}) and dependency injection were used throughout the architecture. This allowed us to easily swap out implementations (for instance, substituting a real WebSocket server with a mock server during unit testing) without modifying the core business logic.
     \item \textbf{Asynchronous Logging (\texttt{spdlog}):} For observability, we integrated the high-performance \texttt{spdlog} library. To prevent I/O operations from blocking the main execution threads, we configured it with asynchronous sinks (\texttt{spdlog::async\_factory}). The logger also supports configurable log levels via environment variables and includes comprehensive signal handlers (\texttt{SIGINT}, \texttt{SIGTERM}) to ensure all pending logs are safely flushed to disk before a graceful shutdown.
 \end{itemize}
 
@@ -436,22 +445,22 @@ Throughout the development of this complex system, we adhered to modern C++ soft
 \subsubsection{Test Plan and Methodology}
 Our testing strategy encompassed three primary phases: unit testing, integration testing, and performance benchmarking. We initially utilized the Catch2 library for our unit testing framework due to its lightweight and expressive nature. However, as the system's complexity grew, we migrated our test suite to Google Test (gtest). This transition was motivated by Google Test's robust mock-testing facilities (via Google Mock), which allowed us to effectively isolate components using dependency injection.
 
-For unit testing, we verified the core components—including the Client SDK, FIX Gateway, Order Manager, Matching\allowbreak Engine, and Market Data Processor—by simulating diverse order scenarios. A key focus was validating the Price-Time Priority algorithm to ensure orders were filled in the correct sequence. We also performed ``death testing'' using Google Test's \texttt{EXPECT\_DEATH} macro (as seen in our \texttt{limit\_order\_book\_test.cpp}) to verify that the system correctly terminates or asserts when encountering unrecoverable states, such as querying invalid order IDs.
+For unit testing, we verified the core components—including the Client SDK, FIX Gateway, Order Manager, Matching Engine, and Market Data Processor—by simulating diverse order scenarios. A key focus was validating the Price-Time Priority algorithm to ensure orders were filled in the correct sequence. We also performed ``death testing'' using Google Test's \texttt{EXPECT\_DEATH} macro (as seen in our \texttt{limit\_order\_book\_test.cpp}) to verify that the system correctly terminates or asserts when encountering unrecoverable states, such as querying invalid order IDs.
 
-Integration testing focused on the data flow from the Client SDK through the FIX Gateway and Order Manager to ensure that Protobuf serialization and WebSocket communication maintained data integrity. We tested the trade events emitted by the Matching\allowbreak Engine to ensure the end-to-end flow functioned correctly. Regarding stress testing, our high-load evaluations were scoped strictly to individual component benchmarking, such as isolating the Matching\allowbreak Engine's throughput and latency under massive order bursts.
+Integration testing focused on the data flow from the Client SDK through the FIX Gateway and Order Manager to ensure that Protobuf serialization and WebSocket communication maintained data integrity. We tested the trade events emitted by the Matching Engine to ensure the end-to-end flow functioned correctly. Regarding stress testing, our high-load evaluations were scoped strictly to individual component benchmarking, such as isolating the Matching Engine's throughput and latency under massive order bursts.
 
 A comprehensive execution matrix of the system's test suite, detailing critical scenarios and expected outcomes across multiple microservices, can be found in Appendix 6.5.
 
 \subsubsection{Locating Logic Errors and Bugs}
-Our testing procedures were critical in identifying flaws that were not initially apparent. A significant logic error was discovered regarding a Limit Order Book (LOB) invariant violation. During early testing, the Matching\allowbreak Engine incorrectly attempted to match against the worst ask price rather than the best ask price, as the engine was accessing the end of the ascending price list instead of the beginning. While simple unit tests missed this edge case, running a randomized order submission simulation revealed that ``Ask'' prices were crossing below ``Bid'' prices—a clear violation of market invariants.
+Our testing procedures were critical in identifying flaws that were not initially apparent. A significant logic error was discovered regarding a Limit Order Book (LOB) invariant violation. During early testing, the Matching Engine incorrectly attempted to match against the worst ask price rather than the best ask price, as the engine was accessing the end of the ascending price list instead of the beginning. While simple unit tests missed this edge case, running a randomized order submission simulation revealed that ``Ask'' prices were crossing below ``Bid'' prices—a clear violation of market invariants.
 
-This discovery prompted us to adopt the Design by Contract principle, writing more detailed test cases and enforcing preconditions, postconditions, and invariant assertions throughout the Matching\allowbreak Engine code to catch logic bugs early.
+This discovery prompted us to adopt the Design by Contract principle, writing more detailed test cases and enforcing preconditions, postconditions, and invariant assertions throughout the Matching Engine code to catch logic bugs early.
 
 \subsection{Evaluation}
 \subsubsection{Benchmarking}
 We used Google Benchmark across four Git branches. All benchmarks were executed on an AMD Ryzen AI 7 PRO 360 machine with 32 GB RAM running Linux, compiled with GCC utilizing \texttt{-O3} optimization flags. The baseline is the \texttt{benchmark} branch, built in Release mode with assertions and contract checks disabled. The \texttt{lob-dsa}, \texttt{mem-pool}, and \texttt{template} branches are exploratory prototypes for potential future improvements, rather than immediate production defaults.
 
-\noindent\textbf{Matching\allowbreak Engine}
+\noindent\textbf{Matching Engine}
 
 Figure \ref{fig:branch_benchmark_10k} compares the 10,000-order workload across the main latency-sensitive operations. The \texttt{memory-pool} branch is the only variant that consistently improves end-to-end performance over the baseline. Its strongest gain is in no-match order insertion (\texttt{BM\_MatchingEngine\_NewOrderNoMatchBurstLatency}), where latency is reduced from 0.807 ms to 0.434 ms ($\sim$1.86$\times$ faster). It also reduces pure LOB insertion latency from 0.672 ms to 0.257 ms ($\sim$2.61$\times$ faster). This significant speedup occurs because a custom memory pool pre-allocates contiguous blocks of memory at startup, completely bypassing the heavy operating system overhead of dynamic heap allocations (e.g., \texttt{malloc} or \texttt{new}) during rapid bursts of order insertions. In contrast, the \texttt{template-specialization} branch is mostly neutral to slightly slower, and the \texttt{lob-dsa} branch is effectively neutral for these engine-level benchmarks.
 
@@ -629,7 +638,7 @@ This project successfully delivered a highly modular and functional simulated ex
 \subsection{Project Evaluation and Reflections}
 We are most confident in our achievement of building a low-latency, strictly correct Limit Order Book and an intuitive C++ SDK. Our success here stems directly from our rigorous adoption of modern C++ paradigms, strict memory management (RAII), and our choice of lock-free data structures. By explicitly isolating the matching engine from network and database I/O, we ensured that the core matching logic—the most critical component of the exchange—could perform optimally without being bottlenecked by external dependencies.
 
-Our approach to the system's distributed architecture also went exceptionally well in terms of logical decoupling. Separating concerns across the FIX Gateway, Order Manager, Matching\allowbreak Engine, and Market Data Processor allowed us to build an elegant ``game server'' provisioning model.
+Our approach to the system's distributed architecture also went exceptionally well in terms of logical decoupling. Separating concerns across the FIX Gateway, Order Manager, Matching Engine, and Market Data Processor allowed us to build an elegant ``game server'' provisioning model.
 
 However, our success with realistic market simulation was only partial. While we successfully implemented the mathematical foundations of the Avellaneda-Stoikov market maker and Geometric Brownian Motion, we discovered that generating truly realistic macro-market behaviour requires vastly more sophisticated parameter calibration and multi-agent interaction than a single project timeframe permits. The failure to perfectly replicate real-world volatility was not a flaw in the code, but rather an underestimation of the sheer mathematical complexity involved in modelling human psychological trading factors and macro-economic events.
 
@@ -639,8 +648,8 @@ While our platform serves perfectly as an educational sandbox, several critical 
 \begin{itemize}
     \item \textbf{Network Latency and IPC Overhead:} We relied heavily on WebSockets for inter-service communication. Even when services are deployed on the same machine, the encapsulation and de-encapsulation overhead of WebSockets is computationally intensive, preventing nanosecond-scale determinism.
     \item \textbf{Cloud Deployment and Load Balancing:} Currently, our deployment orchestration utilizes a Python script locally. We did not leverage separate AWS EC2 instances to test true cross-host microservice deployment or hardware load balancing.
-    \item \textbf{Auto-Recovery and Robustness:} The system currently lacks comprehensive auto-recovery mechanisms. In a real exchange, if the Order Manager or Matching\allowbreak Engine crashes, it currently results in dropped messages rather than seamlessly failing over to a hot-standby replica.
-    \item \textbf{Concurrency in the Matching\allowbreak Engine:} Our Matching\allowbreak Engine currently processes orders sequentially, which limits the maximum theoretical throughput under massive concurrent load. In industry, this is typically solved by partitioning individual Limit Order Books across independent CPU cores and utilizing the LMAX Disruptor pattern or deterministic state machine replication to achieve massive, lock-free concurrent execution.
+    \item \textbf{Auto-Recovery and Robustness:} The system currently lacks comprehensive auto-recovery mechanisms. In a real exchange, if the Order Manager or Matching Engine crashes, it currently results in dropped messages rather than seamlessly failing over to a hot-standby replica.
+    \item \textbf{Concurrency in the Matching Engine:} Our Matching Engine currently processes orders sequentially, which limits the maximum theoretical throughput under massive concurrent load. In industry, this is typically solved by partitioning individual Limit Order Books across independent CPU cores and utilizing the LMAX Disruptor pattern or deterministic state machine replication to achieve massive, lock-free concurrent execution.
     \item \textbf{Database Scalability:} While QuestDB handles our current tick data effectively, scaling to thousands of concurrent users would eventually bottleneck our single-node storage layer due to heavy disk I/O load.
     \item \textbf{Rate Limiting and Flow Control:} The system currently lacks strict rate-limiting at the gateway layer. Without throttling mechanisms, sudden bursts of millions of orders could easily cause buffer overflows or memory exhaustion across the microservice pipeline.
 \end{itemize}
@@ -687,6 +696,7 @@ wkselph, ``How to Build a Fast Limit Order Book,'' \textit{WK's High Frequency T
 \newpage
 \section{Appendix}
 
+
 \subsection{Minutes of Project Meeting}
 
 \subsubsection{Minutes of the 1st Project Meeting}
@@ -697,21 +707,27 @@ wkselph, ``How to Build a Fast Limit Order Book,'' \textit{WK's High Frequency T
 \textbf{Absent:} None\\
 \textbf{Recorder:} Josh
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 There were no minutes to approve since this was the first formal group meeting.\\
-2. Report on progress\\
-2.1 All members have read and understood the Final Year Project instructions.\\
-2.2 All members have researched several potential FinTech-related topics.\\
-3. Discussion items\\
-3.1 Om introduced three topics that we were interested in working on, including market simulation for educational algorithmic trading, design and implementation of an exchange architecture, and simulation of a limit order book for high-frequency trading. Om asked whether Prof. Sander was willing to supervise our Final Year Project.\\
-3.2 Gordon pointed out that the first and the third topics were similar, and we might consider merging them into a new topic, for example, the implementation of an algorithmic trading platform that provided a simulated market environment with a highly efficient limit order book design.\\
-3.3 Prof. Sander showed interest in the topics mentioned. He pointed out that the focus of these topics was diverse, from benchmarking the efficiency of different data structures for the limit order book to system design. He expressed his willingness to supervise our project and suggested that we write a draft proposal with details to provide more context before narrowing down the direction in which we wanted to move forward.\\
-4. Goals for the coming month\\
+\item Report on progress
+\begin{enumerate}
+\item All members have read and understood the Final Year Project instructions.\\
+\item All members have researched several potential FinTech-related topics.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Om introduced three topics that we were interested in working on, including market simulation for educational algorithmic trading, design and implementation of an exchange architecture, and simulation of a limit order book for high-frequency trading. Om asked whether Prof. Sander was willing to supervise our Final Year Project.\\
+\item Gordon pointed out that the first and the third topics were similar, and we might consider merging them into a new topic, for example, the implementation of an algorithmic trading platform that provided a simulated market environment with a highly efficient limit order book design.\\
+\item Prof. Sander showed interest in the topics mentioned. He pointed out that the focus of these topics was diverse, from benchmarking the efficiency of different data structures for the limit order book to system design. He expressed his willingness to supervise our project and suggested that we write a draft proposal with details to provide more context before narrowing down the direction in which we wanted to move forward.\\
+\end{enumerate}
+\item Goals for the coming month\\
 All members will do further research on the three topics closely.\\
 A draft proposal will be sent to Prof. Sander by May 11, 2025.\\
-5. Meeting adjournment and next meeting\\
+\item Meeting adjournment and next meeting\\
 The meeting was adjourned at 2:45 pm.\\
 The next meeting will be at 2:00 pm on May 12th at Room 3504.
+\end{enumerate}
 
 \subsubsection{Minutes of the 2nd Project Meeting}
 \textbf{Date:} May 12, 2025\\
@@ -721,18 +737,24 @@ The next meeting will be at 2:00 pm on May 12th at Room 3504.
 \textbf{Absent:} Gordon\\
 \textbf{Recorder:} Josh
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 All members have done further analysis on the proposed topics during the last meeting.\\
-2.2 Om drafted the proposal explaining each topic in detail, which was sent to Prof. Sander.\\
-3. Discussion items\\
-3.1 Prof. Sander said that he read the proposal and found it interesting. He suggested that we spend the coming summer on research because there was time remaining before we submitted the final proposal. He also advised us to set up a Zoom channel for easier communication.\\
-3.2 Om agreed with Prof. Sander's advice.\\
-4. Goals for the coming three months\\
+\item Report on progress
+\begin{enumerate}
+\item All members have done further analysis on the proposed topics during the last meeting.\\
+\item Om drafted the proposal explaining each topic in detail, which was sent to Prof. Sander.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Prof. Sander said that he read the proposal and found it interesting. He suggested that we spend the coming summer on research because there was time remaining before we submitted the final proposal. He also advised us to set up a Zoom channel for easier communication.\\
+\item Om agreed with Prof. Sander's advice.\\
+\end{enumerate}
+\item Goals for the coming three months\\
 All members will do a deeper analysis and write up a proposal with the finalised topic.\\
-5. Meeting adjournment\\
+\item Meeting adjournment\\
 The meeting was adjourned at 2:30 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 3rd Project Meeting}
 \textbf{Date:} Aug 21, 2025\\
@@ -742,19 +764,25 @@ The meeting was adjourned at 2:30 pm.
 \textbf{Absent:} Josh\\
 \textbf{Recorder:} Gordon
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 All members narrowed down the final topic to market simulation for algorithmic trading, with high efficiency implementation of some core components of an exchange architecture.\\
-2.2 All members have started working on the final proposal.\\
-3. Discussion items\\
-3.1 Gordon pointed out that the coverage of our finalised topic was a bit large, so it made more sense to divide the development plan into different phases.\\
-3.2 Om suggested three phases. At phase 1, the core market mechanism is implemented, including the limit order book, trade interface, and historical data handler, enabling users to host locally and backtest their own strategy with static historical market data. At phase 2, the system evolves into a centralized server, and the users submit orders by communicating with the server via HTTP or WebSocket requests. At phase 3, we implement a model that can simulate behaviours of different parties in the market, including market makers, institutions, individual investors, etc, to make the market environment more realistic.\\
-3.3 Gordon estimated the man-hours required for each task.\\
-4. Goals for the coming week\\
+\item Report on progress
+\begin{enumerate}
+\item All members narrowed down the final topic to market simulation for algorithmic trading, with high efficiency implementation of some core components of an exchange architecture.\\
+\item All members have started working on the final proposal.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Gordon pointed out that the coverage of our finalised topic was a bit large, so it made more sense to divide the development plan into different phases.\\
+\item Om suggested three phases. At phase 1, the core market mechanism is implemented, including the limit order book, trade interface, and historical data handler, enabling users to host locally and backtest their own strategy with static historical market data. At phase 2, the system evolves into a centralized server, and the users submit orders by communicating with the server via HTTP or WebSocket requests. At phase 3, we implement a model that can simulate behaviours of different parties in the market, including market makers, institutions, individual investors, etc, to make the market environment more realistic.\\
+\item Gordon estimated the man-hours required for each task.\\
+\end{enumerate}
+\item Goals for the coming week\\
 All members will do competitor analysis, as well as research on existing exchange architectures.\\
-5. Meeting adjournment\\
+\item Meeting adjournment\\
 The meeting was adjourned at 9:30 am.
+\end{enumerate}
 
 \subsubsection{Minutes of the 4th Project Meeting}
 \textbf{Date:} Aug 23, 2025\\
@@ -764,20 +792,28 @@ The meeting was adjourned at 9:30 am.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Josh
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Gordon has done a competitor analysis.\\
-2.2 Josh and Om have researched existing exchange architectures.\\
-3. Discussion items\\
-3.1 Gordon shared his findings. He mentioned that many crypto exchanges, like Binance and OKX, provide a set of trading API for simulation only. Apart from that, IMC holds an annual trading competition named IMC Prosperity. The participants are given a Python SDK to trade with a set of pre-defined market bots and try to earn as much as possible.\\
-3.2 Josh said that with their market data and exchange infrastructure, these exchanges can provide very similar services and questioned how we can have an edge against them.\\
-3.3 Om shared the research results of some current exchange architectures. He pointed out that the limit order book is one of the most important core components, which we should put much effort into developing for the best performance. Furthermore, a typical exchange architecture also includes other components, including the exchange gateway, sequencers, market data processor, and so on. He said it was not feasible to implement all components within the scope of this project, and we might need to choose between them based on our use cases.\\
-4. Goals for the coming week\\
-4.1 All members will continue working on the proposal report.\\
-4.2 All members will study closely to narrow down the required components for the project.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Gordon has done a competitor analysis.\\
+\item Josh and Om have researched existing exchange architectures.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Gordon shared his findings. He mentioned that many crypto exchanges, like Binance and OKX, provide a set of trading API for simulation only. Apart from that, IMC holds an annual trading competition named IMC Prosperity. The participants are given a Python SDK to trade with a set of pre-defined market bots and try to earn as much as possible.\\
+\item Josh said that with their market data and exchange infrastructure, these exchanges can provide very similar services and questioned how we can have an edge against them.\\
+\item Om shared the research results of some current exchange architectures. He pointed out that the limit order book is one of the most important core components, which we should put much effort into developing for the best performance. Furthermore, a typical exchange architecture also includes other components, including the exchange gateway, sequencers, market data processor, and so on. He said it was not feasible to implement all components within the scope of this project, and we might need to choose between them based on our use cases.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item All members will continue working on the proposal report.\\
+\item All members will study closely to narrow down the required components for the project.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 9:30 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 5th Project Meeting}
 \textbf{Date:} Sep 19, 2025\\
@@ -787,21 +823,29 @@ The meeting was adjourned at 9:30 pm.
 \textbf{Absent:} Om\\
 \textbf{Recorder:} Josh
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 All members have worked together on finishing the proposal report.\\
-2.2 All members have started learning advanced C++ techniques.\\
-3. Discussion items\\
-3.1 Gordon suggested we start designing the architecture of the local backtester for phase 1 of the project. He proposed a client-server architecture where the users interact with the matching engine via API because that is what we can reuse for phase 2.\\
-3.2 Josh said that with the client-server design the user is not guaranteed to get the same backtest result every time because of asynchronization, which was counter intuitive as a backtester.\\
-3.3 Gordon agreed with Josh's point, and suggested a mechanism to synchronize the client with the server which only applies to backtester only.\\
-3.4 Josh expressed his concern about the overhead by doing so. But he agreed that it is important to produce reusable components and interfaces for later phases. He then refined the architecture diagram.\\
-4. Goals for the coming week\\
-4.1 All members will continue learning C++.\\
-4.2 All members will start designing the components they are responsible for developing.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item All members have worked together on finishing the proposal report.\\
+\item All members have started learning advanced C++ techniques.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Gordon suggested we start designing the architecture of the local backtester for phase 1 of the project. He proposed a client-server architecture where the users interact with the matching engine via API because that is what we can reuse for phase 2.\\
+\item Josh said that with the client-server design the user is not guaranteed to get the same backtest result every time because of asynchronization, which was counter intuitive as a backtester.\\
+\item Gordon agreed with Josh's point, and suggested a mechanism to synchronize the client with the server which only applies to backtester only.\\
+\item Josh expressed his concern about the overhead by doing so. But he agreed that it is important to produce reusable components and interfaces for later phases. He then refined the architecture diagram.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item All members will continue learning C++.\\
+\item All members will start designing the components they are responsible for developing.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 5:00 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 6th Project Meeting}
 \textbf{Date:} Oct 1, 2025\\
@@ -811,21 +855,29 @@ The meeting was adjourned at 5:00 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Om
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 All members have designed their components.\\
-2.2 All members have started learning advanced C++ techniques.\\
-3. Discussion items\\
-3.1 Gordon shared his design of the matching engine. He suggested each matching engine should hold multiple LOBs, each of which is a node-based data structure for O(log n) time complexity for all major operations like search, insertion and deletion.\\
-3.2 Om referred to a research paper and argued that low time complexity does not imply high performance in reality. Using std::vector is more cache-friendly and performance boosting.\\
-3.3 Josh shared his design of the SDK for clients to interact with our system. Om shared his design of the gateway.\\
-3.4 Josh and Om discussed the protocol and parameters used for the communication between the client SDK and the gateway. FIX4.2 was agreed to be used.\\
-4. Goals for the coming week\\
-4.1 All members will start developing the components.\\
-4.2 Gordon will benchmark the performance difference between a node-based data structure and a linear std::vector for the matching engine.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item All members have designed their components.\\
+\item All members have started learning advanced C++ techniques.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Gordon shared his design of the matching engine. He suggested each matching engine should hold multiple LOBs, each of which is a node-based data structure for O(log n) time complexity for all major operations like search, insertion and deletion.\\
+\item Om referred to a research paper and argued that low time complexity does not imply high performance in reality. Using std::vector is more cache-friendly and performance boosting.\\
+\item Josh shared his design of the SDK for clients to interact with our system. Om shared his design of the gateway.\\
+\item Josh and Om discussed the protocol and parameters used for the communication between the client SDK and the gateway. FIX4.2 was agreed to be used.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item All members will start developing the components.\\
+\item Gordon will benchmark the performance difference between a node-based data structure and a linear std::vector for the matching engine.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 1:00 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 7th Project Meeting}
 \textbf{Date:} Oct 28, 2025\\
@@ -835,23 +887,31 @@ The meeting was adjourned at 1:00 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Gordon
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Gordon has benchmarked the performance difference between different data structures for the matching engine.\\
-2.2 All members have completed the first draft of their components, including client SDK, gateway and matching engine.\\
-2.3 Client SDK and gateway have been demonstrated to be integrated well together.\\
-3. Discussion items\\
-3.1 Gordon shared his benchmark results, which showed that std::vector was indeed better in terms of operation latency.\\
-3.2 Gordon suggested that we backlog replacing node-based data structure with std::vector for the matching engine since the priority should be completing the implementation and integration test. Josh and Om agreed with that.\\
-3.3 Josh shared the integration test result. Order requests can be successfully sent from client SDK to the gateway.\\
-3.4 Om suggested adding a new component named order manager to our architecture, and removing the historical data handler and the backtester, since it is no longer one of the focuses. Josh and Gordon agreed.\\
-4. Goals for the coming week\\
-4.1 Josh will start implementing the market data processor component.\\
-4.2 Gordon will start working on the order manager.\\
-4.3 Om will start building our internal websocket client and server for different service use.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Gordon has benchmarked the performance difference between different data structures for the matching engine.\\
+\item All members have completed the first draft of their components, including client SDK, gateway and matching engine.\\
+\item Client SDK and gateway have been demonstrated to be integrated well together.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Gordon shared his benchmark results, which showed that std::vector was indeed better in terms of operation latency.\\
+\item Gordon suggested that we backlog replacing node-based data structure with std::vector for the matching engine since the priority should be completing the implementation and integration test. Josh and Om agreed with that.\\
+\item Josh shared the integration test result. Order requests can be successfully sent from client SDK to the gateway.\\
+\item Om suggested adding a new component named order manager to our architecture, and removing the historical data handler and the backtester, since it is no longer one of the focuses. Josh and Gordon agreed.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item Josh will start implementing the market data processor component.\\
+\item Gordon will start working on the order manager.\\
+\item Om will start building our internal websocket client and server for different service use.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 4:45 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 8th Project Meeting}
 \textbf{Date:} Nov 15, 2025\\
@@ -861,23 +921,31 @@ The meeting was adjourned at 4:45 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Josh
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Gordon has implemented the handler of order manager which handles all incoming order requests from gateways.\\
-2.2 Josh has implemented a multiple-producer-single-comsumer (MPSC) lock-free ring buffer backed by shared memory, for fast data sharing between processes.\\
-2.3 Om has integrated the third-party library websocketpp into the project for our internal websocket client and server use.\\
-3. Discussion items\\
-3.1 Josh shared his design choice for the market data processor using the MPSC lock-free ring buffer.\\
-3.2 Gordon questioned if the ring buffer really helped with performance improvement.\\
-3.3 Om recalled the difference between lock-free and wait-free, and suggested we verify if the ring buffer is actually lock-free. Josh agreed with that.\\
-3.4 Josh pointed out that clearer error messages should be provided by our websocket library.\\
-4. Goals for the coming week\\
-4.1 Josh will continue the development of the market data processor.\\
-4.2 Gordon will continue implementing the order manager.\\
-4.3 Om will verify the performance improvement of the ring buffer and if it is truly lock-free.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Gordon has implemented the handler of order manager which handles all incoming order requests from gateways.\\
+\item Josh has implemented a multiple-producer-single-comsumer (MPSC) lock-free ring buffer backed by shared memory, for fast data sharing between processes.\\
+\item Om has integrated the third-party library websocketpp into the project for our internal websocket client and server use.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Josh shared his design choice for the market data processor using the MPSC lock-free ring buffer.\\
+\item Gordon questioned if the ring buffer really helped with performance improvement.\\
+\item Om recalled the difference between lock-free and wait-free, and suggested we verify if the ring buffer is actually lock-free. Josh agreed with that.\\
+\item Josh pointed out that clearer error messages should be provided by our websocket library.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item Josh will continue the development of the market data processor.\\
+\item Gordon will continue implementing the order manager.\\
+\item Om will verify the performance improvement of the ring buffer and if it is truly lock-free.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 12:30 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 9th Project Meeting}
 \textbf{Date:} Dec 5, 2025\\
@@ -887,18 +955,24 @@ The meeting was adjourned at 12:30 pm.
 \textbf{Absent:} Josh\\
 \textbf{Recorder:} Gordon
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
+\item Report on progress\\
 Om reported the current progress to Prof. Sander, including the client SDK, gateways, order manager and market data processor.\\
-3. Discussion items\\
-3.1 Gordon demonstrated that an order request sent by the client SDK can be received and recognised correctly by the destination gateway.\\
-3.2 Prof. Sander thought the work was great.\\
-4. Goals for the coming week\\
-4.1 All members will continue the development of their components.\\
-4.2 Josh will initiate the development of a simple frontend to visualize the LOB and trade data.\\
-5. Meeting adjournment\\
+\item Discussion items
+\begin{enumerate}
+\item Gordon demonstrated that an order request sent by the client SDK can be received and recognised correctly by the destination gateway.\\
+\item Prof. Sander thought the work was great.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item All members will continue the development of their components.\\
+\item Josh will initiate the development of a simple frontend to visualize the LOB and trade data.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 4:45 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 10th Project Meeting}
 \textbf{Date:} Jan 10, 2026\\
@@ -908,20 +982,28 @@ The meeting was adjourned at 4:45 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Josh
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Josh finished the implementation of frontend using React and TypeScript. Besides, the market data processor has been completed.\\
-2.2 Om refined the internal websocket library to have better error messages for easier debugging. The library now can handle multiple connections.\\
-2.3 Gordon has finished the first draft of order manager.\\
-3. Discussion items\\
-3.1 Josh demonstrated that data from the matching engine can now be visualised on the frontend dashboard.\\
-3.2 All members agreed that integration tests should be conveyed to ensure all services can work well together.\\
-4. Goals for the coming week\\
-4.1 Gordon will develop the balance checking feature for order manager.\\
-4.2 All members will work on integration tests.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Josh finished the implementation of frontend using React and TypeScript. Besides, the market data processor has been completed.\\
+\item Om refined the internal websocket library to have better error messages for easier debugging. The library now can handle multiple connections.\\
+\item Gordon has finished the first draft of order manager.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Josh demonstrated that data from the matching engine can now be visualised on the frontend dashboard.\\
+\item All members agreed that integration tests should be conveyed to ensure all services can work well together.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item Gordon will develop the balance checking feature for order manager.\\
+\item All members will work on integration tests.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 5:00 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 11th Project Meeting}
 \textbf{Date:} Feb 5, 2026\\
@@ -931,22 +1013,30 @@ The meeting was adjourned at 5:00 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Om
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Josh has implemented a generator to generate mock market data to the matching engine. The events happening in the matching engine will be sent to the market data processor via shared memory, then forwarded to clients and frontend dashboard.\\
-2.2 Om has enhanced the gateway implementation. Now the system can support multiple gateways to receive requests from clients, and load balancing has been implemented.\\
-2.3 Gordon has finished the integration between gateway and order manager.\\
-2.4 The team is now working on integrating all components and making sure the data flows correctly and seamlessly.\\
-3. Discussion items\\
-3.1 Gordon explained some technical challenges faced during the past few weeks, including CMake compilation errors and low latency tactics.\\
-3.2 Prof. Sander suggests that we implement our own memory allocator to optimize the standard library performance for our use case.\\
-3.3 Josh demonstrated the data flow in the system with the frontend dashboard.\\
-4. Goals for the coming week\\
-4.1 All members will continue work on integration tests.\\
-4.2 All members will benchmark and optimize the performance of the components of which they are in charge.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Josh has implemented a generator to generate mock market data to the matching engine. The events happening in the matching engine will be sent to the market data processor via shared memory, then forwarded to clients and frontend dashboard.\\
+\item Om has enhanced the gateway implementation. Now the system can support multiple gateways to receive requests from clients, and load balancing has been implemented.\\
+\item Gordon has finished the integration between gateway and order manager.\\
+\item The team is now working on integrating all components and making sure the data flows correctly and seamlessly.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item Gordon explained some technical challenges faced during the past few weeks, including CMake compilation errors and low latency tactics.\\
+\item Prof. Sander suggests that we implement our own memory allocator to optimize the standard library performance for our use case.\\
+\item Josh demonstrated the data flow in the system with the frontend dashboard.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item All members will continue work on integration tests.\\
+\item All members will benchmark and optimize the performance of the components of which they are in charge.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 3:50 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 12th Project Meeting}
 \textbf{Date:} Feb 24, 2026\\
@@ -956,20 +1046,28 @@ The meeting was adjourned at 3:50 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Josh
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Josh completed a first draft of the deployment flow for creating a new server instance and onboarding all required services with environment-specific configuration.\\
-2.2 Om and Gordon reviewed how deployment settings are validated before service startup and confirmed the required runtime parameters for gateway and backend services.\\
-3. Discussion items\\
-3.1 The team discussed setting up a deployment pipeline to standardize server creation, including config validation, service bootstrapping, and post-deployment health checks.\\
-3.2 Josh proposed packaging the deployment steps into a repeatable pipeline so that a new server can be provisioned and started with minimal manual edits.\\
-3.3 Gordon suggested adding explicit rollback and restart procedures in case one service fails during bring-up. Om agreed and proposed documenting the operational runbook alongside the pipeline scripts.\\
-4. Goals for the coming week\\
-4.1 Josh will implement and refine the deployment pipeline for creating a new server.\\
-4.2 All members will review the deployment checklist and validate it against the current service topology.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Josh completed a first draft of the deployment flow for creating a new server instance and onboarding all required services with environment-specific configuration.\\
+\item Om and Gordon reviewed how deployment settings are validated before service startup and confirmed the required runtime parameters for gateway and backend services.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item The team discussed setting up a deployment pipeline to standardize server creation, including config validation, service bootstrapping, and post-deployment health checks.\\
+\item Josh proposed packaging the deployment steps into a repeatable pipeline so that a new server can be provisioned and started with minimal manual edits.\\
+\item Gordon suggested adding explicit rollback and restart procedures in case one service fails during bring-up. Om agreed and proposed documenting the operational runbook alongside the pipeline scripts.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item Josh will implement and refine the deployment pipeline for creating a new server.\\
+\item All members will review the deployment checklist and validate it against the current service topology.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 4:00 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 13th Project Meeting}
 \textbf{Date:} Mar 3, 2026\\
@@ -979,20 +1077,28 @@ The meeting was adjourned at 4:00 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Gordon
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Gordon reviewed the current order manager flow and identified the remaining work for stricter balance checking on incoming orders.\\
-2.2 Josh and Om validated that order lifecycle events are already available to support persistence updates once the database writes are finalized.\\
-3. Discussion items\\
-3.1 The team discussed order manager refinement focused on two priorities: preventing insufficient-balance executions and persisting balance updates to the database consistently after trades.\\
-3.2 Gordon proposed tightening validation so insufficient balance is rejected before forwarding orders to the matching engine, and ensuring balance deltas are applied atomically with database persistence.\\
-3.3 Josh suggested extending integration tests to cover insufficient-balance rejection and successful persistence paths. Om agreed and proposed adding logs around balance update points to simplify debugging.\\
-4. Goals for the coming week\\
-4.1 Gordon will complete the order manager refinement, including balance checking and persistence to the database.\\
-4.2 All members will run end-to-end checks to verify balances remain consistent across services after execution.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Gordon reviewed the current order manager flow and identified the remaining work for stricter balance checking on incoming orders.\\
+\item Josh and Om validated that order lifecycle events are already available to support persistence updates once the database writes are finalized.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item The team discussed order manager refinement focused on two priorities: preventing insufficient-balance executions and persisting balance updates to the database consistently after trades.\\
+\item Gordon proposed tightening validation so insufficient balance is rejected before forwarding orders to the matching engine, and ensuring balance deltas are applied atomically with database persistence.\\
+\item Josh suggested extending integration tests to cover insufficient-balance rejection and successful persistence paths. Om agreed and proposed adding logs around balance update points to simplify debugging.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item Gordon will complete the order manager refinement, including balance checking and persistence to the database.\\
+\item All members will run end-to-end checks to verify balances remain consistent across services after execution.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 3:50 pm.
+\end{enumerate}
 
 \subsubsection{Minutes of the 14th Project Meeting}
 \textbf{Date:} Mar 25, 2026\\
@@ -1002,21 +1108,28 @@ The meeting was adjourned at 3:50 pm.
 \textbf{Absent:} None\\
 \textbf{Recorder:} Om
 
-1. Approval of minutes\\
+\begin{enumerate}
+\item Approval of minutes\\
 The minutes of the last meeting were approved without amendment.\\
-2. Report on progress\\
-2.1 Om reviewed the simulation deployment modules for market makers, noise traders, and informed traders, and mapped how each bot type is started and configured.\\
-2.2 Josh and Gordon confirmed the expected bot-account naming and startup sequence needed for repeatable simulation runs.\\
-3. Discussion items\\
-3.1 The team discussed implementing simulation bots to improve market realism by running coordinated market maker, noise trader, and informed trader agents in the same session.\\
-3.2 Om proposed a staged rollout: first stabilize deployment and lifecycle control of each bot type, then tune parameters and inventories for realistic activity patterns.\\
-3.3 Gordon suggested defining baseline scenarios and metrics (spread, fill rate, and trade intensity) so bot behavior can be evaluated quantitatively. Josh agreed and proposed wiring these scenarios into the existing simulation configuration pipeline.\\
-4. Goals for the coming week\\
-4.1 Om will implement and integrate simulation bots across the deployment workflow.\\
-4.2 All members will calibrate default parameters and verify that bot interactions produce stable market dynamics.\\
-5. Meeting adjournment\\
+\item Report on progress
+\begin{enumerate}
+\item Om reviewed the simulation deployment modules for market makers, noise traders, and informed traders, and mapped how each bot type is started and configured.\\
+\item Josh and Gordon confirmed the expected bot-account naming and startup sequence needed for repeatable simulation runs.\\
+\end{enumerate}
+\item Discussion items
+\begin{enumerate}
+\item The team discussed implementing simulation bots to improve market realism by running coordinated market maker, noise trader, and informed trader agents in the same session.\\
+\item Om proposed a staged rollout: first stabilize deployment and lifecycle control of each bot type, then tune parameters and inventories for realistic activity patterns.\\
+\item Gordon suggested defining baseline scenarios and metrics (spread, fill rate, and trade intensity) so bot behavior can be evaluated quantitatively. Josh agreed and proposed wiring these scenarios into the existing simulation configuration pipeline.\\
+\end{enumerate}
+\item Goals for the coming week
+\begin{enumerate}
+\item Om will implement and integrate simulation bots across the deployment workflow.\\
+\item All members will calibrate default parameters and verify that bot interactions produce stable market dynamics.\\
+\end{enumerate}
+\item Meeting adjournment\\
 The meeting was adjourned at 3:20 pm.
-
+\end{enumerate}
 \subsection{Explanation on Limit Order Books}
 
 Electronic markets are governed by centralized Limit Order Books (LOBs), where heterogeneous agents submit, cancel, and execute orders that collectively form price, liquidity, and volatility dynamics. Each Limit Order Book contains a buy side (also called bids) and a sell side (also called asks). If the bid price is greater than or equal to the ask price, the quantity matched will be removed from the LOB. Orders are first sorted by price, then sorted by the earliest time of arrival. This is known as \textit{price-time priority}.
@@ -1103,7 +1216,7 @@ Prepare Presentation Deck & O & & & & & & & & & \cellcolor{gray!80} \\
 \end{itemize}
 
 \subsection{Comprehensive Test Cases}
-Table \ref{tab:comprehensive_test_cases} provides a comprehensive matrix of test cases extracted from the Google Test suites across multiple backend services (Matching\allowbreak Engine, Order Manager, and Backend\allowbreak Service) and Catch2 suites for common libraries. While we initially used Catch2 for its lightweight nature and continued to use it for our base libraries, we migrated to Google Test for our complex backend services to leverage its robust mocking framework. This matrix serves as evidence of the rigorous execution testing and validation of system invariants.
+Table \ref{tab:comprehensive_test_cases} provides a comprehensive matrix of test cases extracted from the Google Test suites across multiple backend services (Matching Engine, Order Manager, and Backend\allowbreak Service) and Catch2 suites for common libraries. While we initially used Catch2 for its lightweight nature and continued to use it for our base libraries, we migrated to Google Test for our complex backend services to leverage its robust mocking framework. This matrix serves as evidence of the rigorous execution testing and validation of system invariants.
 
 \begingroup
 \renewcommand{\arraystretch}{1.2}
@@ -1123,18 +1236,18 @@ Table \ref{tab:comprehensive_test_cases} provides a comprehensive matrix of test
 \endfoot
 \hline
 \endlastfoot
-        \texttt{Match\allowbreak Multiple\allowbreak Standing\allowbreak Bid\allowbreak Orders} & Matching\allowbreak Engine & Aggressive ask order matches against multiple limit buy orders at the same price level. & Orders matched strictly in arrival time sequence (Price-Time Priority). & Matches generated in correct temporal order. & Pass \\
-        \texttt{Completely\allowbreak Fill\allowbreak Standing\allowbreak Bid\allowbreak Order} & Matching\allowbreak Engine & Aggressive ask order crosses and exactly fills resting bid order. & Single trade executed; resting bid completely removed from LOB. & Trade generated; LOB updated correctly. & Pass \\
-        \texttt{Partially\allowbreak Fill\allowbreak Market\allowbreak Ask} & Matching\allowbreak Engine & Market ask order partially filled by available resting bids. & Trade generated for available quantity; market order fully consumed. & Trade generated; remainder of book unmodified. & Pass \\
-        \texttt{Add\allowbreak Market\allowbreak Order\allowbreak To\allowbreak Empty\allowbreak Book} & Matching\allowbreak Engine & Market order submitted when no opposing liquidity exists. & Order rejected or stored temporarily (depending on rule) with zero fill. & Handled gracefully without crash. & Pass \\
-        \texttt{Cancel\allowbreak Invalid\allowbreak Order} & Matching\allowbreak Engine & \texttt{Cancel\allowbreak Order\allowbreak Death\allowbreak Test} attempts to cancel a non-existent Order ID. & Contract assertion failure / death test triggered gracefully. & Process terminated via assertion as expected. & Pass \\
-        \texttt{Get\allowbreak Invalid\allowbreak Order\allowbreak I\allowbreak D} & Matching\allowbreak Engine & \texttt{Getters\allowbreak Death\allowbreak Test} queries a non-existent Order ID. & Contract assertion failure. & Process terminated via assertion. & Pass \\
+        \texttt{Match\allowbreak Multiple\allowbreak Standing\allowbreak Bid\allowbreak Orders} & Matching Engine & Aggressive ask order matches against multiple limit buy orders at the same price level. & Orders matched strictly in arrival time sequence (Price-Time Priority). & Matches generated in correct temporal order. & Pass \\
+        \texttt{Completely\allowbreak Fill\allowbreak Standing\allowbreak Bid\allowbreak Order} & Matching Engine & Aggressive ask order crosses and exactly fills resting bid order. & Single trade executed; resting bid completely removed from LOB. & Trade generated; LOB updated correctly. & Pass \\
+        \texttt{Partially\allowbreak Fill\allowbreak Market\allowbreak Ask} & Matching Engine & Market ask order partially filled by available resting bids. & Trade generated for available quantity; market order fully consumed. & Trade generated; remainder of book unmodified. & Pass \\
+        \texttt{Add\allowbreak Market\allowbreak Order\allowbreak To\allowbreak Empty\allowbreak Book} & Matching Engine & Market order submitted when no opposing liquidity exists. & Order rejected or stored temporarily (depending on rule) with zero fill. & Handled gracefully without crash. & Pass \\
+        \texttt{Cancel\allowbreak Invalid\allowbreak Order} & Matching Engine & \texttt{Cancel\allowbreak Order\allowbreak Death\allowbreak Test} attempts to cancel a non-existent Order ID. & Contract assertion failure / death test triggered gracefully. & Process terminated via assertion as expected. & Pass \\
+        \texttt{Get\allowbreak Invalid\allowbreak Order\allowbreak I\allowbreak D} & Matching Engine & \texttt{Getters\allowbreak Death\allowbreak Test} queries a non-existent Order ID. & Contract assertion failure. & Process terminated via assertion. & Pass \\
         \hline
         \texttt{Insufficient\allowbreak Balance} & Order Manager & \texttt{Has\allowbreak Sufficient\allowbreak Balance\allowbreak Test} checks if a trade exceeds current broker balance. & Validator returns false; order rejected before routing. & Returned false; balance remains unchanged. & Pass \\
         \texttt{Decrement\allowbreak Below\allowbreak Zero} & Order Manager & \texttt{Update\allowbreak Balance\allowbreak Death\allowbreak Test} attempts to decrement balance below 0. & Contract assertion failure / death test triggered. & Process terminated via assertion. & Pass \\
         \texttt{Invalid\allowbreak Cancel\allowbreak Request} & Order Manager & Validation of an improperly formed cancel request payload. & Validator flags payload as malformed. & Rejected prior to matching engine. & Pass \\
-        \texttt{Valid\allowbreak Market\allowbreak Bid} & Order Manager & Validation of a properly formed market bid payload. & Passes semantic checks; forwards to engine. & Successfully forwarded to Matching\allowbreak Engine. & Pass \\
-        \texttt{Forward\allowbreak And\allowbreak Reply\allowbreak Fails} & Order Manager & \texttt{Forward\allowbreak And\allowbreak Reply\allowbreak Test} checks behavior when Matching\allowbreak Engine connection drops. & Order Manager gracefully handles socket failure and replies with rejection. & Rejection report sent to user. & Pass \\
+        \texttt{Valid\allowbreak Market\allowbreak Bid} & Order Manager & Validation of a properly formed market bid payload. & Passes semantic checks; forwards to engine. & Successfully forwarded to Matching Engine. & Pass \\
+        \texttt{Forward\allowbreak And\allowbreak Reply\allowbreak Fails} & Order Manager & \texttt{Forward\allowbreak And\allowbreak Reply\allowbreak Test} checks behavior when Matching Engine connection drops. & Order Manager gracefully handles socket failure and replies with rejection. & Rejection report sent to user. & Pass \\
         \hline
         \texttt{Login\allowbreak Wrong\allowbreak Password} & Backend\allowbreak Service & User attempts login with incorrect credentials. & Service returns 401 Unauthorized. & HTTP 401 returned. & Pass \\
         \texttt{Signup\allowbreak Duplicate\allowbreak User} & Backend\allowbreak Service & Registration attempt with an existing email/username. & Service returns 409 Conflict or 400 Bad Request. & Correct error code returned. & Pass \\

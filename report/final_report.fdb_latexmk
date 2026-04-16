@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1776356369.71197 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776356372.47123 0
-  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776356371.81617 82707 de91c3dbd93fe19ab2b07f568923047f ""
+["pdflatex"] 1776358506.64203 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776358509.75565 0
+  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776358504.77569 105801 d71ac916b7c05b49a1a6bf57154620ca ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -149,6 +149,7 @@
   "/usr/local/texlive/2026/texmf-dist/tex/latex/base/inputenc.sty" 1738182759 5048 0270515b828149155424600fd2d58ac5 ""
   "/usr/local/texlive/2026/texmf-dist/tex/latex/base/size12.clo" 1748806692 8449 8dc66c6c313c8eb2d774af83bca435dd ""
   "/usr/local/texlive/2026/texmf-dist/tex/latex/colortbl/colortbl.sty" 1747945524 12709 4ca3cf5f9f1d551b8a1090fba11ac95d ""
+  "/usr/local/texlive/2026/texmf-dist/tex/latex/enumitem/enumitem.sty" 1738874546 52272 63d293bc0d496619edb57585740861a2 ""
   "/usr/local/texlive/2026/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty" 1579991033 13886 d1306dcf79a944f6988e688c1785f9ce ""
   "/usr/local/texlive/2026/texmf-dist/tex/latex/etoolbox/etoolbox.sty" 1759437024 46885 8953c67ffba03252c6090aa19568b8ba ""
   "/usr/local/texlive/2026/texmf-dist/tex/latex/float/float.sty" 1137110151 6749 16d2656a1984957e674b149555f1ea1d ""
@@ -220,10 +221,10 @@
   "assets/simulation_results/gme_volatility_clustering.png" 1776356260.50839 24999 e5a8d76d59402b3eb16de7a6aeb8be29 ""
   "assets/trading_view_fig.jpeg" 1776353420.15597 177825 a30fc9ea00f10b3c6c47de360b6ef519 ""
   "assets/websocket_latency_by_input.png" 1776351642.31699 71295 b51a9458ecf3a3d6bce66bb54097c6d5 ""
-  "final_report.aux" 1776356372.25719 15072 34daec2f70c8010fc0c97eba43ebc546 "pdflatex"
-  "final_report.out" 1776356372.25819 9236 54d7c9172265ba34bba52bac15c6a3ea "pdflatex"
-  "final_report.tex" 1776356371.81617 82707 de91c3dbd93fe19ab2b07f568923047f ""
-  "final_report.toc" 1776356372.25919 4932 5a86beb9a6fca4199878bf88b18f0367 "pdflatex"
+  "final_report.aux" 1776358509.51279 17325 391b68805070d38c080a2a0b00b9cc8f "pdflatex"
+  "final_report.out" 1776358509.51479 13021 afc4f611a28bffbf58b5f7523a1a006f "pdflatex"
+  "final_report.tex" 1776358504.77569 105801 d71ac916b7c05b49a1a6bf57154620ca ""
+  "final_report.toc" 1776358509.51579 6572 4d1c3dffbe1aaa0e5b8a055323effcab "pdflatex"
   (generated)
   "final_report.aux"
   "final_report.log"

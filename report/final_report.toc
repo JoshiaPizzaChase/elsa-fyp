@@ -13,14 +13,14 @@
 \contentsline {subsubsection}{\numberline {2.1.1}User Access Layer: SDK \& Graphical Interface}{8}{subsubsection.2.1.1}%
 \contentsline {subsubsection}{\numberline {2.1.2}External Facing API Layer: FIX Gateways}{9}{subsubsection.2.1.2}%
 \contentsline {subsubsection}{\numberline {2.1.3}Order Validation \& Persistence Layer: Order Manager}{9}{subsubsection.2.1.3}%
-\contentsline {subsubsection}{\numberline {2.1.4}The Core: Matching\allowbreak Engine \& LOB Data Structures}{9}{subsubsection.2.1.4}%
+\contentsline {subsubsection}{\numberline {2.1.4}The Core: Matching Engine \& LOB Data Structures}{9}{subsubsection.2.1.4}%
 \contentsline {subsubsection}{\numberline {2.1.5}Distribution Layer: Market Data Processor}{10}{subsubsection.2.1.5}%
 \contentsline {subsubsection}{\numberline {2.1.6}Simulation Layer: Agents \& Market Regimes}{10}{subsubsection.2.1.6}%
 \contentsline {subsection}{\numberline {2.2}Implementation}{12}{subsection.2.2}%
 \contentsline {subsubsection}{\numberline {2.2.1}User Access Layer: SDK \& Graphical Interface}{13}{subsubsection.2.2.1}%
 \contentsline {subsubsection}{\numberline {2.2.2}External Facing API Layer: FIX Gateways}{16}{subsubsection.2.2.2}%
 \contentsline {subsubsection}{\numberline {2.2.3}Order Validation \& Persistence Layer: Order Manager}{16}{subsubsection.2.2.3}%
-\contentsline {subsubsection}{\numberline {2.2.4}The Core: Matching\allowbreak Engine \& LOB Data Structures}{17}{subsubsection.2.2.4}%
+\contentsline {subsubsection}{\numberline {2.2.4}The Core: Matching Engine \& LOB Data Structures}{17}{subsubsection.2.2.4}%
 \contentsline {subsubsection}{\numberline {2.2.5}Distribution Layer: Market Data Processor}{19}{subsubsection.2.2.5}%
 \contentsline {subsubsection}{\numberline {2.2.6}Simulation Layer: Agents \& Market Regimes}{19}{subsubsection.2.2.6}%
 \contentsline {subsubsection}{\numberline {2.2.7}Server Setup and Deployment}{20}{subsubsection.2.2.7}%
@@ -42,11 +42,26 @@
 \contentsline {section}{\numberline {4}Conclusions}{34}{section.4}%
 \contentsline {section}{\numberline {5}References}{35}{section.5}%
 \contentsline {section}{\numberline {6}Appendix}{36}{section.6}%
-\contentsline {subsection}{\numberline {6.1}Explanation on Limit Order Books}{36}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}Project Planning}{37}{subsection.6.2}%
-\contentsline {subsubsection}{\numberline {6.2.1}Distribution of Work \& Gantt Chart}{37}{subsubsection.6.2.1}%
-\contentsline {subsection}{\numberline {6.3}Required hardware \& software}{37}{subsection.6.3}%
-\contentsline {subsubsection}{\numberline {6.3.1}Hardware}{37}{subsubsection.6.3.1}%
-\contentsline {subsubsection}{\numberline {6.3.2}Software}{37}{subsubsection.6.3.2}%
-\contentsline {subsection}{\numberline {6.4}Comprehensive Test Cases}{38}{subsection.6.4}%
-\contentsline {subsection}{\numberline {6.5}Simulation Default Configuration}{41}{subsection.6.5}%
+\contentsline {subsection}{\numberline {6.1}Minutes of Project Meeting}{36}{subsection.6.1}%
+\contentsline {subsubsection}{\numberline {6.1.1}Minutes of the 1st Project Meeting}{36}{subsubsection.6.1.1}%
+\contentsline {subsubsection}{\numberline {6.1.2}Minutes of the 2nd Project Meeting}{37}{subsubsection.6.1.2}%
+\contentsline {subsubsection}{\numberline {6.1.3}Minutes of the 3rd Project Meeting}{38}{subsubsection.6.1.3}%
+\contentsline {subsubsection}{\numberline {6.1.4}Minutes of the 4th Project Meeting}{39}{subsubsection.6.1.4}%
+\contentsline {subsubsection}{\numberline {6.1.5}Minutes of the 5th Project Meeting}{40}{subsubsection.6.1.5}%
+\contentsline {subsubsection}{\numberline {6.1.6}Minutes of the 6th Project Meeting}{41}{subsubsection.6.1.6}%
+\contentsline {subsubsection}{\numberline {6.1.7}Minutes of the 7th Project Meeting}{42}{subsubsection.6.1.7}%
+\contentsline {subsubsection}{\numberline {6.1.8}Minutes of the 8th Project Meeting}{43}{subsubsection.6.1.8}%
+\contentsline {subsubsection}{\numberline {6.1.9}Minutes of the 9th Project Meeting}{44}{subsubsection.6.1.9}%
+\contentsline {subsubsection}{\numberline {6.1.10}Minutes of the 10th Project Meeting}{45}{subsubsection.6.1.10}%
+\contentsline {subsubsection}{\numberline {6.1.11}Minutes of the 11th Project Meeting}{46}{subsubsection.6.1.11}%
+\contentsline {subsubsection}{\numberline {6.1.12}Minutes of the 12th Project Meeting}{47}{subsubsection.6.1.12}%
+\contentsline {subsubsection}{\numberline {6.1.13}Minutes of the 13th Project Meeting}{48}{subsubsection.6.1.13}%
+\contentsline {subsubsection}{\numberline {6.1.14}Minutes of the 14th Project Meeting}{49}{subsubsection.6.1.14}%
+\contentsline {subsection}{\numberline {6.2}Explanation on Limit Order Books}{50}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Project Planning}{51}{subsection.6.3}%
+\contentsline {subsubsection}{\numberline {6.3.1}Distribution of Work \& Gantt Chart}{51}{subsubsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.4}Required hardware \& software}{52}{subsection.6.4}%
+\contentsline {subsubsection}{\numberline {6.4.1}Hardware}{52}{subsubsection.6.4.1}%
+\contentsline {subsubsection}{\numberline {6.4.2}Software}{52}{subsubsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.5}Comprehensive Test Cases}{52}{subsection.6.5}%
+\contentsline {subsection}{\numberline {6.6}Simulation Default Configuration}{56}{subsection.6.6}%
