@@ -361,6 +361,13 @@ std::string validate_container(const core::Container& container,
             return "Unrecognized symbol";
         }
 
+        if (new_order.price.has_value() && new_order.price.value() <= 0) {
+            return "Price is not positive";
+        }
+ if (new_order.order_qty <= 0) {
+            return "Quantity is not positive";
+        }
+
         // A broker must at least have a record for USD at the start
         if (!balance_checker.broker_id_exists(new_order.sender_comp_id)) {
             return "Balance record for not found during validation";
