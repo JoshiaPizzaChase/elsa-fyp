@@ -30,23 +30,23 @@
 \contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{22}{subsubsection.2.3.2}%
 \contentsline {subsection}{\numberline {2.4}Evaluation}{23}{subsection.2.4}%
 \contentsline {subsubsection}{\numberline {2.4.1}Benchmarking}{23}{subsubsection.2.4.1}%
-\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{27}{subsubsection.2.4.2}%
-\contentsline {paragraph}{Fat-Tailed Returns}{27}{subsubsection.2.4.2}%
-\contentsline {paragraph}{Volatility Clustering}{28}{figure.10}%
-\contentsline {paragraph}{Bid-Ask Spread and Price Trajectory}{29}{figure.11}%
-\contentsline {paragraph}{Raw Return Autocorrelation}{29}{figure.13}%
-\contentsline {paragraph}{Average Shape of the Order Book}{30}{figure.14}%
-\contentsline {section}{\numberline {3}Discussion}{31}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{31}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}System Limitations}{31}{subsection.3.2}%
-\contentsline {section}{\numberline {4}Conclusions}{33}{section.4}%
-\contentsline {section}{\numberline {5}References}{34}{section.5}%
-\contentsline {section}{\numberline {6}Appendix}{35}{section.6}%
-\contentsline {subsection}{\numberline {6.1}Explanation on Limit Order Books}{35}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}Project Planning}{36}{subsection.6.2}%
-\contentsline {subsubsection}{\numberline {6.2.1}Distribution of Work \& Gantt Chart}{36}{subsubsection.6.2.1}%
-\contentsline {subsection}{\numberline {6.3}Required hardware \& software}{36}{subsection.6.3}%
-\contentsline {subsubsection}{\numberline {6.3.1}Hardware}{36}{subsubsection.6.3.1}%
-\contentsline {subsubsection}{\numberline {6.3.2}Software}{36}{subsubsection.6.3.2}%
-\contentsline {subsection}{\numberline {6.4}Comprehensive Test Cases}{37}{subsection.6.4}%
-\contentsline {subsection}{\numberline {6.5}Simulation Default Configuration}{40}{subsection.6.5}%
+\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{28}{subsubsection.2.4.2}%
+\contentsline {paragraph}{Fat-Tailed Returns}{28}{subsubsection.2.4.2}%
+\contentsline {paragraph}{Volatility Clustering}{29}{figure.12}%
+\contentsline {paragraph}{Bid-Ask Spread and Price Trajectory}{30}{figure.13}%
+\contentsline {paragraph}{Raw Return Autocorrelation}{30}{figure.15}%
+\contentsline {paragraph}{Average Shape of the Order Book}{31}{figure.16}%
+\contentsline {section}{\numberline {3}Discussion}{32}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{32}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}System Limitations}{32}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Conclusions}{34}{section.4}%
+\contentsline {section}{\numberline {5}References}{35}{section.5}%
+\contentsline {section}{\numberline {6}Appendix}{36}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Explanation on Limit Order Books}{36}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Project Planning}{37}{subsection.6.2}%
+\contentsline {subsubsection}{\numberline {6.2.1}Distribution of Work \& Gantt Chart}{37}{subsubsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.3}Required hardware \& software}{37}{subsection.6.3}%
+\contentsline {subsubsection}{\numberline {6.3.1}Hardware}{37}{subsubsection.6.3.1}%
+\contentsline {subsubsection}{\numberline {6.3.2}Software}{37}{subsubsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.4}Comprehensive Test Cases}{38}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Simulation Default Configuration}{41}{subsection.6.5}%

@@ -369,6 +369,16 @@ INPUT ./assets/lob_dsa_structure_scaling.png
 INPUT ./assets/lob_dsa_structure_scaling.png
 INPUT ./assets/lob_dsa_structure_scaling.png
 INPUT ./assets/lob_dsa_structure_scaling.png
+INPUT ./assets/order_manager_preprocess_latency_by_input.png
+INPUT ./assets/order_manager_preprocess_latency_by_input.png
+INPUT ./assets/order_manager_preprocess_latency_by_input.png
+INPUT ./assets/order_manager_preprocess_latency_by_input.png
+INPUT ./assets/order_manager_preprocess_latency_by_input.png
+INPUT ./assets/order_manager_validation_latency_by_input.png
+INPUT ./assets/order_manager_validation_latency_by_input.png
+INPUT ./assets/order_manager_validation_latency_by_input.png
+INPUT ./assets/order_manager_validation_latency_by_input.png
+INPUT ./assets/order_manager_validation_latency_by_input.png
 INPUT ./assets/ring_buffer_latency_by_input.png
 INPUT ./assets/ring_buffer_latency_by_input.png
 INPUT ./assets/ring_buffer_latency_by_input.png
