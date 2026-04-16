@@ -1036,6 +1036,37 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         }
     }
 
+    std::unordered_set<int> bot_user_ids;
+    for (const auto& bot_cfg : bot_configs) {
+        for (const auto& group : bot_cfg.groups) {
+            for (const int bot_user_id : group.user_ids) {
+                bot_user_ids.insert(bot_user_id);
+            }
+        }
+    }
+
+    std::unordered_set<int> non_bot_user_ids(ids_result.value().begin(), ids_result.value().end());
+    non_bot_user_ids.insert(caller_id);
+    for (const int bot_user_id : bot_user_ids) {
+        non_bot_user_ids.erase(bot_user_id);
+    }
+    std::unordered_set<std::string> non_usd_active_symbols;
+    for (const auto& symbol : symbols) {
+        if (symbol != "USD") {
+            non_usd_active_symbols.insert(symbol);
+        }
+    }
+
+    for (const int user_id : non_bot_user_ids) {
+        for (const auto& symbol : non_usd_active_symbols) {
+            auto balance_result = m_db_client.insert_balance(user_id, server_id, symbol, 0);
+            if (!balance_result.has_value()) {
+                res["error"] = balance_result.error();
+                return res;
+            }
+        }
+    }
+
     for (const auto& bot_cfg : bot_configs) {
         for (const auto& group : bot_cfg.groups) {
             for (const int bot_user_id : group.user_ids) {

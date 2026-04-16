@@ -66,6 +66,7 @@ class OrderManager {
     UsernameToUserIdMapContainer username_user_id_map;
 
     std::unique_ptr<OrderManagerDatabase> database_client;
+    int server_id;
 
     // Left is internal order ID, Right is sender id + client order ID (for preventing a user
     // having duplicate client order ID)
@@ -105,7 +106,10 @@ core::ExecutionReportContainer
 generate_success_report_container(const core::Container& container,
                                   const OrderManager::OrderInfoMapContainer& order_info_map);
 
-void update_database(const core::Container& container, OrderManagerDatabase& database_client,
+void update_database(const core::Container& container, int server_id,
+                     const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     const OrderManager::OrderInfoMapContainer& order_info_map,
+                     const BalanceChecker& balance_checker, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container = std::nullopt);
 
 void update_internal_data(const core::Container& container,

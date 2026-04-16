@@ -55,6 +55,10 @@ class MockDatabaseClient : public OrderManagerDatabase {
                 (override));
     MOCK_METHOD((std::expected<void, std::string>), insert_cancel_response,
                 (const core::CancelOrderResponseContainer&), (override));
+    MOCK_METHOD((std::expected<std::optional<DbServerRow>, std::string>), get_server,
+                (const std::string_view&), (override));
+    MOCK_METHOD((std::expected<void, std::string>), update_balance,
+                (int, int, std::string_view, std::int64_t), (override));
 };
 
 class BaseOrderManagerTest : public testing::Test {
@@ -1687,7 +1691,7 @@ TEST_F(ReturnExecutionReportTest, TradeContainerSendsTakerAndMakerExecutionRepor
     const core::TradeContainer trade{.ticker = "AAPL",
                                      .price = 100,
                                      .quantity = 5,
-                                     .trade_id = "TR-42",
+                                     .trade_id = "TR-1",
                                      .taker_id = "TAKER",
                                      .maker_id = "MAKER",
                                      .taker_order_id = taker_order_id,
@@ -1793,6 +1797,7 @@ TEST_F(ReturnExecutionReportTest, CancelResponseContainerSendsExecutionReportToO
             EXPECT_EQ(report->order_id, order_id);
             EXPECT_EQ(report->cl_order_id, 404);
             EXPECT_EQ(report->orig_cl_ord_id, orig_cl_ord_id);
+            EXPECT_EQ(report->exec_trans_type, core::ExecTransType::exec_trans_new);
             EXPECT_EQ(report->exec_type, core::ExecType::status_rejected);
             EXPECT_EQ(report->ord_status, core::OrderStatus::status_rejected);
             EXPECT_EQ(report->text, "Order had already been matched");
@@ -1813,6 +1818,10 @@ TEST_F(ReturnExecutionReportTest, CancelResponseContainerSendsExecutionReportToO
 class UpdateDatabaseTest : public testing::Test {
   protected:
     MockDatabaseClient mock_db;
+    int server_id = 1;
+    OrderManager::UsernameToUserIdMapContainer username_user_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+    BalanceChecker balance_checker;
 };
 
 using UpdateDatabaseDeathTest = UpdateDatabaseTest;
@@ -1834,7 +1843,8 @@ TEST_F(UpdateDatabaseTest, NewOrderPersistsOrderWithValidationFlag) {
     EXPECT_CALL(mock_db, insert_order(_, _, _))
         .WillOnce(Return(std::expected<void, std::string>{}));
 
-    update_database(container, mock_db, true);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db, true);
 }
 
 TEST_F(UpdateDatabaseTest, CancelRequestPersistsRequestWithValidationFlag) {
@@ -1852,7 +1862,8 @@ TEST_F(UpdateDatabaseTest, CancelRequestPersistsRequestWithValidationFlag) {
     EXPECT_CALL(mock_db, insert_cancel_request(_, _))
         .WillOnce(Return(std::expected<void, std::string>{}));
 
-    update_database(container, mock_db, false);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db, false);
 }
 
 TEST_F(UpdateDatabaseTest, TradePersistsTradeWithoutValidationFlag) {
@@ -1866,11 +1877,31 @@ TEST_F(UpdateDatabaseTest, TradePersistsTradeWithoutValidationFlag) {
                                      .maker_order_id = 22,
                                      .is_taker_buyer = true};
 
+    username_user_id_map.emplace("TAKER", 11);
+    username_user_id_map.emplace("MAKER", 22);
+
+    balance_checker.update_balance("TAKER", USD_SYMBOL, 900);
+    balance_checker.update_balance("TAKER", "AAPL", 4);
+    balance_checker.update_balance("MAKER", USD_SYMBOL, 300);
+    balance_checker.update_balance("MAKER", "AAPL", 8);
+
     core::Container container = trade;
 
-    EXPECT_CALL(mock_db, insert_trade(_)).WillOnce(Return(std::expected<void, std::string>{}));
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_db, insert_trade(_)).WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 11, std::string_view{USD_SYMBOL}, 900))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 11, std::string_view{"AAPL"}, 4))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 22, std::string_view{USD_SYMBOL}, 300))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 22, std::string_view{"AAPL"}, 8))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+    }
 
-    update_database(container, mock_db);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
 }
 
 TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) {
@@ -1879,10 +1910,26 @@ TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) 
 
     core::Container container = cancel_response;
 
+    username_user_id_map.emplace("CLIENT", 8);
+    order_info_map.emplace(33, OrderInfo{.sender_comp_id = "CLIENT",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 250,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 2,
+                                         .cum_qty = 8,
+                                         .avg_px = 249,
+                                         .arrival_gateway_id = 0});
+    balance_checker.update_balance("CLIENT", "AAPL", 2);
+
     EXPECT_CALL(mock_db, insert_cancel_response(_))
         .WillOnce(Return(std::expected<void, std::string>{}));
 
-    update_database(container, mock_db);
+    EXPECT_CALL(mock_db, update_balance(server_id, 8, std::string_view{"AAPL"}, 2))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
 }
 
 TEST_F(UpdateDatabaseTest, ExecutionReportDoesNotPersistAnything) {
@@ -1912,7 +1959,8 @@ TEST_F(UpdateDatabaseTest, ExecutionReportDoesNotPersistAnything) {
     EXPECT_CALL(mock_db, insert_trade(_)).Times(0);
     EXPECT_CALL(mock_db, insert_cancel_response(_)).Times(0);
 
-    update_database(container, mock_db);
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
 }
 
 TEST_F(UpdateDatabaseDeathTest, NewOrderWithoutValidityFlagDies) {
@@ -1929,7 +1977,10 @@ TEST_F(UpdateDatabaseDeathTest, NewOrderWithoutValidityFlagDies) {
 
     core::Container container = new_order;
 
-    EXPECT_DEATH(update_database(container, mock_db, std::nullopt), "");
+    EXPECT_DEATH(
+        update_database(container, server_id, username_user_id_map, order_info_map,
+                        balance_checker, mock_db, std::nullopt),
+        "");
 }
 
 TEST_F(UpdateDatabaseDeathTest, CancelRequestWithoutValidityFlagDies) {
@@ -1944,5 +1995,8 @@ TEST_F(UpdateDatabaseDeathTest, CancelRequestWithoutValidityFlagDies) {
 
     core::Container container = cancel_request;
 
-    EXPECT_DEATH(update_database(container, mock_db, std::nullopt), "");
+    EXPECT_DEATH(
+        update_database(container, server_id, username_user_id_map, order_info_map,
+                        balance_checker, mock_db, std::nullopt),
+        "");
 }
