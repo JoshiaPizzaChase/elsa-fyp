@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  16 APR 2026 17:10
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  16 APR 2026 18:23
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1036,7 +1036,7 @@ Here is how much of TeX's memory you used:
  54028 multiletter control sequences out of 15000+600000
  643268 words of font info for 74 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 99i,11n,108p,1440b,2122s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 99i,11n,108p,1477b,2122s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb
 ></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb>
 </usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></
@@ -1055,7 +1055,7 @@ e/2026/texmf-dist/fonts/type1/public/cm-super/sfbx2488.pfb></usr/local/texlive/
 exmf-dist/fonts/type1/public/cm-super/sfti1200.pfb></usr/local/texlive/2026/tex
 mf-dist/fonts/type1/public/cm-super/sftt1000.pfb></usr/local/texlive/2026/texmf
 -dist/fonts/type1/public/cm-super/sftt1200.pfb>
-Output written on final_report.pdf (31 pages, 762622 bytes).
+Output written on final_report.pdf (31 pages, 762652 bytes).
 PDF statistics:
  623 PDF objects out of 1000 (max. 8388607)
  537 compressed objects within 6 object streams
