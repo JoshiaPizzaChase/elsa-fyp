@@ -523,7 +523,66 @@ This shows clear latency growth as payload size increases in our local setup.
 \subsubsection{Simulation Realism}
 To evaluate the realism of the simulated market dynamics, we initialize the platform with a baseline configuration across the agent populations. Specifically, the simulation is initialized with 4 Market Makers, 3 Noise Traders, and 1 Informed Trader. The full, detailed list of default parameters for all agent types and the Oracle Service can be found in Appendix \ref{sec:appendix_sim_config}.
 
-Using this baseline configuration, we analyze the resulting order book data to determine whether the simulation exhibits stylized facts commonly observed in real financial markets.
+Using this baseline configuration, we analyze the resulting order book data to determine whether the simulation exhibits stylized facts commonly observed in real financial markets, guided by the aggregate criteria outlined in Jain et al.'s review of Limit Order Book simulations \cite{ref3}. Specifically, we isolate the tick-by-tick market returns and bid-ask spread data for the \texttt{GME} ticker over a $\sim$48-minute highly volatile trading session (starting at \$99.87 and peaking at \$110.57).
+
+\paragraph{Fat-Tailed Returns}
+Real financial returns typically exhibit a leptokurtic (fat-tailed) distribution rather than a perfect Gaussian normal distribution, meaning extreme price movements occur more frequently than standard models predict. Our empirical analysis of the simulated \texttt{GME} trade returns (Figure \ref{fig:return_dist}) yielded a kurtosis of 5.5834 (where $>3$ indicates fat tails). This confirms that the Oracle's jump-diffusion model, combined with informed trader sniping, accurately produces non-normal extreme price events.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{assets/simulation_results/gme_return_distribution.png}
+    \caption{Distribution of \texttt{GME} trade returns showing fat tails.}
+    \label{fig:return_dist}
+\end{figure}
+
+\paragraph{Volatility Clustering}
+Another universal stylized fact is volatility clustering: ``large changes tend to be followed by large changes, and small changes by small changes.'' We measured this by plotting the Autocorrelation Function (ACF) of the absolute returns (Figure \ref{fig:vol_cluster}). The slowly decaying positive autocorrelation visually proves the presence of volatility clustering in the simulated market, accurately reflecting periods of high and low market stress.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{assets/simulation_results/gme_volatility_clustering.png}
+    \caption{Autocorrelation of absolute returns demonstrating volatility clustering.}
+    \label{fig:vol_cluster}
+\end{figure}
+
+\paragraph{Bid-Ask Spread and Price Trajectory}
+In a functioning limit order book, active market makers should maintain a tight bid-ask spread despite volatility. Our simulation processed 232,442 total orders (115,262 bids, 117,180 asks) resulting in 4,340 executions. Figure \ref{fig:spread_dist} shows that the 4 Market Makers successfully competed to maintain a tight median spread of \$0.0006 (average \$0.0010), demonstrating robust liquidity provision. Simultaneously, Figure \ref{fig:price_traj} illustrates the rapid intraday price discovery driven by the underlying fundamental jump-diffusion process.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{assets/simulation_results/gme_spread_distribution.png}
+        \caption{Bid-Ask spread distribution.}
+        \label{fig:spread_dist}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{assets/simulation_results/gme_price_trajectory.png}
+        \caption{\texttt{GME} price trajectory.}
+        \label{fig:price_traj}
+    \end{minipage}
+\end{figure}
+
+\paragraph{Raw Return Autocorrelation}
+As noted by empirical studies on market microstructure, price changes on extremely short time scales exhibit significant negative autocorrelation at the first lag, commonly attributed to the ``bid-ask bounce'' effect. Our simulation accurately reproduces this phenomenon (Figure \ref{fig:return_acf}), where the first lag shows sharp negative autocorrelation before mostly vanishing at further lags.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{assets/simulation_results/gme_return_acf.png}
+    \caption{Autocorrelation of raw returns showing negative first lag (bid-ask bounce).}
+    \label{fig:return_acf}
+\end{figure}
+
+\paragraph{Average Shape of the Order Book}
+A key empirical ground truth for simulator fitness is the average shape of the order book. Figure \ref{fig:lob_shape} presents the mean volume at each price level relative to the mid-price. The simulation exhibits a clear inverted `V' shape typical of low-spread, highly liquid assets, demonstrating that our Avellaneda-Stoikov market making agents maintain realistic volume distributions across depth levels.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{assets/simulation_results/gme_lob_shape.png}
+    \caption{Average shape of the limit order book relative to mid-price.}
+    \label{fig:lob_shape}
+\end{figure}
 
 
 \section{Discussion}

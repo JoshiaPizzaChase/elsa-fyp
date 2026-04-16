@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1776353441.85281 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776353443.90132 0
-  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776353439.64116 76172 ff5f7aeda67020dfd435b2f7dd7edccc ""
+["pdflatex"] 1776355666.65276 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776355669.11633 0
+  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776355663.99097 80602 0edc73ac26cfeea2ab66dd977543fd9a ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -210,12 +210,18 @@
   "assets/lob_dsa_structure_scaling.png" 1776351635.13582 129023 13b5f5c5dc1eeb6abc03e7891c1420fd ""
   "assets/portfolio_view_fig.png" 1776351642.31499 80392 7c877f351431c8971e6e7b8fc7ad3ef0 ""
   "assets/ring_buffer_latency_by_input.png" 1776351642.31599 44654 3437dddf9c71ba0539c8deb467f149ce ""
+  "assets/simulation_results/gme_lob_shape.png" 1776355157.5989 49437 4f0b651700a9eefe272989cb8988e8f8 ""
+  "assets/simulation_results/gme_price_trajectory.png" 1776354943.92675 54984 a8e8c26b24c39e0fa53309c4694b5ad8 ""
+  "assets/simulation_results/gme_return_acf.png" 1776355157.5969 22987 2c7b46abbb1ca3b4e90a3be2f4581d4d ""
+  "assets/simulation_results/gme_return_distribution.png" 1776354943.92675 29333 d40a911a628eb14908d2df46a0be277f ""
+  "assets/simulation_results/gme_spread_distribution.png" 1776354943.92675 37397 95b1d19c97d1a7a507d3f818ed04a5ce ""
+  "assets/simulation_results/gme_volatility_clustering.png" 1776354943.92675 24999 e5a8d76d59402b3eb16de7a6aeb8be29 ""
   "assets/trading_view_fig.jpeg" 1776353420.15597 177825 a30fc9ea00f10b3c6c47de360b6ef519 ""
   "assets/websocket_latency_by_input.png" 1776351642.31699 71295 b51a9458ecf3a3d6bce66bb54097c6d5 ""
-  "final_report.aux" 1776353443.70225 11780 9ef8e1775477de4be24faaaf1f6854f9 "pdflatex"
-  "final_report.out" 1776353443.70425 9236 54d7c9172265ba34bba52bac15c6a3ea "pdflatex"
-  "final_report.tex" 1776353439.64116 76172 ff5f7aeda67020dfd435b2f7dd7edccc ""
-  "final_report.toc" 1776353443.70525 4571 37b543fca72ac4766aa578ebda5f6061 "pdflatex"
+  "final_report.aux" 1776355668.91408 14006 87326ea271e703c93d8acba0f80d7cf5 "pdflatex"
+  "final_report.out" 1776355668.91508 9236 54d7c9172265ba34bba52bac15c6a3ea "pdflatex"
+  "final_report.tex" 1776355663.99097 80602 0edc73ac26cfeea2ab66dd977543fd9a ""
+  "final_report.toc" 1776355668.91608 4932 7d8f0bf50e9648180860479ee503508c "pdflatex"
   (generated)
   "final_report.aux"
   "final_report.log"
