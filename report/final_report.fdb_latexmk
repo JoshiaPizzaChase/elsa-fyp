@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1776345788.37289 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776345789.59197 0
-  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776345788.27826 69932 d629a25d073cb451214677c1744b421e ""
+["pdflatex"] 1776346535.37295 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776346536.29917 0
+  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776346535.29457 69996 f299f6ba981f7fde649c83403d5335a3 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -16,6 +16,7 @@
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/jknappen/ec/ecrm1440.tfm" 1136768653 3584 3169d30142b88a27d4ab0e3468e963a2 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/jknappen/ec/ecrm1728.tfm" 1136768653 3584 3c76ccb63eda935a68ba65ba9da29f1a ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/jknappen/ec/ecrm2488.tfm" 1136768653 3584 406ad7b70d9a41f7833f92b6313150c8 ""
+  "/usr/local/texlive/2026/texmf-dist/fonts/tfm/jknappen/ec/ecti1095.tfm" 1136768653 3072 b73d2778cc3af44970de4de5e032d7f6 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/jknappen/ec/ecti1200.tfm" 1136768653 3072 8b5a64dc91775463bc95e2d818524028 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/jknappen/ec/ectt1000.tfm" 1136768653 1536 06717a2b50de47d4087ac0e6cd759455 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/jknappen/ec/ectt1095.tfm" 1136768653 1536 a988bfe554c1f79514bd46d13c3c64ce ""
@@ -53,6 +54,7 @@
   "/usr/local/texlive/2026/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb" 1215737283 145929 f25e56369a345c4ff583b067cd87ce8e ""
   "/usr/local/texlive/2026/texmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb" 1215737283 136101 f533469f523533d38317ab5729d00c8a ""
   "/usr/local/texlive/2026/texmf-dist/fonts/type1/public/cm-super/sfrm1728.pfb" 1215737283 131438 3aa300b3e40e5c8ba7b4e5c6cebc5dd6 ""
+  "/usr/local/texlive/2026/texmf-dist/fonts/type1/public/cm-super/sfti1095.pfb" 1215737283 196446 8fbbe4b97b83e5182def6d29a44e57fb ""
   "/usr/local/texlive/2026/texmf-dist/fonts/type1/public/cm-super/sfti1200.pfb" 1215737283 198221 ca5aa71411090ef358a6cc78b7458365 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/type1/public/cm-super/sftt1000.pfb" 1215737283 169201 9ebf99020dde51a5086e186761a34e8f ""
   "/usr/local/texlive/2026/texmf-dist/fonts/type1/public/cm-super/sftt1095.pfb" 1215737283 169670 48d12e69c9a3b23c81f6d703ccbd4554 ""
@@ -210,10 +212,10 @@
   "assets/ring_buffer_latency_by_input.png" 1776330323.8311 44654 3437dddf9c71ba0539c8deb467f149ce ""
   "assets/trading_view_fig.png" 1776340366.24182 95962 a890ab4067b7c7e007814527cec3c868 ""
   "assets/websocket_latency_by_input.png" 1776330323.8311 71295 b51a9458ecf3a3d6bce66bb54097c6d5 ""
-  "final_report.aux" 1776345789.45829 11127 fa1ed3be6357ae8a482cba22666b0a62 "pdflatex"
-  "final_report.out" 1776345789.45929 9012 9e2202453479b37b9207a140b24d42c8 "pdflatex"
-  "final_report.tex" 1776345788.27826 69932 d629a25d073cb451214677c1744b421e ""
-  "final_report.toc" 1776345789.45929 4472 f838861efb203bf39241035e984dc4ba "pdflatex"
+  "final_report.aux" 1776346536.20059 11127 fa1ed3be6357ae8a482cba22666b0a62 "pdflatex"
+  "final_report.out" 1776346536.20059 9012 9e2202453479b37b9207a140b24d42c8 "pdflatex"
+  "final_report.tex" 1776346535.29457 69996 f299f6ba981f7fde649c83403d5335a3 ""
+  "final_report.toc" 1776346536.20159 4472 f838861efb203bf39241035e984dc4ba "pdflatex"
   (generated)
   "final_report.aux"
   "final_report.log"
