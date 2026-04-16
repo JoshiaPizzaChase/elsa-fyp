@@ -6,6 +6,7 @@ enum Service {
     oms = 1,
     me = 2,
     mdp = 3,
+    oracle = 4,
 };
 
 inline std::string service_enum_to_str(const Service& service) {
@@ -18,6 +19,8 @@ inline std::string service_enum_to_str(const Service& service) {
         return "me";
     case Service::mdp:
         return "mdp";
+    case Service::oracle:
+        return "oracle";
     }
     return "unknown";
 }
@@ -31,6 +34,8 @@ inline std::expected<Service, std::string> service_str_to_enum(const std::string
         return Service::me;
     } else if (service_str == "mdp") {
         return Service::mdp;
+    } else if (service_str == "oracle") {
+        return Service::oracle;
     }
     return std::unexpected{
         std::format("trying to convert unknown service str to enum: {}", service_str)};

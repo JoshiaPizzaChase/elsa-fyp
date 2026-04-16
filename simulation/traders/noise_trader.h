@@ -7,7 +7,9 @@
 #include <order.h>
 #include <random>
 #include <thread>
+#include <functional>
 #include <iostream>
+#include "logger/logger.h"
 
 // TODO 1: Switch to CRTP for compile-time polymorphism later.
 // TODO 2: Improve the class designs below. Having a separate parent class for ProcessGenerator and
@@ -159,11 +161,14 @@ class NoiseTrader {
                 std::unique_ptr<DecisionGenerator<OrderSide>> side_generator,
                 std::unique_ptr<QuantityGenerator<double>> quantity_generator,
                 std::unique_ptr<FixClient> fix_client,
-                std::vector<std::string> tickers)
+                std::vector<std::string> tickers,
+                std::function<double(const std::string&)> baseline_price_fn = nullptr,
+                std::shared_ptr<spdlog::logger> logger = nullptr)
         : m_process_generator{std::move(process_generator)},
           m_side_generator{std::move(side_generator)},
           m_quantity_generator{std::move(quantity_generator)}, m_fix_client{std::move(fix_client)},
-          m_tickers{std::move(tickers)} {
+          m_tickers{std::move(tickers)}, m_baseline_price_fn{std::move(baseline_price_fn)},
+          m_logger{std::move(logger)} {
     }
 
     void run_strategy() {
@@ -179,17 +184,24 @@ class NoiseTrader {
 
             if (m_fix_client && m_fix_client->is_connected()) {
                 if (is_limit_order(gen)) {
-                    // Generate a random limit price around a baseline of 100.0
-                    double price = 100.0 + price_noise(gen);
+                    const double baseline_price = m_baseline_price_fn ? m_baseline_price_fn(ticker) : 100.0;
+                    // Generate a random limit price around the latest observed baseline.
+                    double price = baseline_price + price_noise(gen);
                     price = std::max(0.01, std::round(price * 100.0) / 100.0);
 
                     m_fix_client->submit_limit_order(ticker, price, quantity, buy_or_sell, TimeInForce::GTC, ++m_client_order_id);
-                    std::cout << "[NoiseTrader] Submitted " << (buy_or_sell == OrderSide::BUY ? "BUY" : "SELL") 
-                              << " limit order for " << ticker << " | Px: " << price << " | Qty: " << quantity << "\n";
+                    if (m_logger) {
+                        m_logger->info("[NoiseTrader] Submitted {} limit order for {} | Px: {} | Qty: {}",
+                                       (buy_or_sell == OrderSide::BUY ? "BUY" : "SELL"), ticker,
+                                       price, quantity);
+                    }
                 } else {
                     m_fix_client->submit_market_order(ticker, quantity, buy_or_sell, ++m_client_order_id);
-                    std::cout << "[NoiseTrader] Submitted " << (buy_or_sell == OrderSide::BUY ? "BUY" : "SELL") 
-                              << " market order for " << ticker << " | Qty: " << quantity << "\n";
+                    if (m_logger) {
+                        m_logger->info("[NoiseTrader] Submitted {} market order for {} | Qty: {}",
+                                       (buy_or_sell == OrderSide::BUY ? "BUY" : "SELL"), ticker,
+                                       quantity);
+                    }
                 }
             }
 
@@ -203,6 +215,8 @@ class NoiseTrader {
     std::unique_ptr<QuantityGenerator<double>> m_quantity_generator;
     std::unique_ptr<FixClient> m_fix_client;
     std::vector<std::string> m_tickers;
+    std::function<double(const std::string&)> m_baseline_price_fn;
+    std::shared_ptr<spdlog::logger> m_logger;
 
     int m_client_order_id{0};
 };

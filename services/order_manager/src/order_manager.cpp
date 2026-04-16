@@ -25,7 +25,7 @@ OrderManager::OrderManager(std::string_view host, int port,
                                             host, port, logger, gateway_connection_ids)},
       order_request_outbound_client{dependency_factory.create_outbound_client(logger)},
       order_response_outbound_client{dependency_factory.create_outbound_client(logger)},
-      database_client{dependency_factory.create_database_client(true)} {
+      database_client{dependency_factory.create_database_client(true)}, server_id{-1} {
 }
 
 void OrderManager::init() {
@@ -55,6 +55,26 @@ void OrderManager::init() {
                       });
 
     init_balance_checker(balance_checker, username_user_id_map, *database_client);
+
+    database_client->get_server(SERVER_NAME)
+        .transform([&](std::optional<DbServerRow>&& server_row_res) {
+            std::move(server_row_res)
+                .transform([&](DbServerRow&& server_row) {
+                    server_id = server_row.server_id;
+                    logger->info("Initialized server ID to {}", server_row.server_id);
+                    return server_row;
+                })
+                .or_else([] -> std::optional<DbServerRow> {
+                    logger->error("Failed to find Server Info of server {}", SERVER_NAME);
+                    std::terminate();
+                    return std::nullopt;
+                });
+        })
+        .transform_error([](std::string&& err) {
+            logger->error("Error occured while fetching Server Info from DB: {}", err);
+            std::terminate();
+            return err;
+        });
 }
 
 // Load all user balances into the balance_checker
@@ -181,14 +201,16 @@ void OrderManager::run() {
                                           validation_result);
                     }
 
-                    update_database(container, *database_client, validation_result == "ok");
+                    update_database(container, server_id, username_user_id_map, order_info_map,
+                                    balance_checker, *database_client, validation_result == "ok");
                 })
                 .transform_error([&](std::string&& err) {
                     forward_and_reply(false, container, order_info_map, *gateway_ids_it,
                                       *order_request_outbound_client, order_request_connection_id,
                                       *inbound_server, err);
 
-                    update_database(container, *database_client, false);
+                    update_database(container, server_id, username_user_id_map, order_info_map,
+                                    balance_checker, *database_client, false);
                     return err;
                 });
 
@@ -209,7 +231,8 @@ void OrderManager::run() {
 
                 return_execution_report(container, order_id_map, order_info_map, *inbound_server);
 
-                update_database(container, *database_client);
+                update_database(container, server_id, username_user_id_map, order_info_map,
+                                balance_checker, *database_client);
 
                 return new_message;
             });
@@ -336,6 +359,13 @@ std::string validate_container(const core::Container& container,
 
         if (!active_symbols.contains(new_order.symbol)) {
             return "Unrecognized symbol";
+        }
+
+        if (new_order.price.has_value() && new_order.price.value() <= 0) {
+            return "Price is not positive";
+        }
+ if (new_order.order_qty <= 0) {
+            return "Quantity is not positive";
         }
 
         // A broker must at least have a record for USD at the start
@@ -600,7 +630,10 @@ generate_success_report_container(const core::Container& container,
                       container);
 }
 
-void update_database(const core::Container& container, OrderManagerDatabase& database_client,
+void update_database(const core::Container& container, int server_id,
+                     const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     const OrderManager::OrderInfoMapContainer& order_info_map,
+                     const BalanceChecker& balance_checker, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container) {
     auto new_order_handler{[&](const core::NewOrderSingleContainer& new_order) {
         boost::contract::check c = boost::contract::function().precondition([&] {
@@ -608,7 +641,7 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
             BOOST_CONTRACT_ASSERT(valid_container.has_value());
         });
 
-        logger->info("Persisting New Order: {}", new_order);
+        logger->info("[OM] Persisting New Order: {}", new_order);
 
         database_client.insert_order(new_order.order_id.value(), new_order,
                                      valid_container.value());
@@ -618,7 +651,7 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
         boost::contract::check c = boost::contract::function().precondition(
             [&] { BOOST_CONTRACT_ASSERT(valid_container.has_value()); });
 
-        logger->info("Persisting Cancel Request: {}", cancel_request);
+        logger->info("[OM] Persisting Cancel Request: {}", cancel_request);
         database_client.insert_cancel_request(cancel_request, valid_container.value());
     }};
 
@@ -628,15 +661,81 @@ void update_database(const core::Container& container, OrderManagerDatabase& dat
     }};
 
     auto trade_handler{[&](const core::TradeContainer& trade) {
-        logger->info("Persisting Trade: {}", trade);
-
+        logger->info("[OM] Persisting Trade: {}", trade);
         database_client.insert_trade(trade);
+
+        const auto& symbol = trade.ticker;
+        const auto& buyer_id = trade.is_taker_buyer ? trade.taker_id : trade.maker_id;
+        const int buyer_user_id = username_user_id_map.at(buyer_id);
+        const auto& buyer_usd_balance = balance_checker.get_balance(buyer_id, USD_SYMBOL);
+        const auto& buyer_symbol_balance = balance_checker.get_balance(buyer_id, symbol);
+
+        database_client.update_balance(server_id, buyer_user_id, USD_SYMBOL, buyer_usd_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", buyer_id, USD_SYMBOL,
+                             buyer_usd_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
+        database_client.update_balance(server_id, buyer_user_id, symbol, buyer_symbol_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", buyer_id, symbol,
+                             buyer_symbol_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
+
+        const auto& seller_id = trade.is_taker_buyer ? trade.maker_id : trade.taker_id;
+        const int seller_user_id = username_user_id_map.at(seller_id);
+        const auto& seller_usd_balance = balance_checker.get_balance(seller_id, USD_SYMBOL);
+        const auto& seller_symbol_balance = balance_checker.get_balance(seller_id, symbol);
+
+        database_client.update_balance(server_id, seller_user_id, USD_SYMBOL, seller_usd_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", seller_id, USD_SYMBOL,
+                             seller_usd_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
+        database_client.update_balance(server_id, seller_user_id, symbol, seller_symbol_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", seller_id, symbol,
+                             seller_symbol_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
     }};
 
     auto cancel_response_handler{[&](const core::CancelOrderResponseContainer& cancel_response) {
         logger->info("Persisting Cancel Response: {}", cancel_response);
 
         database_client.insert_cancel_response(cancel_response);
+
+        if (cancel_response.success) {
+            const auto& order_info = order_info_map.at(cancel_response.order_id);
+            if (order_info.side == core::Side::bid) {
+                assert(order_info.price.has_value() && "Only limit order should be cancellable");
+
+                database_client.update_balance(
+                    server_id, username_user_id_map.at(order_info.sender_comp_id), USD_SYMBOL,
+                    balance_checker.get_balance(order_info.sender_comp_id, USD_SYMBOL));
+            } else {
+                assert(order_info.price.has_value() && "Only limit order should be cancellable");
+
+                database_client.update_balance(
+                    server_id, username_user_id_map.at(order_info.sender_comp_id),
+                    order_info.symbol,
+                    balance_checker.get_balance(order_info.sender_comp_id, order_info.symbol));
+            }
+        }
     }};
 
     auto catch_all_handler{[&](const auto&) { assert(false && "UNREACHABLE"); }};

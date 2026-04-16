@@ -597,6 +597,22 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         }
         return std::unexpected{std::format("{} must be numeric", field_name)};
     };
+    auto parse_numeric_value = [](const bj::value& value, const std::string& field_name,
+                                  double default_value) -> std::expected<double, std::string> {
+        if (value.is_null()) {
+            return default_value;
+        }
+        if (value.is_double()) {
+            return value.as_double();
+        }
+        if (value.is_int64()) {
+            return static_cast<double>(value.as_int64());
+        }
+        if (value.is_uint64()) {
+            return static_cast<double>(value.as_uint64());
+        }
+        return std::unexpected{std::format("{} must be numeric", field_name)};
+    };
 
     struct BotGroupConfig {
         std::string group_tag;
@@ -613,6 +629,14 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         std::string service_name;
         std::vector<BotGroupConfig> groups;
     };
+    struct OracleDeployConfig {
+        double mu = 0.0;
+        double sigma = 0.003;
+        double jump_intensity = 0.06;
+        double jump_mean = 0.0;
+        double jump_std = 0.01;
+        int update_interval_ms = 60000;
+    };
 
     const std::unordered_set<std::string> active_symbol_set(symbols.begin(), symbols.end());
 
@@ -628,7 +652,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         group.initial_usd = base_initial_usd;
         group.initial_inventory = default_initial_inventory;
         group.deploy_params[count_key] = default_count;
-        group.deploy_params["cfg_prefix"] = username_prefix;
+        group.deploy_params["cfg_prefix"] =
+            std::format("{}_{}", username_prefix, group.group_tag);
         group.deploy_params["initial_inventory"] = default_initial_inventory;
         for (const auto& [key, default_value] : param_defaults) {
             group.deploy_params[key] = default_value;
@@ -723,7 +748,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     auto parse_bot_config = [&](const bj::object* bots_obj, const std::string& bot_key,
                                 const std::string& username_prefix,
                                 const std::string& service_name, const std::string& count_key,
-                                int default_count, double default_initial_inventory,
+                                int default_count, int default_group_initial_usd,
+                                double default_initial_inventory,
                                 const std::vector<std::pair<std::string, double>>& param_defaults)
         -> std::expected<BotCreateConfig, std::string> {
         BotCreateConfig config;
@@ -739,10 +765,11 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             BotGroupConfig empty_group;
             empty_group.group_tag = "grp1";
             empty_group.count = 0;
-            empty_group.initial_usd = initial_usd;
+            empty_group.initial_usd = default_group_initial_usd;
             empty_group.initial_inventory = default_initial_inventory;
             empty_group.deploy_params[count_key] = 0;
-            empty_group.deploy_params["cfg_prefix"] = username_prefix;
+            empty_group.deploy_params["cfg_prefix"] =
+                std::format("{}_{}", username_prefix, empty_group.group_tag);
             empty_group.deploy_params["initial_inventory"] = default_initial_inventory;
             for (const auto& [key, default_value] : param_defaults) {
                 empty_group.deploy_params[key] = default_value;
@@ -762,7 +789,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
                 auto parsed_group = parse_bot_group(groups_arr[idx].as_object(), bot_key, username_prefix,
                                                     count_key, default_count,
                                                     default_initial_inventory, param_defaults,
-                                                    static_cast<int>(idx), initial_usd);
+                                                    static_cast<int>(idx),
+                                                    default_group_initial_usd);
                 if (!parsed_group.has_value())
                     return std::unexpected{parsed_group.error()};
                 config.groups.push_back(std::move(parsed_group.value()));
@@ -771,10 +799,11 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
                 BotGroupConfig empty_group;
                 empty_group.group_tag = "grp1";
                 empty_group.count = 0;
-                empty_group.initial_usd = initial_usd;
+                empty_group.initial_usd = default_group_initial_usd;
                 empty_group.initial_inventory = default_initial_inventory;
                 empty_group.deploy_params[count_key] = 0;
-                empty_group.deploy_params["cfg_prefix"] = username_prefix;
+                empty_group.deploy_params["cfg_prefix"] =
+                    std::format("{}_{}", username_prefix, empty_group.group_tag);
                 empty_group.deploy_params["initial_inventory"] = default_initial_inventory;
                 for (const auto& [key, default_value] : param_defaults) {
                     empty_group.deploy_params[key] = default_value;
@@ -787,7 +816,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         // Backward compatibility: single-group shape.
         auto parsed_group =
             parse_bot_group(*type_obj, bot_key, username_prefix, count_key, default_count,
-                            default_initial_inventory, param_defaults, 0, initial_usd);
+                            default_initial_inventory, param_defaults, 0,
+                            default_group_initial_usd);
         if (!parsed_group.has_value())
             return std::unexpected{parsed_group.error()};
         config.groups.push_back(std::move(parsed_group.value()));
@@ -804,25 +834,28 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     }
 
     auto mm_cfg_result =
-        parse_bot_config(bots_obj, "mm", "market_maker", "mm", "num_market_makers", 0, 100.0,
-                         {{"lot_size", 1.0}, {"gamma", 0.1}, {"k", 1.5}, {"terminal_time", 1.0}});
+        parse_bot_config(bots_obj, "mm", "market_maker", "mm", "num_market_makers", 4,
+                         initial_usd, 300.0,
+                         {{"lot_size", 1.0}, {"gamma", 0.6}, {"k", 8.0}, {"terminal_time", 30.0}});
     if (!mm_cfg_result.has_value()) {
         res["error"] = mm_cfg_result.error();
         return res;
     }
     auto nt_cfg_result =
-        parse_bot_config(bots_obj, "nt", "noise_trader", "nt", "num_noise_traders", 0, 100.0,
-                         {{"lambda_eps", 20.0},
+        parse_bot_config(bots_obj, "nt", "noise_trader", "nt", "num_noise_traders", 0,
+                         initial_usd, 20.0,
+                         {{"lambda_eps", 0.6},
                           {"bernoulli", 0.5},
-                          {"pareto_scale", 1.0},
-                          {"pareto_shape", 2.0}});
+                          {"pareto_scale", 0.5},
+                          {"pareto_shape", 4.0}});
     if (!nt_cfg_result.has_value()) {
         res["error"] = nt_cfg_result.error();
         return res;
     }
     auto it_cfg_result =
-        parse_bot_config(bots_obj, "it", "informed_trader", "it", "num_informed_traders", 0, 100.0,
-                         {{"epsilon", 0.05}, {"trade_qty", 10.0}, {"max_inventory", 1000.0}});
+        parse_bot_config(bots_obj, "it", "informed_trader", "it", "num_informed_traders", 0,
+                         1500000, 150.0,
+                         {{"epsilon", 0.12}, {"trade_qty", 5.0}, {"max_inventory", 1200.0}});
     if (!it_cfg_result.has_value()) {
         res["error"] = it_cfg_result.error();
         return res;
@@ -832,6 +865,71 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     bot_configs.push_back(mm_cfg_result.value());
     bot_configs.push_back(nt_cfg_result.value());
     bot_configs.push_back(it_cfg_result.value());
+
+    OracleDeployConfig oracle_cfg;
+    if (auto it = body.find("oracle"); it != body.end()) {
+        if (!it->value().is_object()) {
+            res["error"] = "oracle must be an object";
+            return res;
+        }
+        const auto& oracle_obj = it->value().as_object();
+        if (auto field_it = oracle_obj.find("mu"); field_it != oracle_obj.end()) {
+            auto parsed = parse_numeric_value(field_it->value(), "oracle.mu", oracle_cfg.mu);
+            if (!parsed.has_value()) {
+                res["error"] = parsed.error();
+                return res;
+            }
+            oracle_cfg.mu = parsed.value();
+        }
+        if (auto field_it = oracle_obj.find("sigma"); field_it != oracle_obj.end()) {
+            auto parsed = parse_double_value(field_it->value(), "oracle.sigma", oracle_cfg.sigma);
+            if (!parsed.has_value()) {
+                res["error"] = parsed.error();
+                return res;
+            }
+            oracle_cfg.sigma = parsed.value();
+        }
+        if (auto field_it = oracle_obj.find("jump_intensity"); field_it != oracle_obj.end()) {
+            auto parsed = parse_double_value(field_it->value(), "oracle.jump_intensity",
+                                             oracle_cfg.jump_intensity);
+            if (!parsed.has_value()) {
+                res["error"] = parsed.error();
+                return res;
+            }
+            oracle_cfg.jump_intensity = parsed.value();
+        }
+        if (auto field_it = oracle_obj.find("jump_mean"); field_it != oracle_obj.end()) {
+            auto parsed =
+                parse_numeric_value(field_it->value(), "oracle.jump_mean", oracle_cfg.jump_mean);
+            if (!parsed.has_value()) {
+                res["error"] = parsed.error();
+                return res;
+            }
+            oracle_cfg.jump_mean = parsed.value();
+        }
+        if (auto field_it = oracle_obj.find("jump_std"); field_it != oracle_obj.end()) {
+            auto parsed =
+                parse_double_value(field_it->value(), "oracle.jump_std", oracle_cfg.jump_std);
+            if (!parsed.has_value()) {
+                res["error"] = parsed.error();
+                return res;
+            }
+            oracle_cfg.jump_std = parsed.value();
+        }
+        if (auto field_it = oracle_obj.find("update_interval_ms"); field_it != oracle_obj.end()) {
+            auto parsed = parse_int_value(field_it->value(), "oracle.update_interval_ms",
+                                          oracle_cfg.update_interval_ms);
+            if (!parsed.has_value()) {
+                res["error"] = parsed.error();
+                return res;
+            }
+            if (parsed.value() <= 0) {
+                res["error"] = "oracle.update_interval_ms must be positive";
+                return res;
+            }
+            oracle_cfg.update_interval_ms = parsed.value();
+        }
+    }
 
     constexpr std::string_view kBotPassword = "eduxpassword";
     for (auto& bot_cfg : bot_configs) {
@@ -921,6 +1019,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     int me_port = take_next_available_port();
     int oms_port = take_next_available_port();
     int gateway_port = take_next_available_port();
+    int oracle_port = take_next_available_port();
 
     auto join_csv = [](const std::vector<std::string>& values) {
         std::string out;
@@ -1000,6 +1099,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         database::DatabaseClient::ServiceInsertRow{machine_id, Service::oms, oms_port});
     service_rows.push_back(
         database::DatabaseClient::ServiceInsertRow{machine_id, Service::gateway, gateway_port});
+    service_rows.push_back(
+        database::DatabaseClient::ServiceInsertRow{machine_id, Service::oracle, oracle_port});
 
     auto create_result =
         m_db_client.create_server_with_services(server_name, caller_id, description, symbols,
@@ -1033,6 +1134,37 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         if (!balance_result.has_value()) {
             res["error"] = balance_result.error();
             return res;
+        }
+    }
+
+    std::unordered_set<int> bot_user_ids;
+    for (const auto& bot_cfg : bot_configs) {
+        for (const auto& group : bot_cfg.groups) {
+            for (const int bot_user_id : group.user_ids) {
+                bot_user_ids.insert(bot_user_id);
+            }
+        }
+    }
+
+    std::unordered_set<int> non_bot_user_ids(ids_result.value().begin(), ids_result.value().end());
+    non_bot_user_ids.insert(caller_id);
+    for (const int bot_user_id : bot_user_ids) {
+        non_bot_user_ids.erase(bot_user_id);
+    }
+    std::unordered_set<std::string> non_usd_active_symbols;
+    for (const auto& symbol : symbols) {
+        if (symbol != "USD") {
+            non_usd_active_symbols.insert(symbol);
+        }
+    }
+
+    for (const int user_id : non_bot_user_ids) {
+        for (const auto& symbol : non_usd_active_symbols) {
+            auto balance_result = m_db_client.insert_balance(user_id, server_id, symbol, 0);
+            if (!balance_result.has_value()) {
+                res["error"] = balance_result.error();
+                return res;
+            }
         }
     }
 
@@ -1109,23 +1241,21 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     }
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    const auto it_cfg_it = std::ranges::find_if(
-        bot_configs, [](const BotCreateConfig& cfg) { return cfg.service_name == "it"; });
-    int it_count = 0;
-    if (it_cfg_it != bot_configs.end()) {
-        for (const auto& group : it_cfg_it->groups) {
-            it_count += group.count;
-        }
+    bj::object oracle_params;
+    oracle_params["active_symbols"] = join_csv(symbols);
+    oracle_params["oracle_ws_port"] = oracle_port;
+    oracle_params["mu"] = oracle_cfg.mu;
+    oracle_params["sigma"] = oracle_cfg.sigma;
+    oracle_params["jump_intensity"] = oracle_cfg.jump_intensity;
+    oracle_params["jump_mean"] = oracle_cfg.jump_mean;
+    oracle_params["jump_std"] = oracle_cfg.jump_std;
+    oracle_params["update_interval_ms"] = oracle_cfg.update_interval_ms;
+    auto oracle_deploy_result = deploy_service("oracle", oracle_params);
+    if (!oracle_deploy_result.has_value()) {
+        res["error"] = oracle_deploy_result.error();
+        return res;
     }
-    if (it_count > 0) {
-        bj::object oracle_params;
-        oracle_params["active_symbols"] = join_csv(symbols);
-        auto oracle_deploy_result = deploy_service("oracle", oracle_params);
-        if (!oracle_deploy_result.has_value()) {
-            res["error"] = oracle_deploy_result.error();
-            return res;
-        }
-    }
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     for (const auto& bot_cfg : bot_configs) {
         for (const auto& group : bot_cfg.groups) {
@@ -1137,6 +1267,15 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             bot_deploy_params["gateway_port"] = gateway_port;
             bot_deploy_params["active_symbols"] = join_csv(symbols);
             bot_deploy_params["group_tag"] = group.group_tag;
+            if (bot_cfg.service_name == "mm" || bot_cfg.service_name == "nt" ||
+                bot_cfg.service_name == "it") {
+                bot_deploy_params["mdp_ws_host"] = machine_ip;
+                bot_deploy_params["mdp_ws_port"] = mdp_port;
+            }
+            if (bot_cfg.service_name == "it") {
+                bot_deploy_params["oracle_ws_host"] = machine_ip;
+                bot_deploy_params["oracle_ws_port"] = oracle_port;
+            }
             bj::array sender_ids;
             for (const auto& username : group.usernames) {
                 sender_ids.emplace_back(username);

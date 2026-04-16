@@ -10,6 +10,7 @@ target_include_directories(create_n_noise_traders PRIVATE
 )
 target_link_libraries(create_n_noise_traders PRIVATE
     client_sdk
+    websocket_lib
     Threads::Threads
     reflectcpp
 )

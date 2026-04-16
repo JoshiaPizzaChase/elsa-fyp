@@ -781,7 +781,7 @@ class DatabaseClient {
                 "FROM {} "
                 "WHERE symbol = {} "
                 "AND CAST(timestamp AS LONG) >= {} "
-                "ORDER BY timestamp ASC",
+                "ORDER BY timestamp ASC, trade_id ASC",
                 trades_table, quoted_symbol, after_ts_micros);
             auto res = txn.exec(query);
             txn.commit();
