@@ -16,31 +16,32 @@
 \contentsline {subsubsection}{\numberline {2.1.4}The Core: Matching\allowbreak Engine \& LOB Data Structures}{9}{subsubsection.2.1.4}%
 \contentsline {subsubsection}{\numberline {2.1.5}Distribution Layer: Market Data Processor}{10}{subsubsection.2.1.5}%
 \contentsline {subsubsection}{\numberline {2.1.6}Simulation Layer: Agents \& Market Regimes}{10}{subsubsection.2.1.6}%
-\contentsline {subsection}{\numberline {2.2}Implementation}{11}{subsection.2.2}%
-\contentsline {subsubsection}{\numberline {2.2.1}User Access Layer: SDK \& Graphical Interface}{12}{subsubsection.2.2.1}%
-\contentsline {subsubsection}{\numberline {2.2.2}External Facing API Layer: FIX Gateways}{14}{subsubsection.2.2.2}%
-\contentsline {subsubsection}{\numberline {2.2.3}Order Validation \& Persistence Layer: Order Manager}{15}{subsubsection.2.2.3}%
-\contentsline {subsubsection}{\numberline {2.2.4}The Core: Matching\allowbreak Engine \& LOB Data Structures}{16}{subsubsection.2.2.4}%
-\contentsline {subsubsection}{\numberline {2.2.5}Distribution Layer: Market Data Processor}{18}{subsubsection.2.2.5}%
-\contentsline {subsubsection}{\numberline {2.2.6}Simulation Layer: Agents \& Market Regimes}{18}{subsubsection.2.2.6}%
-\contentsline {subsubsection}{\numberline {2.2.7}Server Setup and Deployment}{19}{subsubsection.2.2.7}%
-\contentsline {subsubsection}{\numberline {2.2.8}Software Engineering Practices}{20}{subsubsection.2.2.8}%
-\contentsline {subsection}{\numberline {2.3}Testing}{21}{subsection.2.3}%
-\contentsline {subsubsection}{\numberline {2.3.1}Test Plan and Methodology}{21}{subsubsection.2.3.1}%
-\contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{21}{subsubsection.2.3.2}%
-\contentsline {subsection}{\numberline {2.4}Evaluation}{22}{subsection.2.4}%
-\contentsline {subsubsection}{\numberline {2.4.1}Benchmarking}{22}{subsubsection.2.4.1}%
-\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{26}{subsubsection.2.4.2}%
-\contentsline {section}{\numberline {3}Discussion}{27}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{27}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}System Limitations}{27}{subsection.3.2}%
-\contentsline {section}{\numberline {4}Conclusions}{29}{section.4}%
-\contentsline {section}{\numberline {5}References}{30}{section.5}%
-\contentsline {section}{\numberline {6}Appendix}{31}{section.6}%
-\contentsline {subsection}{\numberline {6.1}Explanation on Limit Order Books}{31}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}Project Planning}{32}{subsection.6.2}%
-\contentsline {subsubsection}{\numberline {6.2.1}Distribution of Work \& Gantt Chart}{32}{subsubsection.6.2.1}%
-\contentsline {subsection}{\numberline {6.3}Required hardware \& software}{32}{subsection.6.3}%
-\contentsline {subsubsection}{\numberline {6.3.1}Hardware}{32}{subsubsection.6.3.1}%
-\contentsline {subsubsection}{\numberline {6.3.2}Software}{32}{subsubsection.6.3.2}%
-\contentsline {subsection}{\numberline {6.4}Comprehensive Test Cases}{33}{subsection.6.4}%
+\contentsline {subsection}{\numberline {2.2}Implementation}{12}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}User Access Layer: SDK \& Graphical Interface}{13}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}External Facing API Layer: FIX Gateways}{16}{subsubsection.2.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.3}Order Validation \& Persistence Layer: Order Manager}{16}{subsubsection.2.2.3}%
+\contentsline {subsubsection}{\numberline {2.2.4}The Core: Matching\allowbreak Engine \& LOB Data Structures}{17}{subsubsection.2.2.4}%
+\contentsline {subsubsection}{\numberline {2.2.5}Distribution Layer: Market Data Processor}{19}{subsubsection.2.2.5}%
+\contentsline {subsubsection}{\numberline {2.2.6}Simulation Layer: Agents \& Market Regimes}{19}{subsubsection.2.2.6}%
+\contentsline {subsubsection}{\numberline {2.2.7}Server Setup and Deployment}{20}{subsubsection.2.2.7}%
+\contentsline {subsubsection}{\numberline {2.2.8}Software Engineering Practices}{21}{subsubsection.2.2.8}%
+\contentsline {subsection}{\numberline {2.3}Testing}{22}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Test Plan and Methodology}{22}{subsubsection.2.3.1}%
+\contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{22}{subsubsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.4}Evaluation}{23}{subsection.2.4}%
+\contentsline {subsubsection}{\numberline {2.4.1}Benchmarking}{23}{subsubsection.2.4.1}%
+\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{27}{subsubsection.2.4.2}%
+\contentsline {section}{\numberline {3}Discussion}{28}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{28}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}System Limitations}{28}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Conclusions}{30}{section.4}%
+\contentsline {section}{\numberline {5}References}{31}{section.5}%
+\contentsline {section}{\numberline {6}Appendix}{32}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Explanation on Limit Order Books}{32}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Project Planning}{33}{subsection.6.2}%
+\contentsline {subsubsection}{\numberline {6.2.1}Distribution of Work \& Gantt Chart}{33}{subsubsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.3}Required hardware \& software}{33}{subsection.6.3}%
+\contentsline {subsubsection}{\numberline {6.3.1}Hardware}{33}{subsubsection.6.3.1}%
+\contentsline {subsubsection}{\numberline {6.3.2}Software}{33}{subsubsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.4}Comprehensive Test Cases}{34}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Simulation Default Configuration}{37}{subsection.6.5}%

@@ -195,21 +195,21 @@ To provide a realistic and educational venue, the system includes an agent layer
     \begin{equation}
         f(\Delta t; \lambda) = \lambda e^{-\lambda \Delta t}
     \end{equation}
-    where $\lambda$ represents the order intensity (events per second). Order parameters (side, quantity, limit vs. market) are generated using randomized statistical distributions to provide baseline market activity.
+    where $\lambda$ represents the order intensity (events per second). Order parameters are generated using randomized statistical distributions to provide baseline market activity. Specifically, the side of the order (buy or sell) is determined by a Bernoulli distribution, and the order quantity follows a Pareto distribution, defined by its scale and shape parameters, resulting in heavy-tailed order sizes. The agents are initialized with a configured number of active noise traders and a starting asset inventory.
     \item \textbf{Market Makers:} Implementing the Avellaneda-Stoikov model, these agents provide liquidity by maintaining a ladder of quotes around the spread. They actively manage inventory risk by calculating a reservation price $r$ (the theoretical mid-price adjusted for inventory) and an optimal spread $\delta$:
     \begin{align}
         r &= s - q \gamma \sigma^2 (T - t) \\
         \delta &= \gamma \sigma^2 (T - t) + \frac{2}{\gamma} \ln\left(1 + \frac{\gamma}{k}\right)
     \end{align}
-    Here, $s$ is the current market mid-price, $q$ is the agent's inventory, $\gamma$ is the risk aversion parameter, $\sigma^2$ is the asset's price variance, $T - t$ is the time horizon, and $k$ represents the order book density. The optimal bid and ask quotes are then symmetrically placed at $r - \delta/2$ and $r + \delta/2$.
-    \item \textbf{Informed Traders \& Oracle Service:} These agents act on a ``true'' fundamental asset price $V_t$ provided by an external Oracle Service. The oracle generates this true price path using a Geometric Brownian Motion (GBM) augmented with Jump Diffusion to simulate sudden exogenous shocks:
+    Here, $s$ is the current market mid-price, $q$ is the agent's inventory, $\gamma$ is the risk aversion parameter, $\sigma^2$ is the asset's price variance, $T - t$ is the time horizon, and $k$ represents the order book density. The optimal bid and ask quotes are then symmetrically placed at $r - \delta/2$ and $r + \delta/2$. Key configurable parameters include the standard order lot size, the inventory risk aversion factor, the order book liquidity density, the operational time horizon, the initial asset holdings, and the total number of market makers deployed.
+    \item \textbf{Informed Traders \& Oracle Service:} These agents act on a ``true'' fundamental asset price $V_t$ provided by an external Oracle Service. When instantiated, both the Oracle Service and the simulated markets assume an initial starting fundamental asset price of \$100.0, providing a standardized baseline for subsequent price discovery and stochastic movements. The oracle generates this true price path using a Geometric Brownian Motion (GBM) augmented with Jump Diffusion to simulate sudden exogenous shocks:
     \begin{equation}
         dV_t = \mu V_t dt + \sigma V_t dW_t + V_t dJ_t
     \end{equation}
-    where $\mu$ is the drift, $\sigma$ is the volatility, $W_t$ is a standard Wiener process, and $J_t$ represents the jump process, modeled as a compound Poisson process with a specified jump intensity $\lambda$ and a random jump size distribution. This jump term explicitly allows the model to simulate sudden, discontinuous price changes driven by exogenous shocks, such as breaking macroeconomic news or earnings reports. The Informed Trader continuously polls the order book and the oracle. If it detects a mispricing greater than a threshold $\epsilon$ (e.g., $V_t > P_{ask} + \epsilon$), it executes aggressive snipe orders against lagging market maker quotes. This introduces adverse selection and efficiently drives the simulated market towards price discovery.
+    where $\mu$ is the drift, $\sigma$ is the volatility, $W_t$ is a standard Wiener process, and $J_t$ represents the jump process, modeled as a compound Poisson process with a specified jump intensity $\lambda$ and a random jump size distribution (defined by a jump mean and standard deviation). This jump term explicitly allows the model to simulate sudden, discontinuous price changes driven by exogenous shocks, such as breaking macroeconomic news or earnings reports. The Oracle service also specifies a broadcast update interval to push these price updates. The Informed Trader continuously polls the order book and the oracle. If it detects a mispricing greater than a threshold $\epsilon$ (e.g., $V_t > P_{ask} + \epsilon$), it executes aggressive snipe orders against lagging market maker quotes using a predefined aggressive order quantity. This introduces adverse selection and efficiently drives the simulated market towards price discovery. The informed trader is also constrained by an initial inventory and a maximum allowed inventory limit.
 \end{itemize}
 
-For the purpose of this educational sandbox, the mathematical parameters governing these agents (e.g., the risk aversion $\gamma$, drift $\mu$, and volatility $\sigma$) are initialized with arbitrary defaults rather than being strictly calibrated to historical market data. However, they are fully configurable via the frontend interface and deployment configuration files, allowing users to experiment with diverse market regimes such as high-volatility environments or directional trend markets.
+For the purpose of this educational sandbox, the mathematical parameters governing these agents (e.g., the risk aversion $\gamma$, drift $\mu$, and volatility $\sigma$) are initialized via trial and error rather than being strictly calibrated to historical market data. However, they are fully configurable via the frontend interface and deployment configuration files, allowing users to experiment with diverse market regimes such as high-volatility environments or directional trend markets.
 
 \subsection{Implementation}
 
@@ -248,7 +248,7 @@ For the graphical trading interface, we built a responsive single-page applicati
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{assets/trading_view_fig.png}
+    \includegraphics[width=\textwidth]{assets/trading_view_fig.jpeg}
     \caption{Real-time K-line charting and market depth visualization.}
     \label{fig:ui_kline}
 \end{figure}
@@ -521,7 +521,9 @@ This shows clear latency growth as payload size increases in our local setup.
 \end{figure}
 
 \subsubsection{Simulation Realism}
-Discuss stylized facts here.
+To evaluate the realism of the simulated market dynamics, we initialize the platform with a baseline configuration across the agent populations. Specifically, the simulation is initialized with 4 Market Makers, 3 Noise Traders, and 1 Informed Trader. The full, detailed list of default parameters for all agent types and the Oracle Service can be found in Appendix \ref{sec:appendix_sim_config}.
+
+Using this baseline configuration, we analyze the resulting order book data to determine whether the simulation exhibits stylized facts commonly observed in real financial markets.
 
 
 \section{Discussion}
@@ -722,5 +724,48 @@ Table \ref{tab:comprehensive_test_cases} provides a comprehensive matrix of test
     \end{longtable}
 \endgroup
 
+
+\subsection{Simulation Default Configuration}
+\label{sec:appendix_sim_config}
+The following tables outline the complete default configuration values used to initialize the simulation platform's agents and the Oracle Service.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Component} & \textbf{Parameter Name} & \textbf{Default Value} \\
+        \hline
+        Noise Trader & \texttt{num\_noise\_traders} & 3 \\
+        & \texttt{lambda\_eps} & 0.6 \\
+        & \texttt{bernoulli} & 0.5 \\
+        & \texttt{pareto\_scale} & 0.5 \\
+        & \texttt{pareto\_shape} & 4.0 \\
+        & \texttt{initial\_inventory} & 20.0 \\
+        \hline
+        Market Maker & \texttt{num\_market\_makers} & 4 \\
+        & \texttt{lot\_size} & 1.0 \\
+        & \texttt{gamma} & 0.6 \\
+        & \texttt{k} & 8.0 \\
+        & \texttt{terminal\_time} & 30.0 \\
+        & \texttt{initial\_inventory} & 300.0 \\
+        \hline
+        Informed Trader & \texttt{num\_informed\_traders} & 1 \\
+        & \texttt{initial\_inventory} & 100.0 \\
+        & \texttt{epsilon} & 0.05 \\
+        & \texttt{trade\_qty} & 10.0 \\
+        & \texttt{max\_inventory} & 1000.0 \\
+        \hline
+        Oracle Service & \texttt{mu} & 0.0 \\
+        & \texttt{sigma} & 0.003 \\
+        & \texttt{jump\_intensity} & 0.06 \\
+        & \texttt{jump\_mean} & 0.0 \\
+        & \texttt{jump\_std} & 0.01 \\
+        & \texttt{update\_interval\_ms} & 60000 \\
+        \hline
+    \end{tabular}
+    \caption{Complete default configuration parameters for the simulation components.}
+    \label{tab:full_sim_configs}
+\end{table}
 
 \end{document}
