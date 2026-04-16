@@ -30,38 +30,38 @@
 \contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{22}{subsubsection.2.3.2}%
 \contentsline {subsection}{\numberline {2.4}Evaluation}{23}{subsection.2.4}%
 \contentsline {subsubsection}{\numberline {2.4.1}Benchmarking}{23}{subsubsection.2.4.1}%
-\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{28}{subsubsection.2.4.2}%
-\contentsline {paragraph}{Fat-Tailed Returns}{28}{subsubsection.2.4.2}%
-\contentsline {paragraph}{Volatility Clustering}{29}{figure.12}%
-\contentsline {paragraph}{Bid-Ask Spread and Price Trajectory}{30}{figure.13}%
-\contentsline {paragraph}{Raw Return Autocorrelation}{30}{figure.15}%
-\contentsline {paragraph}{Average Shape of the Order Book}{31}{figure.16}%
-\contentsline {section}{\numberline {3}Discussion}{32}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{32}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}System Limitations}{32}{subsection.3.2}%
-\contentsline {section}{\numberline {4}Conclusions}{34}{section.4}%
-\contentsline {section}{\numberline {5}References}{35}{section.5}%
-\contentsline {section}{\numberline {6}Appendix}{36}{section.6}%
-\contentsline {subsection}{\numberline {6.1}Minutes of Project Meeting}{36}{subsection.6.1}%
-\contentsline {subsubsection}{\numberline {6.1.1}Minutes of the 1st Project Meeting}{36}{subsubsection.6.1.1}%
-\contentsline {subsubsection}{\numberline {6.1.2}Minutes of the 2nd Project Meeting}{37}{subsubsection.6.1.2}%
-\contentsline {subsubsection}{\numberline {6.1.3}Minutes of the 3rd Project Meeting}{38}{subsubsection.6.1.3}%
-\contentsline {subsubsection}{\numberline {6.1.4}Minutes of the 4th Project Meeting}{39}{subsubsection.6.1.4}%
-\contentsline {subsubsection}{\numberline {6.1.5}Minutes of the 5th Project Meeting}{40}{subsubsection.6.1.5}%
-\contentsline {subsubsection}{\numberline {6.1.6}Minutes of the 6th Project Meeting}{41}{subsubsection.6.1.6}%
-\contentsline {subsubsection}{\numberline {6.1.7}Minutes of the 7th Project Meeting}{42}{subsubsection.6.1.7}%
-\contentsline {subsubsection}{\numberline {6.1.8}Minutes of the 8th Project Meeting}{43}{subsubsection.6.1.8}%
-\contentsline {subsubsection}{\numberline {6.1.9}Minutes of the 9th Project Meeting}{44}{subsubsection.6.1.9}%
-\contentsline {subsubsection}{\numberline {6.1.10}Minutes of the 10th Project Meeting}{45}{subsubsection.6.1.10}%
-\contentsline {subsubsection}{\numberline {6.1.11}Minutes of the 11th Project Meeting}{46}{subsubsection.6.1.11}%
-\contentsline {subsubsection}{\numberline {6.1.12}Minutes of the 12th Project Meeting}{47}{subsubsection.6.1.12}%
-\contentsline {subsubsection}{\numberline {6.1.13}Minutes of the 13th Project Meeting}{48}{subsubsection.6.1.13}%
-\contentsline {subsubsection}{\numberline {6.1.14}Minutes of the 14th Project Meeting}{49}{subsubsection.6.1.14}%
-\contentsline {subsection}{\numberline {6.2}Explanation on Limit Order Books}{50}{subsection.6.2}%
-\contentsline {subsection}{\numberline {6.3}Project Planning}{51}{subsection.6.3}%
-\contentsline {subsubsection}{\numberline {6.3.1}Distribution of Work \& Gantt Chart}{51}{subsubsection.6.3.1}%
-\contentsline {subsection}{\numberline {6.4}Required hardware \& software}{52}{subsection.6.4}%
-\contentsline {subsubsection}{\numberline {6.4.1}Hardware}{52}{subsubsection.6.4.1}%
-\contentsline {subsubsection}{\numberline {6.4.2}Software}{52}{subsubsection.6.4.2}%
-\contentsline {subsection}{\numberline {6.5}Comprehensive Test Cases}{52}{subsection.6.5}%
-\contentsline {subsection}{\numberline {6.6}Simulation Default Configuration}{56}{subsection.6.6}%
+\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{29}{subsubsection.2.4.2}%
+\contentsline {paragraph}{Fat-Tailed Returns}{29}{subsubsection.2.4.2}%
+\contentsline {paragraph}{Volatility Clustering}{30}{figure.12}%
+\contentsline {paragraph}{Bid-Ask Spread and Price Trajectory}{31}{figure.13}%
+\contentsline {paragraph}{Raw Return Autocorrelation}{31}{figure.15}%
+\contentsline {paragraph}{Average Shape of the Order Book}{32}{figure.16}%
+\contentsline {section}{\numberline {3}Discussion}{33}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{33}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}System Limitations}{33}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Conclusions}{35}{section.4}%
+\contentsline {section}{\numberline {5}References}{36}{section.5}%
+\contentsline {section}{\numberline {6}Appendix}{37}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Minutes of Project Meeting}{37}{subsection.6.1}%
+\contentsline {subsubsection}{\numberline {6.1.1}Minutes of the 1st Project Meeting}{37}{subsubsection.6.1.1}%
+\contentsline {subsubsection}{\numberline {6.1.2}Minutes of the 2nd Project Meeting}{38}{subsubsection.6.1.2}%
+\contentsline {subsubsection}{\numberline {6.1.3}Minutes of the 3rd Project Meeting}{39}{subsubsection.6.1.3}%
+\contentsline {subsubsection}{\numberline {6.1.4}Minutes of the 4th Project Meeting}{40}{subsubsection.6.1.4}%
+\contentsline {subsubsection}{\numberline {6.1.5}Minutes of the 5th Project Meeting}{41}{subsubsection.6.1.5}%
+\contentsline {subsubsection}{\numberline {6.1.6}Minutes of the 6th Project Meeting}{42}{subsubsection.6.1.6}%
+\contentsline {subsubsection}{\numberline {6.1.7}Minutes of the 7th Project Meeting}{43}{subsubsection.6.1.7}%
+\contentsline {subsubsection}{\numberline {6.1.8}Minutes of the 8th Project Meeting}{44}{subsubsection.6.1.8}%
+\contentsline {subsubsection}{\numberline {6.1.9}Minutes of the 9th Project Meeting}{45}{subsubsection.6.1.9}%
+\contentsline {subsubsection}{\numberline {6.1.10}Minutes of the 10th Project Meeting}{46}{subsubsection.6.1.10}%
+\contentsline {subsubsection}{\numberline {6.1.11}Minutes of the 11th Project Meeting}{47}{subsubsection.6.1.11}%
+\contentsline {subsubsection}{\numberline {6.1.12}Minutes of the 12th Project Meeting}{48}{subsubsection.6.1.12}%
+\contentsline {subsubsection}{\numberline {6.1.13}Minutes of the 13th Project Meeting}{49}{subsubsection.6.1.13}%
+\contentsline {subsubsection}{\numberline {6.1.14}Minutes of the 14th Project Meeting}{50}{subsubsection.6.1.14}%
+\contentsline {subsection}{\numberline {6.2}Explanation on Limit Order Books}{51}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Project Planning}{52}{subsection.6.3}%
+\contentsline {subsubsection}{\numberline {6.3.1}Distribution of Work \& Gantt Chart}{52}{subsubsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.4}Required hardware \& software}{53}{subsection.6.4}%
+\contentsline {subsubsection}{\numberline {6.4.1}Hardware}{53}{subsubsection.6.4.1}%
+\contentsline {subsubsection}{\numberline {6.4.2}Software}{53}{subsubsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.5}Comprehensive Test Cases}{53}{subsection.6.5}%
+\contentsline {subsection}{\numberline {6.6}Simulation Default Configuration}{57}{subsection.6.6}%

@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1776358506.64203 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776358509.75565 0
-  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776358504.77569 105801 d71ac916b7c05b49a1a6bf57154620ca ""
+["pdflatex"] 1776359937.06925 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776359940.00012 0
+  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776359936.93278 107564 dc60e61c7adb5c55e3a3402b56952096 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -221,10 +221,10 @@
   "assets/simulation_results/gme_volatility_clustering.png" 1776356260.50839 24999 e5a8d76d59402b3eb16de7a6aeb8be29 ""
   "assets/trading_view_fig.jpeg" 1776353420.15597 177825 a30fc9ea00f10b3c6c47de360b6ef519 ""
   "assets/websocket_latency_by_input.png" 1776351642.31699 71295 b51a9458ecf3a3d6bce66bb54097c6d5 ""
-  "final_report.aux" 1776358509.51279 17325 391b68805070d38c080a2a0b00b9cc8f "pdflatex"
-  "final_report.out" 1776358509.51479 13021 afc4f611a28bffbf58b5f7523a1a006f "pdflatex"
-  "final_report.tex" 1776358504.77569 105801 d71ac916b7c05b49a1a6bf57154620ca ""
-  "final_report.toc" 1776358509.51579 6572 4d1c3dffbe1aaa0e5b8a055323effcab "pdflatex"
+  "final_report.aux" 1776359939.72584 17311 fb5ea86208aec49faadb14f85f9176ba "pdflatex"
+  "final_report.out" 1776359939.72784 13021 afc4f611a28bffbf58b5f7523a1a006f "pdflatex"
+  "final_report.tex" 1776359936.93278 107564 dc60e61c7adb5c55e3a3402b56952096 ""
+  "final_report.toc" 1776359939.72884 6572 7d7d1aa352827601641b7ea5c641acff "pdflatex"
   (generated)
   "final_report.aux"
   "final_report.log"
