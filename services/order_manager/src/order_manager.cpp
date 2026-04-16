@@ -633,7 +633,7 @@ void update_database(const core::Container& container, int server_id,
             BOOST_CONTRACT_ASSERT(valid_container.has_value());
         });
 
-        logger->info("Persisting New Order: {}", new_order);
+        logger->info("[OM] Persisting New Order: {}", new_order);
 
         database_client.insert_order(new_order.order_id.value(), new_order,
                                      valid_container.value());
@@ -643,7 +643,7 @@ void update_database(const core::Container& container, int server_id,
         boost::contract::check c = boost::contract::function().precondition(
             [&] { BOOST_CONTRACT_ASSERT(valid_container.has_value()); });
 
-        logger->info("Persisting Cancel Request: {}", cancel_request);
+        logger->info("[OM] Persisting Cancel Request: {}", cancel_request);
         database_client.insert_cancel_request(cancel_request, valid_container.value());
     }};
 
@@ -653,25 +653,57 @@ void update_database(const core::Container& container, int server_id,
     }};
 
     auto trade_handler{[&](const core::TradeContainer& trade) {
-        logger->info("Persisting Trade: {}", trade);
+        logger->info("[OM] Persisting Trade: {}", trade);
         database_client.insert_trade(trade);
 
         const auto& symbol = trade.ticker;
         const auto& buyer_id = trade.is_taker_buyer ? trade.taker_id : trade.maker_id;
         const int buyer_user_id = username_user_id_map.at(buyer_id);
+        const auto& buyer_usd_balance = balance_checker.get_balance(buyer_id, USD_SYMBOL);
+        const auto& buyer_symbol_balance = balance_checker.get_balance(buyer_id, symbol);
 
-        database_client.update_balance(server_id, buyer_user_id, USD_SYMBOL,
-                                       balance_checker.get_balance(buyer_id, USD_SYMBOL));
-        database_client.update_balance(server_id, buyer_user_id, symbol,
-                                       balance_checker.get_balance(buyer_id, symbol));
+        database_client.update_balance(server_id, buyer_user_id, USD_SYMBOL, buyer_usd_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", buyer_id, USD_SYMBOL,
+                             buyer_usd_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
+        database_client.update_balance(server_id, buyer_user_id, symbol, buyer_symbol_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", buyer_id, symbol,
+                             buyer_symbol_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
 
         const auto& seller_id = trade.is_taker_buyer ? trade.maker_id : trade.taker_id;
         const int seller_user_id = username_user_id_map.at(seller_id);
+        const auto& seller_usd_balance = balance_checker.get_balance(seller_id, USD_SYMBOL);
+        const auto& seller_symbol_balance = balance_checker.get_balance(seller_id, symbol);
 
-        database_client.update_balance(server_id, seller_user_id, USD_SYMBOL,
-                                       balance_checker.get_balance(seller_id, USD_SYMBOL));
-        database_client.update_balance(server_id, seller_user_id, symbol,
-                                       balance_checker.get_balance(seller_id, symbol));
+        database_client.update_balance(server_id, seller_user_id, USD_SYMBOL, seller_usd_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", seller_id, USD_SYMBOL,
+                             seller_usd_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
+        database_client.update_balance(server_id, seller_user_id, symbol, seller_symbol_balance)
+            .transform([&] {
+                logger->info("[OM] Updating {}'s {} balance to {} in DB", seller_id, symbol,
+                             seller_symbol_balance);
+            })
+            .transform_error([&](std::string&& err) {
+                logger->error(err);
+                return err;
+            });
     }};
 
     auto cancel_response_handler{[&](const core::CancelOrderResponseContainer& cancel_response) {
