@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  16 APR 2026 21:49
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  16 APR 2026 22:59
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1051,7 +1051,25 @@ l.527 \section{Discussion}
 ]
 [28] [29
 
-] [30
+]
+Underfull \hbox (badness 1748) in paragraph at lines 585--586
+[]\T1/cmr/m/n/12 wkselph, ``How to Build a Fast Limit Or-der Book,'' \T1/cmr/m/
+it/12 WK's High Fre-quency
+ []
+
+
+Underfull \hbox (badness 4981) in paragraph at lines 585--586
+\T1/cmr/m/it/12 Trad-ing Blog\T1/cmr/m/n/12 , Feb. 15, 2011. [On-line]. Avail-a
+ble: []$\T1/cmtt/m/n/12 https : / / web . archive .
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 585--586
+\T1/cmtt/m/n/12 org / web / 20110219163448 / http : / / howtohft . wordpress . 
+com / 2011 / 02 / 15 /
+ []
+
+[30
 
 ] [31
 
@@ -1060,39 +1078,39 @@ pdfTeX warning (ext4): destination with the same identifier (name{table.4}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.659 
+l.679 
       ]
-Overfull \hbox (0.80455pt too wide) in paragraph at lines 666--666
+Overfull \hbox (0.80455pt too wide) in paragraph at lines 686--686
 []|\T1/cmr/bx/n/10.95 Component|  
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 663--668
+Overfull \hbox (20.17061pt too wide) in alignment at lines 683--688
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (0.80455pt too wide) in paragraph at lines 671--671
+Overfull \hbox (0.80455pt too wide) in paragraph at lines 691--691
 []|\T1/cmr/bx/n/10.95 Component|  
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 668--673
+Overfull \hbox (20.17061pt too wide) in alignment at lines 688--693
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 673--675
+Overfull \hbox (20.17061pt too wide) in alignment at lines 693--695
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 675--677
+Overfull \hbox (20.17061pt too wide) in alignment at lines 695--697
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 677--702
+Overfull \hbox (20.17061pt too wide) in alignment at lines 697--722
  [] [] [] [] [] [] 
  []
 
@@ -1110,10 +1128,10 @@ Package rerunfilecheck Info: File `final_report.out' has not changed.
 (rerunfilecheck)             Checksum: 9E2202453479B37B9207A140B24D42C8;9012.
  ) 
 Here is how much of TeX's memory you used:
- 25682 strings out of 467349
- 476862 string characters out of 5415641
+ 25696 strings out of 467349
+ 477026 string characters out of 5415641
  1364514 words of memory out of 5000000
- 54158 multiletter control sequences out of 15000+600000
+ 54166 multiletter control sequences out of 15000+600000
  644271 words of font info for 76 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  99i,11n,108p,1477b,2122s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -1138,10 +1156,10 @@ mf-dist/fonts/type1/public/cm-super/sfti1095.pfb></usr/local/texlive/2026/texmf
 ist/fonts/type1/public/cm-super/sftt1000.pfb></usr/local/texlive/2026/texmf-dis
 t/fonts/type1/public/cm-super/sftt1095.pfb></usr/local/texlive/2026/texmf-dist/
 fonts/type1/public/cm-super/sftt1200.pfb>
-Output written on final_report.pdf (37 pages, 1283365 bytes).
+Output written on final_report.pdf (37 pages, 1294708 bytes).
 PDF statistics:
- 680 PDF objects out of 1000 (max. 8388607)
- 578 compressed objects within 6 object streams
- 187 named destinations out of 1000 (max. 500000)
+ 696 PDF objects out of 1000 (max. 8388607)
+ 594 compressed objects within 6 object streams
+ 193 named destinations out of 1000 (max. 500000)
  431 words of extra memory for PDF output out of 10000 (max. 10000000)
 
