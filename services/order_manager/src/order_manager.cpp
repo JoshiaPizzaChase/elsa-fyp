@@ -61,6 +61,7 @@ void OrderManager::init() {
             std::move(server_row_res)
                 .transform([&](DbServerRow&& server_row) {
                     server_id = server_row.server_id;
+                    logger->info("Initialized server ID to {}", server_row.server_id);
                     return server_row;
                 })
                 .or_else([] -> std::optional<DbServerRow> {
