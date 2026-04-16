@@ -132,7 +132,7 @@ For objectives 1 and 4, we conducted research on existing Limit Order Book desig
 This literature survey examines existing work on the three major components of a financial exchange: the Limit Order Book, system-level architecture, and simulation methodologies.
 
 \subsubsection{Limit Order Book architecture}
-The Limit Order Book sits at the core of an exchange. In real exchanges, an individual Limit Order Book for a single asset must handle message rates up to 500,000 per second with microsecond latencies [4]. Correct and efficient implementation is crucial. Essentially, it must implement add, cancel, and execute operations for orders, with efficient queries such as getting the best bid and ask prices, current volume information, and the status of the order submitted by a specific user. For a detailed explanation, refer to Appendix 6.1. Current designs utilise binary trees as the primary data structure to store orders, with each node referring to a limit price. Each node then contains a doubly linked list of order nodes corresponding to those that users submit. To solve the issue of efficient queries, two hashmaps store references to limit price nodes of the tree and order nodes in the linked list, respectively [6]. However, current designs do not explicitly define which type of binary tree to use for keeping the trees balanced, as the average time complexity may grow if left unmaintained. Furthermore, the literature typically only considers theoretical time complexity and lacks empirical performance metrics, such as benchmarked latency and its distributions. It also frequently ignores computer architecture considerations, such as cache locality and cache line optimization.
+The Limit Order Book sits at the core of an exchange. In real exchanges, an individual Limit Order Book for a single asset must handle message rates up to 500,000 per second with microsecond latencies [4]. Correct and efficient implementation is crucial. Essentially, it must implement add, cancel, and execute operations for orders, with efficient queries such as getting the best bid and ask prices, current volume information, and the status of the order submitted by a specific user. For a detailed explanation, refer to Appendix 6.2. Current designs utilise binary trees as the primary data structure to store orders, with each node referring to a limit price. Each node then contains a doubly linked list of order nodes corresponding to those that users submit. To solve the issue of efficient queries, two hashmaps store references to limit price nodes of the tree and order nodes in the linked list, respectively [6]. However, current designs do not explicitly define which type of binary tree to use for keeping the trees balanced, as the average time complexity may grow if left unmaintained. Furthermore, the literature typically only considers theoretical time complexity and lacks empirical performance metrics, such as benchmarked latency and its distributions. It also frequently ignores computer architecture considerations, such as cache locality and cache line optimization.
 
 \subsubsection{System-level architecture}
 Modern exchanges handle thousands of assets, each with its own Limit Order Book, and multiple concurrent users submitting orders. Across all traded assets, an exchange can face an aggregate throughput upwards of 3,000,000 messages per second at peak levels [4]. Most exchanges do not reveal their source code due to competitive advantages. Hence, existing literature only describes the architecture of exchanges at a high level [1]. Users first send messages regarding their order intentions to an exchange gateway layer, which performs validation on message integrity and runs on a separate computer from the core Limit Order Books. This layer contains multiple parallel gateways for users to choose from and send messages to. To handle simultaneous messages and introduce a level of randomness to message handling, a sequencer first materialises the incoming messages into a single stream of ordered messages. This stream is then passed on to the Limit Order Books for order matching, addition, or cancellation. However, current literature does not concretely define the implementation details of this architecture, such as the message and network connection protocols, load-balancing mechanisms, and inter-service communication.
@@ -440,7 +440,7 @@ For unit testing, we verified the core components—including the Client SDK, FI
 
 Integration testing focused on the data flow from the Client SDK through the FIX Gateway and Order Manager to ensure that Protobuf serialization and WebSocket communication maintained data integrity. We tested the trade events emitted by the Matching\allowbreak Engine to ensure the end-to-end flow functioned correctly. Regarding stress testing, our high-load evaluations were scoped strictly to individual component benchmarking, such as isolating the Matching\allowbreak Engine's throughput and latency under massive order bursts.
 
-A comprehensive execution matrix of the system's test suite, detailing critical scenarios and expected outcomes across multiple microservices, can be found in Appendix 6.4.
+A comprehensive execution matrix of the system's test suite, detailing critical scenarios and expected outcomes across multiple microservices, can be found in Appendix 6.5.
 
 \subsubsection{Locating Logic Errors and Bugs}
 Our testing procedures were critical in identifying flaws that were not initially apparent. A significant logic error was discovered regarding a Limit Order Book (LOB) invariant violation. During early testing, the Matching\allowbreak Engine incorrectly attempted to match against the worst ask price rather than the best ask price, as the engine was accessing the end of the ascending price list instead of the beginning. While simple unit tests missed this edge case, running a randomized order submission simulation revealed that ``Ask'' prices were crossing below ``Bid'' prices—a clear violation of market invariants.
@@ -686,6 +686,336 @@ wkselph, ``How to Build a Fast Limit Order Book,'' \textit{WK's High Frequency T
 
 \newpage
 \section{Appendix}
+
+\subsection{Minutes of Project Meeting}
+
+\subsubsection{Minutes of the 1st Project Meeting}
+\textbf{Date:} May 5, 2025\\
+\textbf{Time:} 2:00 pm\\
+\textbf{Place:} Room 3504\\
+\textbf{Present:} Gordon, Josh, Om, Prof. Sander\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Josh
+
+1. Approval of minutes\\
+There were no minutes to approve since this was the first formal group meeting.\\
+2. Report on progress\\
+2.1 All members have read and understood the Final Year Project instructions.\\
+2.2 All members have researched several potential FinTech-related topics.\\
+3. Discussion items\\
+3.1 Om introduced three topics that we were interested in working on, including market simulation for educational algorithmic trading, design and implementation of an exchange architecture, and simulation of a limit order book for high-frequency trading. Om asked whether Prof. Sander was willing to supervise our Final Year Project.\\
+3.2 Gordon pointed out that the first and the third topics were similar, and we might consider merging them into a new topic, for example, the implementation of an algorithmic trading platform that provided a simulated market environment with a highly efficient limit order book design.\\
+3.3 Prof. Sander showed interest in the topics mentioned. He pointed out that the focus of these topics was diverse, from benchmarking the efficiency of different data structures for the limit order book to system design. He expressed his willingness to supervise our project and suggested that we write a draft proposal with details to provide more context before narrowing down the direction in which we wanted to move forward.\\
+4. Goals for the coming month\\
+All members will do further research on the three topics closely.\\
+A draft proposal will be sent to Prof. Sander by May 11, 2025.\\
+5. Meeting adjournment and next meeting\\
+The meeting was adjourned at 2:45 pm.\\
+The next meeting will be at 2:00 pm on May 12th at Room 3504.
+
+\subsubsection{Minutes of the 2nd Project Meeting}
+\textbf{Date:} May 12, 2025\\
+\textbf{Time:} 2:00 pm\\
+\textbf{Place:} Room 3504\\
+\textbf{Present:} Josh, Om, Prof. Sander\\
+\textbf{Absent:} Gordon\\
+\textbf{Recorder:} Josh
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 All members have done further analysis on the proposed topics during the last meeting.\\
+2.2 Om drafted the proposal explaining each topic in detail, which was sent to Prof. Sander.\\
+3. Discussion items\\
+3.1 Prof. Sander said that he read the proposal and found it interesting. He suggested that we spend the coming summer on research because there was time remaining before we submitted the final proposal. He also advised us to set up a Zoom channel for easier communication.\\
+3.2 Om agreed with Prof. Sander's advice.\\
+4. Goals for the coming three months\\
+All members will do a deeper analysis and write up a proposal with the finalised topic.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 2:30 pm.
+
+\subsubsection{Minutes of the 3rd Project Meeting}
+\textbf{Date:} Aug 21, 2025\\
+\textbf{Time:} 8:30 am\\
+\textbf{Place:} Economy Class of Flight UO612, from Hong Kong to Fukuoka, Japan\\
+\textbf{Present:} Gordon, Om\\
+\textbf{Absent:} Josh\\
+\textbf{Recorder:} Gordon
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 All members narrowed down the final topic to market simulation for algorithmic trading, with high efficiency implementation of some core components of an exchange architecture.\\
+2.2 All members have started working on the final proposal.\\
+3. Discussion items\\
+3.1 Gordon pointed out that the coverage of our finalised topic was a bit large, so it made more sense to divide the development plan into different phases.\\
+3.2 Om suggested three phases. At phase 1, the core market mechanism is implemented, including the limit order book, trade interface, and historical data handler, enabling users to host locally and backtest their own strategy with static historical market data. At phase 2, the system evolves into a centralized server, and the users submit orders by communicating with the server via HTTP or WebSocket requests. At phase 3, we implement a model that can simulate behaviours of different parties in the market, including market makers, institutions, individual investors, etc, to make the market environment more realistic.\\
+3.3 Gordon estimated the man-hours required for each task.\\
+4. Goals for the coming week\\
+All members will do competitor analysis, as well as research on existing exchange architectures.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 9:30 am.
+
+\subsubsection{Minutes of the 4th Project Meeting}
+\textbf{Date:} Aug 23, 2025\\
+\textbf{Time:} 8:00 pm\\
+\textbf{Place:} Royal Park Canvas, Fukuoka, Japan\\
+\textbf{Present:} Josh, Gordon, Om\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Josh
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Gordon has done a competitor analysis.\\
+2.2 Josh and Om have researched existing exchange architectures.\\
+3. Discussion items\\
+3.1 Gordon shared his findings. He mentioned that many crypto exchanges, like Binance and OKX, provide a set of trading API for simulation only. Apart from that, IMC holds an annual trading competition named IMC Prosperity. The participants are given a Python SDK to trade with a set of pre-defined market bots and try to earn as much as possible.\\
+3.2 Josh said that with their market data and exchange infrastructure, these exchanges can provide very similar services and questioned how we can have an edge against them.\\
+3.3 Om shared the research results of some current exchange architectures. He pointed out that the limit order book is one of the most important core components, which we should put much effort into developing for the best performance. Furthermore, a typical exchange architecture also includes other components, including the exchange gateway, sequencers, market data processor, and so on. He said it was not feasible to implement all components within the scope of this project, and we might need to choose between them based on our use cases.\\
+4. Goals for the coming week\\
+4.1 All members will continue working on the proposal report.\\
+4.2 All members will study closely to narrow down the required components for the project.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 9:30 pm.
+
+\subsubsection{Minutes of the 5th Project Meeting}
+\textbf{Date:} Sep 19, 2025\\
+\textbf{Time:} 3:00 pm\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Gordon\\
+\textbf{Absent:} Om\\
+\textbf{Recorder:} Josh
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 All members have worked together on finishing the proposal report.\\
+2.2 All members have started learning advanced C++ techniques.\\
+3. Discussion items\\
+3.1 Gordon suggested we start designing the architecture of the local backtester for phase 1 of the project. He proposed a client-server architecture where the users interact with the matching engine via API because that is what we can reuse for phase 2.\\
+3.2 Josh said that with the client-server design the user is not guaranteed to get the same backtest result every time because of asynchronization, which was counter intuitive as a backtester.\\
+3.3 Gordon agreed with Josh's point, and suggested a mechanism to synchronize the client with the server which only applies to backtester only.\\
+3.4 Josh expressed his concern about the overhead by doing so. But he agreed that it is important to produce reusable components and interfaces for later phases. He then refined the architecture diagram.\\
+4. Goals for the coming week\\
+4.1 All members will continue learning C++.\\
+4.2 All members will start designing the components they are responsible for developing.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 5:00 pm.
+
+\subsubsection{Minutes of the 6th Project Meeting}
+\textbf{Date:} Oct 1, 2025\\
+\textbf{Time:} 10:00 am\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Gordon, Om\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Om
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 All members have designed their components.\\
+2.2 All members have started learning advanced C++ techniques.\\
+3. Discussion items\\
+3.1 Gordon shared his design of the matching engine. He suggested each matching engine should hold multiple LOBs, each of which is a node-based data structure for O(log n) time complexity for all major operations like search, insertion and deletion.\\
+3.2 Om referred to a research paper and argued that low time complexity does not imply high performance in reality. Using std::vector is more cache-friendly and performance boosting.\\
+3.3 Josh shared his design of the SDK for clients to interact with our system. Om shared his design of the gateway.\\
+3.4 Josh and Om discussed the protocol and parameters used for the communication between the client SDK and the gateway. FIX4.2 was agreed to be used.\\
+4. Goals for the coming week\\
+4.1 All members will start developing the components.\\
+4.2 Gordon will benchmark the performance difference between a node-based data structure and a linear std::vector for the matching engine.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 1:00 pm.
+
+\subsubsection{Minutes of the 7th Project Meeting}
+\textbf{Date:} Oct 28, 2025\\
+\textbf{Time:} 4:00 pm\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Gordon, Om\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Gordon
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Gordon has benchmarked the performance difference between different data structures for the matching engine.\\
+2.2 All members have completed the first draft of their components, including client SDK, gateway and matching engine.\\
+2.3 Client SDK and gateway have been demonstrated to be integrated well together.\\
+3. Discussion items\\
+3.1 Gordon shared his benchmark results, which showed that std::vector was indeed better in terms of operation latency.\\
+3.2 Gordon suggested that we backlog replacing node-based data structure with std::vector for the matching engine since the priority should be completing the implementation and integration test. Josh and Om agreed with that.\\
+3.3 Josh shared the integration test result. Order requests can be successfully sent from client SDK to the gateway.\\
+3.4 Om suggested adding a new component named order manager to our architecture, and removing the historical data handler and the backtester, since it is no longer one of the focuses. Josh and Gordon agreed.\\
+4. Goals for the coming week\\
+4.1 Josh will start implementing the market data processor component.\\
+4.2 Gordon will start working on the order manager.\\
+4.3 Om will start building our internal websocket client and server for different service use.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 4:45 pm.
+
+\subsubsection{Minutes of the 8th Project Meeting}
+\textbf{Date:} Nov 15, 2025\\
+\textbf{Time:} 11:00 am\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Gordon, Om\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Josh
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Gordon has implemented the handler of order manager which handles all incoming order requests from gateways.\\
+2.2 Josh has implemented a multiple-producer-single-comsumer (MPSC) lock-free ring buffer backed by shared memory, for fast data sharing between processes.\\
+2.3 Om has integrated the third-party library websocketpp into the project for our internal websocket client and server use.\\
+3. Discussion items\\
+3.1 Josh shared his design choice for the market data processor using the MPSC lock-free ring buffer.\\
+3.2 Gordon questioned if the ring buffer really helped with performance improvement.\\
+3.3 Om recalled the difference between lock-free and wait-free, and suggested we verify if the ring buffer is actually lock-free. Josh agreed with that.\\
+3.4 Josh pointed out that clearer error messages should be provided by our websocket library.\\
+4. Goals for the coming week\\
+4.1 Josh will continue the development of the market data processor.\\
+4.2 Gordon will continue implementing the order manager.\\
+4.3 Om will verify the performance improvement of the ring buffer and if it is truly lock-free.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 12:30 pm.
+
+\subsubsection{Minutes of the 9th Project Meeting}
+\textbf{Date:} Dec 5, 2025\\
+\textbf{Time:} 4:30 pm\\
+\textbf{Place:} Room 3504\\
+\textbf{Present:} Gordon, Om, Prof. Sander\\
+\textbf{Absent:} Josh\\
+\textbf{Recorder:} Gordon
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+Om reported the current progress to Prof. Sander, including the client SDK, gateways, order manager and market data processor.\\
+3. Discussion items\\
+3.1 Gordon demonstrated that an order request sent by the client SDK can be received and recognised correctly by the destination gateway.\\
+3.2 Prof. Sander thought the work was great.\\
+4. Goals for the coming week\\
+4.1 All members will continue the development of their components.\\
+4.2 Josh will initiate the development of a simple frontend to visualize the LOB and trade data.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 4:45 pm.
+
+\subsubsection{Minutes of the 10th Project Meeting}
+\textbf{Date:} Jan 10, 2026\\
+\textbf{Time:} 3:00 pm\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Gordon, Om\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Josh
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Josh finished the implementation of frontend using React and TypeScript. Besides, the market data processor has been completed.\\
+2.2 Om refined the internal websocket library to have better error messages for easier debugging. The library now can handle multiple connections.\\
+2.3 Gordon has finished the first draft of order manager.\\
+3. Discussion items\\
+3.1 Josh demonstrated that data from the matching engine can now be visualised on the frontend dashboard.\\
+3.2 All members agreed that integration tests should be conveyed to ensure all services can work well together.\\
+4. Goals for the coming week\\
+4.1 Gordon will develop the balance checking feature for order manager.\\
+4.2 All members will work on integration tests.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 5:00 pm.
+
+\subsubsection{Minutes of the 11th Project Meeting}
+\textbf{Date:} Feb 5, 2026\\
+\textbf{Time:} 3:30 pm\\
+\textbf{Place:} Room 3504\\
+\textbf{Present:} Josh, Gordon, Om, Prof. Sander\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Om
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Josh has implemented a generator to generate mock market data to the matching engine. The events happening in the matching engine will be sent to the market data processor via shared memory, then forwarded to clients and frontend dashboard.\\
+2.2 Om has enhanced the gateway implementation. Now the system can support multiple gateways to receive requests from clients, and load balancing has been implemented.\\
+2.3 Gordon has finished the integration between gateway and order manager.\\
+2.4 The team is now working on integrating all components and making sure the data flows correctly and seamlessly.\\
+3. Discussion items\\
+3.1 Gordon explained some technical challenges faced during the past few weeks, including CMake compilation errors and low latency tactics.\\
+3.2 Prof. Sander suggests that we implement our own memory allocator to optimize the standard library performance for our use case.\\
+3.3 Josh demonstrated the data flow in the system with the frontend dashboard.\\
+4. Goals for the coming week\\
+4.1 All members will continue work on integration tests.\\
+4.2 All members will benchmark and optimize the performance of the components of which they are in charge.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 3:50 pm.
+
+\subsubsection{Minutes of the 12th Project Meeting}
+\textbf{Date:} Feb 24, 2026\\
+\textbf{Time:} 3:00 pm\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Om, Gordon\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Josh
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Josh completed a first draft of the deployment flow for creating a new server instance and onboarding all required services with environment-specific configuration.\\
+2.2 Om and Gordon reviewed how deployment settings are validated before service startup and confirmed the required runtime parameters for gateway and backend services.\\
+3. Discussion items\\
+3.1 The team discussed setting up a deployment pipeline to standardize server creation, including config validation, service bootstrapping, and post-deployment health checks.\\
+3.2 Josh proposed packaging the deployment steps into a repeatable pipeline so that a new server can be provisioned and started with minimal manual edits.\\
+3.3 Gordon suggested adding explicit rollback and restart procedures in case one service fails during bring-up. Om agreed and proposed documenting the operational runbook alongside the pipeline scripts.\\
+4. Goals for the coming week\\
+4.1 Josh will implement and refine the deployment pipeline for creating a new server.\\
+4.2 All members will review the deployment checklist and validate it against the current service topology.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 4:00 pm.
+
+\subsubsection{Minutes of the 13th Project Meeting}
+\textbf{Date:} Mar 3, 2026\\
+\textbf{Time:} 3:00 pm\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Om, Gordon\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Gordon
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Gordon reviewed the current order manager flow and identified the remaining work for stricter balance checking on incoming orders.\\
+2.2 Josh and Om validated that order lifecycle events are already available to support persistence updates once the database writes are finalized.\\
+3. Discussion items\\
+3.1 The team discussed order manager refinement focused on two priorities: preventing insufficient-balance executions and persisting balance updates to the database consistently after trades.\\
+3.2 Gordon proposed tightening validation so insufficient balance is rejected before forwarding orders to the matching engine, and ensuring balance deltas are applied atomically with database persistence.\\
+3.3 Josh suggested extending integration tests to cover insufficient-balance rejection and successful persistence paths. Om agreed and proposed adding logs around balance update points to simplify debugging.\\
+4. Goals for the coming week\\
+4.1 Gordon will complete the order manager refinement, including balance checking and persistence to the database.\\
+4.2 All members will run end-to-end checks to verify balances remain consistent across services after execution.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 3:50 pm.
+
+\subsubsection{Minutes of the 14th Project Meeting}
+\textbf{Date:} Mar 25, 2026\\
+\textbf{Time:} 2:30 pm\\
+\textbf{Place:} Room 4368\\
+\textbf{Present:} Josh, Om, Gordon\\
+\textbf{Absent:} None\\
+\textbf{Recorder:} Om
+
+1. Approval of minutes\\
+The minutes of the last meeting were approved without amendment.\\
+2. Report on progress\\
+2.1 Om reviewed the simulation deployment modules for market makers, noise traders, and informed traders, and mapped how each bot type is started and configured.\\
+2.2 Josh and Gordon confirmed the expected bot-account naming and startup sequence needed for repeatable simulation runs.\\
+3. Discussion items\\
+3.1 The team discussed implementing simulation bots to improve market realism by running coordinated market maker, noise trader, and informed trader agents in the same session.\\
+3.2 Om proposed a staged rollout: first stabilize deployment and lifecycle control of each bot type, then tune parameters and inventories for realistic activity patterns.\\
+3.3 Gordon suggested defining baseline scenarios and metrics (spread, fill rate, and trade intensity) so bot behavior can be evaluated quantitatively. Josh agreed and proposed wiring these scenarios into the existing simulation configuration pipeline.\\
+4. Goals for the coming week\\
+4.1 Om will implement and integrate simulation bots across the deployment workflow.\\
+4.2 All members will calibrate default parameters and verify that bot interactions produce stable market dynamics.\\
+5. Meeting adjournment\\
+The meeting was adjourned at 3:20 pm.
 
 \subsection{Explanation on Limit Order Books}
 
