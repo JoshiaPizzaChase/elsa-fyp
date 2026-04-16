@@ -492,6 +492,43 @@ Table \ref{tab:me_throughput} reports baseline matching-engine throughput for co
 
 These exploratory benchmarks successfully identified improvements to our initial design specification: moving from standard dynamic memory allocation to a custom memory pool is necessary for production-grade throughput, and node-based structures can be effectively replaced by contiguous arrays when carefully managing insertion and deletion costs.
 
+\noindent\textbf{Order Manager}
+
+We separately benchmarked Order Manager preprocessing and validation for the two request classes that follow different logic paths: new-order requests and cancel-order requests. Results show that cancel-order paths are consistently faster than new-order paths, both in preprocessing and validation, because they avoid symbol-side quantity checks and balance reservation updates performed for new orders.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{assets/order_manager_preprocess_latency_by_input.png}
+    \caption{Order Manager preprocessing latency by input amount (new-order versus cancel-order paths; log-scale axes).}
+    \label{fig:om_preprocess_latency_input}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{assets/order_manager_validation_latency_by_input.png}
+    \caption{Order Manager validation latency by input amount (new-order versus cancel-order paths; log-scale axes).}
+    \label{fig:om_validation_latency_input}
+\end{figure}
+
+At workload size 10,000, preprocessing latency is 1.72 ms for new orders and 0.613 ms for cancel requests. Validation latency is 0.417 ms for new orders and 0.115 ms for cancel requests. This corresponds to approximately 5.82M/16.30M ops/s for preprocessing and 23.96M/86.75M ops/s for validation (new/cancel respectively), confirming that path-specific benchmarking is necessary for accurate operation-level performance characterization.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{|l|r|r|}
+        \hline
+        \textbf{Order Manager benchmark (10,000 workload)} & \textbf{Latency (ms)} & \textbf{Throughput (ops/s)} \\
+        \hline
+        Preprocess new order & 1.720 & 5,815,230 \\
+        Preprocess cancel order & 0.613 & 16,302,100 \\
+        Validate new order & 0.417 & 23,957,900 \\
+        Validate cancel order & 0.115 & 86,746,400 \\
+        \hline
+    \end{tabular}
+    \caption{Baseline Order Manager throughput on separated operation paths.}
+    \label{tab:om_throughput}
+\end{table}
+
 \noindent\textbf{MPSC Lock-Free Ring Buffer}
 
 For the ring buffer component, we measured single-event producer-consumer handoff latency. On the \texttt{benchmark} branch rerun, we observed 771 ns in a single run, with aggregate mean 648.76 ns (manual-time) and 673 ns (CPU-time). This benchmark currently has one configured input amount (one event handoff), shown in Figure \ref{fig:ring_latency_input}.
