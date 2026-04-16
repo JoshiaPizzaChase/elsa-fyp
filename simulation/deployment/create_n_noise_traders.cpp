@@ -9,10 +9,12 @@
 
 #include "config.h"
 #include "noise_trader.h"
+#include "market_maker.h"
 #include "simulation_config.h"
 #include "test_client.h"
 #include "rfl/toml/load.hpp"
 #include "logger/logger.h"
+#include <transport/websocket/websocket_client.h>
 
 using namespace simulation;
 
@@ -31,6 +33,8 @@ int main() {
 
     std::vector<std::shared_ptr<NoiseTrader>> traders;
     std::vector<std::thread> trader_threads;
+    std::vector<std::shared_ptr<transport::WebsocketManagerClient>> ws_clients;
+    std::vector<std::shared_ptr<MarketDataHandler>> md_handlers;
 
     for (int i = 0; i < config.num_noise_traders; ++i) {
         // Construct the config filename based on the specified prefix and index.
@@ -47,6 +51,15 @@ int main() {
         auto process_gen = std::make_unique<PoissonProcessGenerator>(config.lambda_eps);
         auto decision_gen = std::make_unique<BernoulliDecisionGenerator<OrderSide>>(config.bernoulli);
         auto quantity_gen = std::make_unique<ParetoQuantityGenerator<double>>(config.pareto_scale, config.pareto_shape);
+
+        auto ws_client = std::make_shared<transport::WebsocketManagerClient>(config.cfg_prefix + std::to_string(i + 1) + "_logger");
+        ws_client->start();
+        ws_client->connect("ws://" + config.mdp_ws_host + ":" + std::to_string(config.mdp_ws_port));
+        ws_clients.push_back(ws_client);
+
+        auto md_handler = std::make_shared<MarketDataHandler>(ws_client, noise_trader_logger);
+        md_handler->start();
+        md_handlers.push_back(md_handler);
 
         auto fix_client = std::make_unique<TestClient>(config_path);
 
@@ -65,6 +78,13 @@ int main() {
             std::move(quantity_gen),
             std::move(fix_client),
             std::move(config.tickers),
+            [md_handler](const std::string& ticker) {
+                const auto recent_trades = md_handler->get_recent_trades(ticker);
+                if (!recent_trades.empty()) {
+                    return recent_trades.back().price;
+                }
+                return 100.0;
+            },
             noise_trader_logger
         );
 

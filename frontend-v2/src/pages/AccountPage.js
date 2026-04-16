@@ -29,7 +29,7 @@ const DEFAULT_BOT_CONFIG = {
     mm: {
         groups: [{
             ...DEFAULT_BOT_GROUP,
-            count: 3,
+            count: 4,
             initial_usd: 300000,
             initial_inventory: 300,
             params: {lot_size: 1, gamma: 0.6, k: 8, terminal_time: 30},
@@ -48,7 +48,7 @@ const DEFAULT_BOT_CONFIG = {
         groups: [{
             ...DEFAULT_BOT_GROUP,
             count: 1,
-            initial_usd: 150000,
+            initial_usd: 1500000,
             initial_inventory: 150,
             params: {epsilon: 0.12, trade_qty: 5, max_inventory: 1200},
         }],
@@ -56,11 +56,11 @@ const DEFAULT_BOT_CONFIG = {
 };
 const DEFAULT_ORACLE_CONFIG = {
     mu: 0.0,
-    sigma: 0.03,
-    jump_intensity: 0.12,
+    sigma: 0.003,
+    jump_intensity: 0.06,
     jump_mean: 0.0,
     jump_std: 0.01,
-    update_interval_ms: 50,
+    update_interval_ms: 60000,
 };
 
 const createDefaultBotConfig = () => JSON.parse(JSON.stringify(DEFAULT_BOT_CONFIG));

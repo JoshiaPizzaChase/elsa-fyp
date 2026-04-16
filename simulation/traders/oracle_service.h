@@ -122,6 +122,16 @@ private:
                     if (m_ws_server) {
                         m_ws_server->send(0, j.dump());
                     }
+
+                    const auto now = std::chrono::steady_clock::now();
+                    auto& last_log_time = m_last_true_price_log_time[ticker];
+                    if (now - last_log_time >= std::chrono::seconds(1)) {
+                        if (m_logger) {
+                            m_logger->info("[OracleService] True price update [{}]: {}", ticker,
+                                           price);
+                        }
+                        last_log_time = now;
+                    }
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(m_config.update_interval_ms));
@@ -133,6 +143,8 @@ private:
     std::shared_ptr<transport::WebsocketManagerServer> m_ws_server;
     std::shared_ptr<spdlog::logger> m_logger;
     std::mutex m_mutex;
+    std::map<std::string, std::chrono::time_point<std::chrono::steady_clock>>
+        m_last_true_price_log_time;
     std::atomic<bool> m_running;
     std::thread m_thread;
 };

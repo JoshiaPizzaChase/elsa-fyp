@@ -631,11 +631,11 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     };
     struct OracleDeployConfig {
         double mu = 0.0;
-        double sigma = 0.03;
-        double jump_intensity = 0.12;
+        double sigma = 0.003;
+        double jump_intensity = 0.06;
         double jump_mean = 0.0;
         double jump_std = 0.01;
-        int update_interval_ms = 50;
+        int update_interval_ms = 60000;
     };
 
     const std::unordered_set<std::string> active_symbol_set(symbols.begin(), symbols.end());
@@ -748,7 +748,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     auto parse_bot_config = [&](const bj::object* bots_obj, const std::string& bot_key,
                                 const std::string& username_prefix,
                                 const std::string& service_name, const std::string& count_key,
-                                int default_count, double default_initial_inventory,
+                                int default_count, int default_group_initial_usd,
+                                double default_initial_inventory,
                                 const std::vector<std::pair<std::string, double>>& param_defaults)
         -> std::expected<BotCreateConfig, std::string> {
         BotCreateConfig config;
@@ -764,7 +765,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             BotGroupConfig empty_group;
             empty_group.group_tag = "grp1";
             empty_group.count = 0;
-            empty_group.initial_usd = initial_usd;
+            empty_group.initial_usd = default_group_initial_usd;
             empty_group.initial_inventory = default_initial_inventory;
             empty_group.deploy_params[count_key] = 0;
             empty_group.deploy_params["cfg_prefix"] =
@@ -788,7 +789,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
                 auto parsed_group = parse_bot_group(groups_arr[idx].as_object(), bot_key, username_prefix,
                                                     count_key, default_count,
                                                     default_initial_inventory, param_defaults,
-                                                    static_cast<int>(idx), initial_usd);
+                                                    static_cast<int>(idx),
+                                                    default_group_initial_usd);
                 if (!parsed_group.has_value())
                     return std::unexpected{parsed_group.error()};
                 config.groups.push_back(std::move(parsed_group.value()));
@@ -797,7 +799,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
                 BotGroupConfig empty_group;
                 empty_group.group_tag = "grp1";
                 empty_group.count = 0;
-                empty_group.initial_usd = initial_usd;
+                empty_group.initial_usd = default_group_initial_usd;
                 empty_group.initial_inventory = default_initial_inventory;
                 empty_group.deploy_params[count_key] = 0;
                 empty_group.deploy_params["cfg_prefix"] =
@@ -814,7 +816,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         // Backward compatibility: single-group shape.
         auto parsed_group =
             parse_bot_group(*type_obj, bot_key, username_prefix, count_key, default_count,
-                            default_initial_inventory, param_defaults, 0, initial_usd);
+                            default_initial_inventory, param_defaults, 0,
+                            default_group_initial_usd);
         if (!parsed_group.has_value())
             return std::unexpected{parsed_group.error()};
         config.groups.push_back(std::move(parsed_group.value()));
@@ -831,14 +834,16 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     }
 
     auto mm_cfg_result =
-        parse_bot_config(bots_obj, "mm", "market_maker", "mm", "num_market_makers", 0, 300.0,
+        parse_bot_config(bots_obj, "mm", "market_maker", "mm", "num_market_makers", 4,
+                         initial_usd, 300.0,
                          {{"lot_size", 1.0}, {"gamma", 0.6}, {"k", 8.0}, {"terminal_time", 30.0}});
     if (!mm_cfg_result.has_value()) {
         res["error"] = mm_cfg_result.error();
         return res;
     }
     auto nt_cfg_result =
-        parse_bot_config(bots_obj, "nt", "noise_trader", "nt", "num_noise_traders", 0, 20.0,
+        parse_bot_config(bots_obj, "nt", "noise_trader", "nt", "num_noise_traders", 0,
+                         initial_usd, 20.0,
                          {{"lambda_eps", 0.6},
                           {"bernoulli", 0.5},
                           {"pareto_scale", 0.5},
@@ -848,7 +853,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
         return res;
     }
     auto it_cfg_result =
-        parse_bot_config(bots_obj, "it", "informed_trader", "it", "num_informed_traders", 0, 150.0,
+        parse_bot_config(bots_obj, "it", "informed_trader", "it", "num_informed_traders", 0,
+                         1500000, 150.0,
                          {{"epsilon", 0.12}, {"trade_qty", 5.0}, {"max_inventory", 1200.0}});
     if (!it_cfg_result.has_value()) {
         res["error"] = it_cfg_result.error();
@@ -1261,7 +1267,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             bot_deploy_params["gateway_port"] = gateway_port;
             bot_deploy_params["active_symbols"] = join_csv(symbols);
             bot_deploy_params["group_tag"] = group.group_tag;
-            if (bot_cfg.service_name == "mm" || bot_cfg.service_name == "it") {
+            if (bot_cfg.service_name == "mm" || bot_cfg.service_name == "nt" ||
+                bot_cfg.service_name == "it") {
                 bot_deploy_params["mdp_ws_host"] = machine_ip;
                 bot_deploy_params["mdp_ws_port"] = mdp_port;
             }
