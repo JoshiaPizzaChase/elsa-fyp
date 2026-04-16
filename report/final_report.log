@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  16 APR 2026 21:35
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  16 APR 2026 21:49
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -848,7 +848,12 @@ e
 
 {/usr/local/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/loc
 al/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}]
-[2] (./final_report.toc
+pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.91 \newpage
+              [1] (./final_report.toc
 LaTeX Font Info:    Trying to load font information for U+msa on input line 2.
 
 (/usr/local/texlive/2026/texmf-dist/tex/latex/amsfonts/umsa.fd
@@ -858,31 +863,20 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 2.
 
 (/usr/local/texlive/2026/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-)
-pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
-been already used, duplicate ignored
-<to be read again> 
-                   \relax 
-l.37 ...\numberline {4}Conclusions}{29}{section.4}
-                                                  % [1
+) [2
 
 ])
 \tf@toc=\write5
 \openout5 = `final_report.toc'.
 
-
-pdfTeX warning (ext4): destination with the same identifier (name{page.2}) has 
-been already used, duplicate ignored
-<to be read again> 
-                   \relax 
-l.90 \newpage
-              [2] [3] [4
+ [3]
+[4
 
 ] [5] [6] [7]
-<assets/exch_arch_fig_one.png, id=286, 1081.03876pt x 359.3425pt>
+<assets/exch_arch_fig_one.png, id=284, 1081.03876pt x 359.3425pt>
 File: assets/exch_arch_fig_one.png Graphic file (type png)
 <use assets/exch_arch_fig_one.png>
-Package pdftex.def Info: assets/exch_arch_fig_one.png  used on input line 157.
+Package pdftex.def Info: assets/exch_arch_fig_one.png  used on input line 156.
 (pdftex.def)             Requested size: 452.9679pt x 150.5664pt.
  [8
 
@@ -891,20 +885,20 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.167 \end{itemize}
+l.166 \end{itemize}
                    {/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super
 /cm-super-ts1.enc} <./assets/exch_arch_fig_one.png (PNG copy)>] [9] [10]
-<assets/exch_arch_fig_two.png, id=308, 1125.20375pt x 379.4175pt>
+<assets/exch_arch_fig_two.png, id=306, 1125.20375pt x 379.4175pt>
 File: assets/exch_arch_fig_two.png Graphic file (type png)
 <use assets/exch_arch_fig_two.png>
-Package pdftex.def Info: assets/exch_arch_fig_two.png  used on input line 219.
+Package pdftex.def Info: assets/exch_arch_fig_two.png  used on input line 218.
 (pdftex.def)             Requested size: 452.9679pt x 152.73692pt.
 
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
 [11]
-Overfull \hbox (21.8767pt too wide) in paragraph at lines 229--230
+Overfull \hbox (21.8767pt too wide) in paragraph at lines 228--229
 \T1/cmr/m/n/12 vel-op-ers can sub-class to in-ter-act with the mar-ket. Key met
 h-ods in-clude \T1/cmtt/m/n/12 submit_limit_order\T1/cmr/m/n/12 ,
  []
@@ -914,24 +908,24 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.232 
+l.231 
        <./assets/exch_arch_fig_two.png (PNG copy)>]
-<assets/create_server_step_1_fig.png, id=325, 1887.05pt x 1008.76875pt>
+<assets/create_server_step_1_fig.png, id=323, 1887.05pt x 1008.76875pt>
 File: assets/create_server_step_1_fig.png Graphic file (type png)
 <use assets/create_server_step_1_fig.png>
 Package pdftex.def Info: assets/create_server_step_1_fig.png  used on input lin
-e 235.
+e 234.
 (pdftex.def)             Requested size: 385.02547pt x 205.81381pt.
-<assets/create_server_step_2_fig.png, id=326, 1893.0725pt x 1006.76125pt>
+<assets/create_server_step_2_fig.png, id=324, 1893.0725pt x 1006.76125pt>
 File: assets/create_server_step_2_fig.png Graphic file (type png)
 <use assets/create_server_step_2_fig.png>
 Package pdftex.def Info: assets/create_server_step_2_fig.png  used on input lin
-e 238.
+e 237.
 (pdftex.def)             Requested size: 385.02547pt x 204.75902pt.
-<assets/portfolio_view_fig.png, id=327, 1892.06876pt x 1026.83624pt>
+<assets/portfolio_view_fig.png, id=325, 1892.06876pt x 1026.83624pt>
 File: assets/portfolio_view_fig.png Graphic file (type png)
 <use assets/portfolio_view_fig.png>
-Package pdftex.def Info: assets/portfolio_view_fig.png  used on input line 245.
+Package pdftex.def Info: assets/portfolio_view_fig.png  used on input line 244.
 
 (pdftex.def)             Requested size: 452.9679pt x 245.819pt.
  [13
@@ -939,118 +933,119 @@ pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.249 
+l.248 
        <./assets/create_server_step_1_fig.png (PNG copy)> <./assets/create_serv
 er_step_2_fig.png (PNG copy)>]
-<assets/trading_view_fig.png, id=333, 1892.06876pt x 1020.81375pt>
+<assets/trading_view_fig.png, id=331, 1892.06876pt x 1020.81375pt>
 File: assets/trading_view_fig.png Graphic file (type png)
 <use assets/trading_view_fig.png>
-Package pdftex.def Info: assets/trading_view_fig.png  used on input line 252.
+Package pdftex.def Info: assets/trading_view_fig.png  used on input line 251.
 (pdftex.def)             Requested size: 452.9679pt x 244.37724pt.
  [14
 pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.259 
+l.258 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.259 
+l.258 
        <./assets/portfolio_view_fig.png (PNG copy)> <./assets/trading_view_fig.
 png (PNG copy)>] [15] [16
 pdfTeX warning (ext4): destination with the same identifier (name{table.1}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.321 L
+l.320 L
        isting \ref{lst:match_order} demonstrates the critical path logic for...
 
 pdfTeX warning (ext4): destination with the same identifier (name{table.2}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.321 L
+l.320 L
        isting \ref{lst:match_order} demonstrates the critical path logic for...
 ]
 Package hyperref Info: bookmark level for unknown lstlisting defaults to 0 on i
-nput line 324.
+nput line 323.
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <10> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 325.
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 324.
  [17]
-Overfull \hbox (29.62764pt too wide) in paragraph at lines 385--386
+Overfull \hbox (29.62764pt too wide) in paragraph at lines 384--385
 \T1/cmtt/m/n/12 std::mt19937\T1/cmr/m/n/12 ) to model the stochas-tic ar-rival 
 of re-tail or-ders. Mean-while, the \T1/cmtt/m/n/12 InformedTrader
  []
 
 [18] [19]
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <12> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 427.
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 426.
 
-Overfull \hbox (3.5788pt too wide) in paragraph at lines 433--434
+Overfull \hbox (3.5788pt too wide) in paragraph at lines 432--433
 \T1/cmr/m/n/12 cu-tion threads, we con-fig-ured it with asyn-chronous sinks (\T
 1/cmtt/m/n/12 spdlog::async_factory\T1/cmr/m/n/12 ).
  []
 
 [20] [21]
-<assets/benchmark_branch_comparison_10k.png, id=460, 794.97pt x 375.804pt>
+<assets/benchmark_branch_comparison_10k.png, id=458, 1254.6875pt x 593.21625pt>
+
 File: assets/benchmark_branch_comparison_10k.png Graphic file (type png)
 <use assets/benchmark_branch_comparison_10k.png>
 Package pdftex.def Info: assets/benchmark_branch_comparison_10k.png  used on in
-put line 461.
-(pdftex.def)             Requested size: 452.9679pt x 214.13596pt.
+put line 460.
+(pdftex.def)             Requested size: 452.9679pt x 214.16415pt.
  [22]
-<assets/lob_dsa_structure_scaling.png, id=468, 621.522pt x 375.804pt>
+<assets/lob_dsa_structure_scaling.png, id=466, 621.522pt x 375.804pt>
 File: assets/lob_dsa_structure_scaling.png Graphic file (type png)
 <use assets/lob_dsa_structure_scaling.png>
 Package pdftex.def Info: assets/lob_dsa_structure_scaling.png  used on input li
-ne 470.
+ne 469.
 (pdftex.def)             Requested size: 407.66833pt x 246.50035pt.
  [23
 pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.474 
+l.473 
        <./assets/benchmark_branch_comparison_10k.png>] [24
 pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.499 
+l.498 
       
 pdfTeX warning (ext4): destination with the same identifier (name{table.3}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.499 
+l.498 
        <./assets/lob_dsa_structure_scaling.png>]
-<assets/ring_buffer_latency_by_input.png, id=484, 491.436pt x 332.0405pt>
+<assets/ring_buffer_latency_by_input.png, id=482, 491.436pt x 332.0405pt>
 File: assets/ring_buffer_latency_by_input.png Graphic file (type png)
 <use assets/ring_buffer_latency_by_input.png>
 Package pdftex.def Info: assets/ring_buffer_latency_by_input.png  used on input
- line 502.
+ line 501.
 (pdftex.def)             Requested size: 317.07614pt x 214.24301pt.
-<assets/websocket_latency_by_input.png, id=485, 542.025pt x 346.896pt>
+<assets/websocket_latency_by_input.png, id=483, 542.025pt x 346.896pt>
 File: assets/websocket_latency_by_input.png Graphic file (type png)
 <use assets/websocket_latency_by_input.png>
 Package pdftex.def Info: assets/websocket_latency_by_input.png  used on input l
-ine 519.
+ine 518.
 (pdftex.def)             Requested size: 385.02547pt x 246.42491pt.
  [25
 pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.523 
+l.522 
        <./assets/ring_buffer_latency_by_input.png>] [26
 pdfTeX warning (ext4): destination with the same identifier (name{figure.9}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.528 \section{Discussion}
+l.527 \section{Discussion}
                            <./assets/websocket_latency_by_input.png>] [27
 
 ]
@@ -1065,39 +1060,39 @@ pdfTeX warning (ext4): destination with the same identifier (name{table.4}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.660 
+l.659 
       ]
-Overfull \hbox (0.80455pt too wide) in paragraph at lines 667--667
+Overfull \hbox (0.80455pt too wide) in paragraph at lines 666--666
 []|\T1/cmr/bx/n/10.95 Component|  
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 664--669
+Overfull \hbox (20.17061pt too wide) in alignment at lines 663--668
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (0.80455pt too wide) in paragraph at lines 672--672
+Overfull \hbox (0.80455pt too wide) in paragraph at lines 671--671
 []|\T1/cmr/bx/n/10.95 Component|  
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 669--674
+Overfull \hbox (20.17061pt too wide) in alignment at lines 668--673
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 674--676
+Overfull \hbox (20.17061pt too wide) in alignment at lines 673--675
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 676--678
+Overfull \hbox (20.17061pt too wide) in alignment at lines 675--677
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 678--703
+Overfull \hbox (20.17061pt too wide) in alignment at lines 677--702
  [] [] [] [] [] [] 
  []
 
@@ -1143,10 +1138,10 @@ mf-dist/fonts/type1/public/cm-super/sfti1095.pfb></usr/local/texlive/2026/texmf
 ist/fonts/type1/public/cm-super/sftt1000.pfb></usr/local/texlive/2026/texmf-dis
 t/fonts/type1/public/cm-super/sftt1095.pfb></usr/local/texlive/2026/texmf-dist/
 fonts/type1/public/cm-super/sftt1200.pfb>
-Output written on final_report.pdf (38 pages, 1296932 bytes).
+Output written on final_report.pdf (37 pages, 1283365 bytes).
 PDF statistics:
- 683 PDF objects out of 1000 (max. 8388607)
- 580 compressed objects within 6 object streams
+ 680 PDF objects out of 1000 (max. 8388607)
+ 578 compressed objects within 6 object streams
  187 named destinations out of 1000 (max. 500000)
  431 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -43,12 +43,12 @@
 % --- Front Page ---
 \begin{titlepage}
     \begin{center}
-        \vspace*{2cm}
+        \vspace*{1cm}
 
         \Huge
         \textbf{Market Simulation for Algorithmic Trading}
 
-        \vspace{1.5cm}
+        \vspace{1cm}
 
         \Large
         \textbf{by} \\
@@ -57,19 +57,19 @@
         CHOY Ping Hang Gordon \\
         KWONG Wing Fung Josh
 
-        \vspace{1.5cm}
+        \vspace{1cm}
 
         \textbf{Advised by} \\
         \vspace{0.5cm}
         Prof. Pedro SANDER
 
-        \vspace{2cm}
+        \vspace{1.5cm}
 
         \Large
         Submitted in partial fulfillment of the requirements for COMP 4981 \\
         (PSAN4)
 
-        \vspace{1cm}
+        \vspace{0.5cm}
 
         \Large
         in the \\
@@ -84,18 +84,17 @@
     \end{center}
 \end{titlepage}
 
-% --- Table of Contents ---
+\begin{abstract}
+This project presents a highly modular, low-latency simulated stock exchange designed for algorithmic trading education. We systematically downscale complex, proprietary exchange architectures into an accessible and extensible C++ platform. The system features a robust, node-based Limit Order Book as its core, an intuitive Trading SDK, and a React-based visual analytics frontend. Our research includes a comparative evaluation of underlying data structures and memory management techniques. We demonstrate that custom memory pools significantly improve matching engine throughput by bypassing dynamic allocations, achieving up to a 2.61x speedup in order insertion latency. We also empirically evaluate contiguous memory layouts as experimental alternatives to the primary node-based design. The simulator supports heterogeneous agent populations and configurable market regimes, providing a realistic testbed for evaluating trading strategies and experimenting with market microstructure. Ultimately, this work delivers a comprehensive educational tool that bridges the gap between theoretical finance models and high-performance software engineering practices.
+\end{abstract}
+
 \newpage
+
+% --- Table of Contents ---
 \tableofcontents
 \newpage
 
 % --- Sections and Subsections ---
-
-\begin{abstract}
-% Abstract content goes here
-\end{abstract}
-
-\newpage
 
 \section{Introduction}
 
@@ -551,7 +550,7 @@ While our platform serves perfectly as an educational sandbox, several critical 
 
 \section{Conclusions}
 
-This project successfully culminated in the development of a highly modular, low-latency simulated stock exchange designed for algorithmic trading education. Our major technical accomplishments include the implementation of a strictly correct, lock-free Limit Order Book, an intuitive C++ Trading SDK, a dual-database persistence layer, and a modern React-based frontend that orchestrates isolated trading ``game servers.'' Throughout this process, we gained profound insights into the stringent performance and reliability constraints of financial microservices, particularly regarding modern C++ memory management, IPC shared memory, and event-driven architectures.
+This project successfully culminated in the development of a highly modular, low-latency simulated stock exchange designed for algorithmic trading education. Our major technical accomplishments include the implementation of a Limit Order Book, an intuitive C++ Trading SDK, a dual-database persistence layer, and a modern React-based frontend that orchestrates isolated trading ``game servers.'' Throughout this process, we gained profound insights into the stringent performance and reliability constraints of financial microservices, particularly regarding modern C++ memory management, IPC shared memory, and event-driven architectures.
 
 While we successfully built the core trading pipeline, several problems remain unaddressed for a production-ready system, highlighting exciting avenues for future work. To remedy the system's current limitations, we recommend the following enhancements:
 

@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1776346535.37295 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776346536.29917 0
-  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776346535.29457 69996 f299f6ba981f7fde649c83403d5335a3 ""
+["pdflatex"] 1776347347.83131 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776347348.69127 0
+  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776347346.90435 71096 8b416827a61a40cfb916984d49c3862a ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -202,7 +202,7 @@
   "/usr/local/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1775825493 5573038 b99aad5e4898a9034e953632f940512b ""
   "/usr/local/texlive/2026/texmf-var/web2c/pdftex/pdflatex.fmt" 1775825529 3648544 1cb42693d498d50745cf8c9046010770 ""
   "/usr/local/texlive/2026/texmf.cnf" 1775825488.48775 455 5b996dcaa0eb4ef14a83b026bc0a008c ""
-  "assets/benchmark_branch_comparison_10k.png" 1776330323.8301 66326 dfdc189e19b92af05ac9eaaeae248f12 ""
+  "assets/benchmark_branch_comparison_10k.png" 1776346560.66714 75635 b6cbf8d2a0bfb8844f906f89f500b955 ""
   "assets/create_server_step_1_fig.png" 1776342563.77838 134297 c4043ca492266cec06dbe61721beb00a ""
   "assets/create_server_step_2_fig.png" 1776340522.32702 127368 355f8fee3a672bc58e0721cb492f4d64 ""
   "assets/exch_arch_fig_one.png" 1776263871.80015 52349 6995d32858d13943633372941696f14e ""
@@ -212,10 +212,10 @@
   "assets/ring_buffer_latency_by_input.png" 1776330323.8311 44654 3437dddf9c71ba0539c8deb467f149ce ""
   "assets/trading_view_fig.png" 1776340366.24182 95962 a890ab4067b7c7e007814527cec3c868 ""
   "assets/websocket_latency_by_input.png" 1776330323.8311 71295 b51a9458ecf3a3d6bce66bb54097c6d5 ""
-  "final_report.aux" 1776346536.20059 11127 fa1ed3be6357ae8a482cba22666b0a62 "pdflatex"
-  "final_report.out" 1776346536.20059 9012 9e2202453479b37b9207a140b24d42c8 "pdflatex"
-  "final_report.tex" 1776346535.29457 69996 f299f6ba981f7fde649c83403d5335a3 ""
-  "final_report.toc" 1776346536.20159 4472 f838861efb203bf39241035e984dc4ba "pdflatex"
+  "final_report.aux" 1776347348.60839 11127 1a1526b91217c030b56cf38d2a27704a "pdflatex"
+  "final_report.out" 1776347348.60939 9012 9e2202453479b37b9207a140b24d42c8 "pdflatex"
+  "final_report.tex" 1776347346.90435 71096 8b416827a61a40cfb916984d49c3862a ""
+  "final_report.toc" 1776347348.60939 4472 f838861efb203bf39241035e984dc4ba "pdflatex"
   (generated)
   "final_report.aux"
   "final_report.log"
