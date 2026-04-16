@@ -9,6 +9,8 @@ deps/
 *.cfg
 *.toml
 configs
+report/simulation_results/mdp.log
+report/simulation_results/*.csv
 
 # Usual ignores
 .vscode
