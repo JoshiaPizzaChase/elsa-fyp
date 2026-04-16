@@ -92,7 +92,12 @@ function App() {
     const volumeRef = useRef(new Map());
     const allCandlesRef = useRef(new Map());
     const allVolumesRef = useRef(new Map());
+    const candleBoundsRef = useRef(new Map());
+    const pendingTradesRef = useRef([]);
+    const pendingTradeSeqRef = useRef(0);
+    const historyLoadedRef = useRef(false);
     const selectedTimeframeRef = useRef(selectedTimeframe);
+    const MIN_VISIBLE_BARS = 50;
 
     // Keep refs in sync with state
     useEffect(() => {
@@ -112,8 +117,12 @@ function App() {
         seenTradeIdsRef.current = new Set();
         allCandlesRef.current = new Map();
         allVolumesRef.current = new Map();
+        candleBoundsRef.current = new Map();
         candlesRef.current = new Map();
         volumeRef.current = new Map();
+        pendingTradesRef.current = [];
+        pendingTradeSeqRef.current = 0;
+        historyLoadedRef.current = false;
         if (seriesRef.current) {
             seriesRef.current.setData([]);
         }
@@ -129,6 +138,16 @@ function App() {
         candlesRef.current = tfMap;
         const sorted = Array.from(tfMap.values()).sort((a, b) => a.time - b.time);
         seriesRef.current.setData(sorted);
+        if (sorted.length > 0 && chartRef.current) {
+            const timeScale = chartRef.current.timeScale();
+            timeScale.fitContent();
+            if (sorted.length < MIN_VISIBLE_BARS) {
+                const to = sorted.length - 1 + 2;
+                const from = to - MIN_VISIBLE_BARS;
+                timeScale.setVisibleLogicalRange({from, to});
+            }
+            seriesRef.current.priceScale().applyOptions({autoScale: true});
+        }
 
         if (volumeSeriesRef.current) {
             const volMap = allVolumesRef.current.get(intervalMs) ?? new Map();
@@ -138,12 +157,21 @@ function App() {
         }
     }, []);
 
+    const normalizeTimestampMs = useCallback((rawTs) => {
+        const ts = Number(rawTs);
+        if (!Number.isFinite(ts) || ts <= 0) return null;
+        // Accept second / millisecond / microsecond timestamps from mixed deployments.
+        if (ts >= 1e14) return Math.floor(ts / 1000); // micros -> millis
+        if (ts <= 1e11) return Math.floor(ts * 1000); // seconds -> millis
+        return Math.floor(ts); // already millis
+    }, []);
+
     // -----------------------------------------------------------------------
     // Shared trade ingestion: aggregates a single trade into allCandlesRef /
     // allVolumesRef for every timeframe.  Returns true if the active timeframe
     // was updated so the caller can decide whether to push to the live series.
     // -----------------------------------------------------------------------
-    const ingestTrade = useCallback((price, quantity, tradeTime) => {
+    const ingestTrade = useCallback((price, quantity, tradeTime, pushLive = true) => {
         const activeIntervalMs = selectedTimeframeRef.current.ms;
 
         for (const tf of TIMEFRAMES) {
@@ -155,14 +183,29 @@ function App() {
                 tfMap = new Map();
                 allCandlesRef.current.set(intervalMs, tfMap);
             }
+            let boundsMap = candleBoundsRef.current.get(intervalMs);
+            if (!boundsMap) {
+                boundsMap = new Map();
+                candleBoundsRef.current.set(intervalMs, boundsMap);
+            }
             let candle = tfMap.get(candleTime);
             if (!candle) {
                 candle = {time: candleTime / 1000, open: price, high: price, low: price, close: price};
                 tfMap.set(candleTime, candle);
+                boundsMap.set(candleTime, {firstTs: tradeTime, lastTs: tradeTime});
             } else {
+                const bounds = boundsMap.get(candleTime) ?? {firstTs: tradeTime, lastTs: tradeTime};
+                if (tradeTime < bounds.firstTs) {
+                    candle.open = price;
+                    bounds.firstTs = tradeTime;
+                }
+                if (tradeTime >= bounds.lastTs) {
+                    candle.close = price;
+                    bounds.lastTs = tradeTime;
+                }
                 candle.high = Math.max(candle.high, price);
                 candle.low = Math.min(candle.low, price);
-                candle.close = price;
+                boundsMap.set(candleTime, bounds);
             }
 
             let volMap = allVolumesRef.current.get(intervalMs);
@@ -183,40 +226,139 @@ function App() {
             }
 
             // Live-push to chart only for the active timeframe
-            if (intervalMs === activeIntervalMs && seriesRef.current) {
+            if (pushLive && intervalMs === activeIntervalMs && seriesRef.current) {
                 candlesRef.current = tfMap;
-                seriesRef.current.update(candle);
-                if (volumeSeriesRef.current) {
-                    volumeRef.current = volMap;
-                    volumeSeriesRef.current.update(vol);
+                try {
+                    seriesRef.current.update(candle);
+                    if (volumeSeriesRef.current) {
+                        volumeRef.current = volMap;
+                        volumeSeriesRef.current.update(vol);
+                    }
+                } catch (err) {
+                    // Recover from out-of-order WS trades by rebuilding the full timeframe dataset.
+                    console.warn('Chart live update failed; rebuilding candles:', err);
+                    rebuildCandles(activeIntervalMs);
                 }
             }
         }
-    }, []);
+    }, [rebuildCandles]);
 
     // Load historical trades on mount and whenever the ticker changes
     useEffect(() => {
         if (!serverName || !selectedTicker) return;
         let cancelled = false;
         const after_ts_ms = 0;
-        getHistoricalTrades(serverName, selectedTicker, after_ts_ms).then((data) => {
-            if (cancelled) return;
-            const trades = data.trades ?? [];
-
-            // Aggregate all historical trades into the candle maps
-            for (const t of trades) {
-                ingestTrade(t.price, t.quantity ?? 0, t.create_timestamp);
+        const loadHistoricalTrades = async () => {
+            const symbolCandidates = Array.from(
+                new Set([selectedTicker, selectedTicker.toUpperCase(), selectedTicker.toLowerCase()])
+            );
+            let trades = [];
+            let firstSuccessTrades = null;
+            let lastError = null;
+            for (const candidateSymbol of symbolCandidates) {
+                try {
+                    const response = await getHistoricalTrades(serverName, candidateSymbol, after_ts_ms);
+                    if (response?.error) {
+                        lastError = new Error(response.error);
+                        continue;
+                    }
+                    const candidateTrades = response?.trades ?? [];
+                    if (firstSuccessTrades === null) {
+                        firstSuccessTrades = candidateTrades;
+                    }
+                    if (candidateTrades.length > 0) {
+                        trades = candidateTrades;
+                        break;
+                    }
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            if (trades.length === 0) {
+                if (firstSuccessTrades !== null) {
+                    trades = firstSuccessTrades;
+                } else if (lastError) {
+                    throw lastError;
+                }
             }
 
-            // Render the currently-selected timeframe
-            rebuildCandles(selectedTimeframeRef.current.ms);
-        }).catch((err) => {
+            if (cancelled) return;
+
+            // Aggregate all historical trades into the candle maps
+            const normalizedHistorical = trades
+                .map((t, index) => {
+                    const price = Number(t.price ?? t.px);
+                    const quantity = Number(t.quantity ?? t.qty ?? 0);
+                    const tsMs = normalizeTimestampMs(
+                        t.create_timestamp ?? t.timestamp_ms ?? t.ts_ms ?? t.timestamp ?? t.ts
+                    );
+                    return {
+                        index,
+                        tradeId: String(t.trade_id ?? ''),
+                        price,
+                        quantity,
+                        tsMs,
+                    };
+                })
+                .filter((t) => Number.isFinite(t.price) && Number.isFinite(t.quantity) && t.tsMs !== null)
+                .sort((a, b) =>
+                    (a.tsMs - b.tsMs)
+                    || a.tradeId.localeCompare(b.tradeId)
+                    || (a.index - b.index)
+                );
+            for (const t of normalizedHistorical) {
+                ingestTrade(t.price, t.quantity, t.tsMs, false);
+            }
+
+            historyLoadedRef.current = true;
+
+            const pendingTrades = [...pendingTradesRef.current].sort((a, b) =>
+                (a.tsMs - b.tsMs)
+                || a.tradeId.localeCompare(b.tradeId)
+                || (a.seq - b.seq)
+            );
+            pendingTradesRef.current = [];
+            for (const t of pendingTrades) {
+                if (!Number.isFinite(t.price) || !Number.isFinite(t.quantity) || t.tsMs === null) {
+                    continue;
+                }
+                ingestTrade(t.price, t.quantity, t.tsMs, true);
+            }
+
+            if (pendingTrades.length === 0) {
+                // Render the currently-selected timeframe when no queued live updates already did it.
+                rebuildCandles(selectedTimeframeRef.current.ms);
+            } else {
+                // Ensure visible timeframe reflects post-merge state.
+                rebuildCandles(selectedTimeframeRef.current.ms);
+            }
+        };
+
+        loadHistoricalTrades().catch((err) => {
             console.error('Failed to fetch historical trades:', err);
+            // Do not block chart updates forever if historical fetch fails.
+            historyLoadedRef.current = true;
+            const pendingTrades = [...pendingTradesRef.current].sort((a, b) =>
+                (a.tsMs - b.tsMs)
+                || a.tradeId.localeCompare(b.tradeId)
+                || (a.seq - b.seq)
+            );
+            pendingTradesRef.current = [];
+            for (const t of pendingTrades) {
+                const price = Number(t.price ?? t.px);
+                const quantity = Number(t.quantity ?? t.qty ?? 0);
+                const tsMs = normalizeTimestampMs(t.tsMs ?? t.create_timestamp ?? t.timestamp_ms ?? t.ts_ms ?? t.timestamp ?? t.ts);
+                if (!Number.isFinite(price) || !Number.isFinite(quantity) || tsMs === null) {
+                    continue;
+                }
+                ingestTrade(price, quantity, tsMs, true);
+            }
+            rebuildCandles(selectedTimeframeRef.current.ms);
         });
         return () => {
             cancelled = true;
         };
-    }, [selectedTicker, serverName, ingestTrade, rebuildCandles]);
+    }, [selectedTicker, serverName, ingestTrade, rebuildCandles, normalizeTimestampMs]);
 
     const normalizeBookLevels = useCallback((levels) => {
         if (!Array.isArray(levels)) return [];
@@ -274,9 +416,26 @@ function App() {
                 seenTradeIdsRef.current.add(data.trade_id);
                 setRecentTrades(prev => [data, ...prev].slice(0, 10));
             }
-            ingestTrade(data.price, data.quantity ?? 0, data.create_timestamp);
+            const tradeTsMs = normalizeTimestampMs(
+                data.create_timestamp ?? data.timestamp_ms ?? data.ts_ms ?? data.timestamp ?? data.ts
+            );
+            const tradePrice = Number(data.price ?? data.px);
+            const tradeQty = Number(data.quantity ?? data.qty ?? 0);
+            if (tradeTsMs !== null && Number.isFinite(tradePrice) && Number.isFinite(tradeQty)) {
+                if (!historyLoadedRef.current) {
+                    pendingTradesRef.current.push({
+                        seq: pendingTradeSeqRef.current++,
+                        tradeId: String(data.trade_id ?? ''),
+                        tsMs: tradeTsMs,
+                        price: tradePrice,
+                        quantity: tradeQty,
+                    });
+                } else {
+                    ingestTrade(tradePrice, tradeQty, tradeTsMs);
+                }
+            }
         }
-    }, [ingestTrade, normalizeBookLevels]);
+    }, [ingestTrade, normalizeBookLevels, normalizeTimestampMs]);
 
     const {isConnected} = useWebSocket(mdpEndpoint, handleMessage);
 

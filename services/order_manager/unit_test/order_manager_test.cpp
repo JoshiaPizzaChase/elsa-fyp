@@ -6,6 +6,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <unordered_set>
+#include <vector>
+
 using namespace om;
 
 using testing::_;
@@ -52,6 +55,10 @@ class MockDatabaseClient : public OrderManagerDatabase {
                 (override));
     MOCK_METHOD((std::expected<void, std::string>), insert_cancel_response,
                 (const core::CancelOrderResponseContainer&), (override));
+    MOCK_METHOD((std::expected<std::optional<DbServerRow>, std::string>), get_server,
+                (const std::string_view&), (override));
+    MOCK_METHOD((std::expected<void, std::string>), update_balance,
+                (int, int, std::string_view, std::int64_t), (override));
 };
 
 class BaseOrderManagerTest : public testing::Test {
@@ -60,6 +67,7 @@ class BaseOrderManagerTest : public testing::Test {
     MockOutboundClient* mock_order_request_client;
     MockOutboundClient* mock_order_response_client;
     MockDatabaseClient* mock_database_client;
+    const std::vector<std::string> active_symbols{"AAPL"};
     OrderManagerDependencyFactory dependency_factory;
     OrderManager test_om;
 
@@ -91,7 +99,7 @@ class BaseOrderManagerTest : public testing::Test {
                   mock_database_client = db.get();
                   return db;
               };
-              return OrderManager(TEST_HOST, TEST_PORT, dependency_factory);
+              return OrderManager(TEST_HOST, TEST_PORT, active_symbols, dependency_factory);
           }()} {
     }
 
@@ -553,6 +561,7 @@ TEST_F(PreprocessContainerTest, InvalidCancelRequest) {
 class ValidateContainerTest : public testing::Test {
   protected:
     BalanceChecker balance_checker;
+    const std::unordered_set<std::string> active_symbols{"AAPL"};
 };
 using ValidateContainerDeathTest = ValidateContainerTest;
 
@@ -571,7 +580,7 @@ TEST_F(ValidateContainerTest, ValidLimitBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
 }
@@ -591,7 +600,7 @@ TEST_F(ValidateContainerTest, InvalidLimitBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 10);
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 10);
 }
@@ -611,7 +620,7 @@ TEST_F(ValidateContainerTest, ValidMarketBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker, 1000), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker, 1000), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 0);
 }
@@ -631,7 +640,7 @@ TEST_F(ValidateContainerTest, InvalidMarketBid) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_NE(validate_container(new_order, balance_checker, 100000), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker, 100000), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
 }
@@ -651,7 +660,7 @@ TEST_F(ValidateContainerTest, MissingFillCost) {
 
     balance_checker.update_balance("CLIENT", USD_SYMBOL, 1000);
 
-    EXPECT_NE(validate_container(new_order, balance_checker, std::nullopt), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker, std::nullopt), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "USD"), 1000);
 }
@@ -671,7 +680,7 @@ TEST_F(ValidateContainerTest, ValidLimitAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 10);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
 }
@@ -691,7 +700,7 @@ TEST_F(ValidateContainerTest, InvalidLimitAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 1);
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
 }
 
@@ -710,7 +719,7 @@ TEST_F(ValidateContainerTest, ValidMarketAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 10);
 
-    EXPECT_EQ(validate_container(new_order, balance_checker), "ok");
+    EXPECT_EQ(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 0);
 }
@@ -730,7 +739,7 @@ TEST_F(ValidateContainerTest, InvalidMarketAsk) {
 
     balance_checker.update_balance("CLIENT", "AAPL", 1);
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
 
     EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 1);
 }
@@ -748,7 +757,23 @@ TEST_F(ValidateContainerTest, NoRecordInBalanceChecker) {
                                       .price = 100,
                                       .time_in_force = core::TimeInForce::gtc};
 
-    EXPECT_NE(validate_container(new_order, balance_checker), "ok");
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
+}
+
+TEST_F(ValidateContainerTest, UnsupportedSymbolIsRejected) {
+    constexpr core::Container new_order =
+        core::NewOrderSingleContainer{.sender_comp_id = "CLIENT",
+                                      .target_comp_id = "OM",
+                                      .order_id = 0,
+                                      .cl_ord_id = 100,
+                                      .symbol = "MSFT",
+                                      .side = core::Side::ask,
+                                      .order_qty = 10,
+                                      .ord_type = core::OrderType::limit,
+                                      .price = 100,
+                                      .time_in_force = core::TimeInForce::gtc};
+
+    EXPECT_NE(validate_container(new_order, active_symbols, balance_checker), "ok");
 }
 
 TEST_F(ValidateContainerTest, ValidCancelRequest) {
@@ -762,7 +787,7 @@ TEST_F(ValidateContainerTest, ValidCancelRequest) {
                                           .side = core::Side::bid,
                                           .order_qty = 10};
 
-    EXPECT_EQ(validate_container(cancel_request, balance_checker), "ok");
+    EXPECT_EQ(validate_container(cancel_request, active_symbols, balance_checker), "ok");
 }
 
 TEST_F(ValidateContainerTest, InvalidCancelRequest) {
@@ -776,7 +801,7 @@ TEST_F(ValidateContainerTest, InvalidCancelRequest) {
                                           .side = core::Side::bid,
                                           .order_qty = 10};
 
-    EXPECT_NE(validate_container(cancel_request, balance_checker), "ok");
+    EXPECT_NE(validate_container(cancel_request, active_symbols, balance_checker), "ok");
 }
 
 class GenerateRejectionReportContainerTest : public testing::Test {
@@ -1152,4 +1177,826 @@ TEST_F(ForwardAndReplyDeathTest, PreconditionViolationValidWithReason) {
                                    mock_order_request_client, order_request_connection_id,
                                    mock_inbound_server, "Should not provide reason"),
                  "");
+}
+
+class UpdateInternalDataTest : public testing::Test {
+  protected:
+    OrderManager::OrderInfoMapContainer order_info_map;
+    BalanceChecker balance_checker;
+};
+
+TEST_F(UpdateInternalDataTest, UpdatesBothOrdersOnInitialTradeFill) {
+    order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 10,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 1});
+
+    order_info_map.emplace(22, OrderInfo{.sender_comp_id = "MAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 7,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 2});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 7,
+                                     .trade_id = "T1",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 11,
+                                     .maker_order_id = 22,
+                                     .is_taker_buyer = true};
+
+    balance_checker.update_balance("TAKER", USD_SYMBOL, 10'000);
+
+    update_internal_data(trade, order_info_map, balance_checker);
+
+    const auto& taker = order_info_map.at(11);
+    EXPECT_EQ(taker.avg_px, 100);
+    EXPECT_EQ(taker.leaves_qty, 3);
+    EXPECT_EQ(taker.cum_qty, 7);
+
+    const auto& maker = order_info_map.at(22);
+    EXPECT_EQ(maker.avg_px, 100);
+    EXPECT_EQ(maker.leaves_qty, 0);
+    EXPECT_EQ(maker.cum_qty, 7);
+
+    EXPECT_EQ(balance_checker.get_balance("TAKER", "AAPL"), 7);
+    EXPECT_EQ(balance_checker.get_balance("MAKER", USD_SYMBOL), 700);
+}
+
+TEST_F(UpdateInternalDataTest, UpdatesOneMakerAcrossTwoTakersAndSecondTakerDrainsMaker) {
+    order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER1",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 4,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 1});
+
+    order_info_map.emplace(12, OrderInfo{.sender_comp_id = "TAKER2",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 6,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 3});
+
+    order_info_map.emplace(22, OrderInfo{.sender_comp_id = "MAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 10,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 2});
+
+    const core::TradeContainer first_trade{.ticker = "AAPL",
+                                           .price = 100,
+                                           .quantity = 4,
+                                           .trade_id = "T5",
+                                           .taker_id = "TAKER1",
+                                           .maker_id = "MAKER",
+                                           .taker_order_id = 11,
+                                           .maker_order_id = 22,
+                                           .is_taker_buyer = true};
+
+    const core::TradeContainer second_trade{.ticker = "AAPL",
+                                            .price = 100,
+                                            .quantity = 6,
+                                            .trade_id = "T6",
+                                            .taker_id = "TAKER2",
+                                            .maker_id = "MAKER",
+                                            .taker_order_id = 12,
+                                            .maker_order_id = 22,
+                                            .is_taker_buyer = true};
+
+    balance_checker.update_balance("TAKER1", USD_SYMBOL, 10'000);
+    balance_checker.update_balance("TAKER2", USD_SYMBOL, 10'000);
+
+    update_internal_data(first_trade, order_info_map, balance_checker);
+
+    const auto& taker_one = order_info_map.at(11);
+    EXPECT_EQ(taker_one.avg_px, 100);
+    EXPECT_EQ(taker_one.leaves_qty, 0);
+    EXPECT_EQ(taker_one.cum_qty, 4);
+
+    const auto& maker_after_first_fill = order_info_map.at(22);
+    EXPECT_EQ(maker_after_first_fill.avg_px, 100);
+    EXPECT_EQ(maker_after_first_fill.leaves_qty, 6);
+    EXPECT_EQ(maker_after_first_fill.cum_qty, 4);
+
+    update_internal_data(second_trade, order_info_map, balance_checker);
+
+    const auto& taker_two = order_info_map.at(12);
+    EXPECT_EQ(taker_two.avg_px, 100);
+    EXPECT_EQ(taker_two.leaves_qty, 0);
+    EXPECT_EQ(taker_two.cum_qty, 6);
+
+    const auto& maker_after_second_fill = order_info_map.at(22);
+    EXPECT_EQ(maker_after_second_fill.avg_px, 100);
+    EXPECT_EQ(maker_after_second_fill.leaves_qty, 0);
+    EXPECT_EQ(maker_after_second_fill.cum_qty, 10);
+
+    EXPECT_EQ(balance_checker.get_balance("TAKER1", "AAPL"), 4);
+    EXPECT_EQ(balance_checker.get_balance("TAKER2", "AAPL"), 6);
+    EXPECT_EQ(balance_checker.get_balance("MAKER", USD_SYMBOL), 1000);
+}
+
+TEST_F(UpdateInternalDataTest, TradeWithTakerAsBuyerWithPriceImprovementAndRefundBalances) {
+    order_info_map.emplace(11, OrderInfo{.sender_comp_id = "TAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::bid,
+                                         .price = 101,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 5,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 1});
+
+    order_info_map.emplace(22, OrderInfo{.sender_comp_id = "MAKER",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 100,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 5,
+                                         .cum_qty = 0,
+                                         .avg_px = 0,
+                                         .arrival_gateway_id = 2});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 5,
+                                     .trade_id = "T7",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 11,
+                                     .maker_order_id = 22,
+                                     .is_taker_buyer = true};
+
+    balance_checker.update_balance("TAKER", USD_SYMBOL, 1000);
+
+    update_internal_data(trade, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("TAKER", "AAPL"), 5);
+    EXPECT_EQ(balance_checker.get_balance("TAKER", USD_SYMBOL), 1005);
+    EXPECT_EQ(balance_checker.get_balance("MAKER", USD_SYMBOL), 500);
+}
+
+TEST_F(UpdateInternalDataTest, SuccessfulBidCancelResponseRefundsReservedUsd) {
+    constexpr int order_id = 55;
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::bid,
+                                               .price = 100,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 4,
+                                               .cum_qty = 1,
+                                               .avg_px = 122,
+                                               .arrival_gateway_id = 0});
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 10);
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 777, .success = true};
+
+    update_internal_data(cancel_response, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", USD_SYMBOL), 410);
+}
+
+TEST_F(UpdateInternalDataTest, SuccessfulAskCancelResponseRefundsRemainingShares) {
+    constexpr int order_id = 66;
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::ask,
+                                               .price = 123,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 3,
+                                               .cum_qty = 2,
+                                               .avg_px = 123,
+                                               .arrival_gateway_id = 0});
+
+    balance_checker.update_balance("CLIENT", "AAPL", 1);
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 888, .success = true};
+
+    update_internal_data(cancel_response, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", "AAPL"), 4);
+}
+
+TEST_F(UpdateInternalDataTest, RejectedCancelResponseDoesNotChangeBalances) {
+    constexpr int order_id = 77;
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::bid,
+                                               .price = 123,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 5,
+                                               .cum_qty = 0,
+                                               .avg_px = 0,
+                                               .arrival_gateway_id = 0});
+
+    balance_checker.update_balance("CLIENT", USD_SYMBOL, 42);
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 999, .success = false};
+
+    update_internal_data(cancel_response, order_info_map, balance_checker);
+
+    EXPECT_EQ(balance_checker.get_balance("CLIENT", USD_SYMBOL), 42);
+}
+
+using UpdateInternalDataDeathTest = UpdateInternalDataTest;
+
+TEST_F(UpdateInternalDataDeathTest, MissingTakerOrderInfo) {
+    order_info_map.emplace(2, OrderInfo{.sender_comp_id = "MAKER",
+                                        .symbol = "AAPL",
+                                        .side = core::Side::ask,
+                                        .price = 100,
+                                        .time_in_force = core::TimeInForce::gtc,
+                                        .leaves_qty = 10,
+                                        .cum_qty = 0,
+                                        .avg_px = 0,
+                                        .arrival_gateway_id = 0});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 1,
+                                     .trade_id = "T3",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 1,
+                                     .maker_order_id = 2,
+                                     .is_taker_buyer = true};
+
+    EXPECT_DEATH(update_internal_data(trade, order_info_map, balance_checker), "");
+}
+
+TEST_F(UpdateInternalDataDeathTest, MissingMakerOrderInfo) {
+    order_info_map.emplace(1, OrderInfo{.sender_comp_id = "TAKER",
+                                        .symbol = "AAPL",
+                                        .side = core::Side::bid,
+                                        .price = 100,
+                                        .time_in_force = core::TimeInForce::gtc,
+                                        .leaves_qty = 10,
+                                        .cum_qty = 0,
+                                        .avg_px = 0,
+                                        .arrival_gateway_id = 0});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 1,
+                                     .trade_id = "T4",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 1,
+                                     .maker_order_id = 2,
+                                     .is_taker_buyer = true};
+
+    EXPECT_DEATH(update_internal_data(trade, order_info_map, balance_checker), "");
+}
+
+class GenerateMatchedOrderReportContainersTest : public testing::Test {
+  protected:
+    OrderManager::OrderIdMapContainer order_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(GenerateMatchedOrderReportContainersTest, TakerBuyerBuildsExpectedTakerAndMakerReports) {
+    constexpr int taker_order_id = 101;
+    constexpr int maker_order_id = 202;
+    constexpr int taker_cl_ord_id = 77;
+    constexpr int maker_cl_ord_id = 88;
+    constexpr int taker_user_id = 2;
+    constexpr int maker_user_id = 5;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        taker_order_id, taker_cl_ord_id * core::constants::max_user_count + taker_user_id));
+    order_id_map.insert(OrderManager::OrderIdPair(
+        maker_order_id, maker_cl_ord_id * core::constants::max_user_count + maker_user_id));
+
+    order_info_map.emplace(taker_order_id, OrderInfo{.sender_comp_id = "TAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::bid,
+                                                     .price = 110,
+                                                     .time_in_force = core::TimeInForce::gtc,
+                                                     .leaves_qty = 3,
+                                                     .cum_qty = 7,
+                                                     .avg_px = 109,
+                                                     .arrival_gateway_id = 1});
+    order_info_map.emplace(maker_order_id, OrderInfo{.sender_comp_id = "MAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::ask,
+                                                     .price = 111,
+                                                     .time_in_force = core::TimeInForce::day,
+                                                     .leaves_qty = 6,
+                                                     .cum_qty = 4,
+                                                     .avg_px = 110,
+                                                     .arrival_gateway_id = 2});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 110,
+                                     .quantity = 4,
+                                     .trade_id = "TR-1",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = taker_order_id,
+                                     .maker_order_id = maker_order_id,
+                                     .is_taker_buyer = true};
+
+    const auto [taker_report, maker_report] =
+        generate_matched_order_report_containers(trade, order_id_map, order_info_map);
+
+    EXPECT_EQ(taker_report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(taker_report.target_comp_id, "TAKER");
+    EXPECT_EQ(taker_report.order_id, taker_order_id);
+    EXPECT_EQ(taker_report.cl_order_id, taker_cl_ord_id);
+    EXPECT_EQ(taker_report.exec_type, core::ExecType::status_partially_filled);
+    EXPECT_EQ(taker_report.ord_status, core::OrderStatus::status_partially_filled);
+    EXPECT_EQ(taker_report.symbol, "AAPL");
+    EXPECT_EQ(taker_report.side, core::Side::bid);
+    EXPECT_EQ(taker_report.price, 110);
+    EXPECT_EQ(taker_report.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(taker_report.leaves_qty, 3);
+    EXPECT_EQ(taker_report.cum_qty, 7);
+    EXPECT_EQ(taker_report.avg_px, 109);
+    EXPECT_FALSE(taker_report.exec_id.empty());
+
+    EXPECT_EQ(maker_report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(maker_report.target_comp_id, "MAKER");
+    EXPECT_EQ(maker_report.order_id, maker_order_id);
+    EXPECT_EQ(maker_report.cl_order_id, maker_cl_ord_id);
+    EXPECT_EQ(maker_report.exec_type, core::ExecType::status_partially_filled);
+    EXPECT_EQ(maker_report.ord_status, core::OrderStatus::status_partially_filled);
+    EXPECT_EQ(maker_report.symbol, "AAPL");
+    EXPECT_EQ(maker_report.side, core::Side::ask);
+    EXPECT_EQ(maker_report.price, 110);
+    EXPECT_EQ(maker_report.time_in_force, core::TimeInForce::day);
+    EXPECT_EQ(maker_report.leaves_qty, 6);
+    EXPECT_EQ(maker_report.cum_qty, 4);
+    EXPECT_EQ(maker_report.avg_px, 110);
+    EXPECT_FALSE(maker_report.exec_id.empty());
+}
+
+class GenerateCancelResponseReportContainerTest : public testing::Test {
+  protected:
+    OrderManager::OrderIdMapContainer order_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(GenerateCancelResponseReportContainerTest,
+       SuccessfulCancelResponseBuildsExpectedExecutionReport) {
+    constexpr int order_id = 42;
+    constexpr int orig_cl_ord_id = 300;
+    constexpr int cl_ord_id = 303;
+    constexpr int user_id = 7;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        order_id, orig_cl_ord_id * core::constants::max_user_count + user_id));
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "AAPL",
+                                               .side = core::Side::ask,
+                                               .price = 123,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 0,
+                                               .cum_qty = 12,
+                                               .avg_px = 124,
+                                               .arrival_gateway_id = 3});
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = cl_ord_id, .success = true};
+
+    const auto report =
+        generate_cancel_response_report_container(cancel_response, order_id_map, order_info_map);
+
+    EXPECT_EQ(report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(report.target_comp_id, "CLIENT");
+    EXPECT_EQ(report.order_id, order_id);
+    EXPECT_EQ(report.cl_order_id, cl_ord_id);
+    EXPECT_EQ(report.orig_cl_ord_id, orig_cl_ord_id);
+    EXPECT_EQ(report.exec_trans_type, core::ExecTransType::exec_trans_new);
+    EXPECT_EQ(report.exec_type, core::ExecType::status_canceled);
+    EXPECT_EQ(report.ord_status, core::OrderStatus::status_canceled);
+    EXPECT_EQ(report.text, "");
+    EXPECT_EQ(report.symbol, "AAPL");
+    EXPECT_EQ(report.side, core::Side::ask);
+    EXPECT_EQ(report.price, 123);
+    EXPECT_EQ(report.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(report.leaves_qty, 0);
+    EXPECT_EQ(report.cum_qty, 12);
+    EXPECT_EQ(report.avg_px, 124);
+    EXPECT_FALSE(report.exec_id.empty());
+}
+
+TEST_F(GenerateCancelResponseReportContainerTest,
+       RejectedCancelResponseBuildsExpectedExecutionReport) {
+    constexpr int order_id = 77;
+    constexpr int orig_cl_ord_id = 900;
+    constexpr int cl_ord_id = 909;
+    constexpr int user_id = 2;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        order_id, orig_cl_ord_id * core::constants::max_user_count + user_id));
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "TRADER",
+                                               .symbol = "MSFT",
+                                               .side = core::Side::bid,
+                                               .price = std::nullopt,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 5,
+                                               .cum_qty = 15,
+                                               .avg_px = 301,
+                                               .arrival_gateway_id = 4});
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = cl_ord_id, .success = false};
+
+    const auto report =
+        generate_cancel_response_report_container(cancel_response, order_id_map, order_info_map);
+
+    EXPECT_EQ(report.sender_comp_id, SERVER_NAME);
+    EXPECT_EQ(report.target_comp_id, "TRADER");
+    EXPECT_EQ(report.order_id, order_id);
+    EXPECT_EQ(report.cl_order_id, cl_ord_id);
+    EXPECT_EQ(report.orig_cl_ord_id, orig_cl_ord_id);
+    EXPECT_EQ(report.exec_trans_type, core::ExecTransType::exec_trans_new);
+    EXPECT_EQ(report.exec_type, core::ExecType::status_rejected);
+    EXPECT_EQ(report.ord_status, core::OrderStatus::status_rejected);
+    EXPECT_EQ(report.text, "Order had already been matched");
+    EXPECT_EQ(report.symbol, "MSFT");
+    EXPECT_EQ(report.side, core::Side::bid);
+    EXPECT_EQ(report.price, std::nullopt);
+    EXPECT_EQ(report.time_in_force, core::TimeInForce::gtc);
+    EXPECT_EQ(report.leaves_qty, 0);
+    EXPECT_EQ(report.cum_qty, 15);
+    EXPECT_EQ(report.avg_px, 301);
+    EXPECT_FALSE(report.exec_id.empty());
+}
+
+class ReturnExecutionReportTest : public testing::Test {
+  protected:
+    MockInboundServer mock_inbound_server;
+    OrderManager::OrderIdMapContainer order_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+};
+
+TEST_F(ReturnExecutionReportTest, TradeContainerSendsTakerAndMakerExecutionReports) {
+    constexpr int taker_order_id = 11;
+    constexpr int maker_order_id = 22;
+    constexpr int taker_cl_ord_id = 101;
+    constexpr int maker_cl_ord_id = 202;
+    constexpr int taker_user_id = 3;
+    constexpr int maker_user_id = 7;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        taker_order_id, taker_cl_ord_id * core::constants::max_user_count + taker_user_id));
+    order_id_map.insert(OrderManager::OrderIdPair(
+        maker_order_id, maker_cl_ord_id * core::constants::max_user_count + maker_user_id));
+
+    order_info_map.emplace(taker_order_id, OrderInfo{.sender_comp_id = "TAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::bid,
+                                                     .price = 100,
+                                                     .time_in_force = core::TimeInForce::gtc,
+                                                     .leaves_qty = 3,
+                                                     .cum_qty = 7,
+                                                     .avg_px = 99,
+                                                     .arrival_gateway_id = 4});
+    order_info_map.emplace(maker_order_id, OrderInfo{.sender_comp_id = "MAKER",
+                                                     .symbol = "AAPL",
+                                                     .side = core::Side::ask,
+                                                     .price = 100,
+                                                     .time_in_force = core::TimeInForce::gtc,
+                                                     .leaves_qty = 0,
+                                                     .cum_qty = 5,
+                                                     .avg_px = 100,
+                                                     .arrival_gateway_id = 9});
+
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 5,
+                                     .trade_id = "TR-1",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = taker_order_id,
+                                     .maker_order_id = maker_order_id,
+                                     .is_taker_buyer = true};
+
+    core::Container container = trade;
+
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_inbound_server, send(4, _, _))
+            .WillOnce(Invoke([=](int, const std::string& payload,
+                                 transport::MessageFormat) -> std::expected<void, int> {
+                const auto serialized = transport::deserialize_container(payload);
+                const auto* report = std::get_if<core::ExecutionReportContainer>(&serialized);
+                EXPECT_NE(report, nullptr);
+                if (report == nullptr) {
+                    return std::unexpected{-1};
+                }
+
+                EXPECT_EQ(report->sender_comp_id, SERVER_NAME);
+                EXPECT_EQ(report->target_comp_id, "TAKER");
+                EXPECT_EQ(report->order_id, taker_order_id);
+                EXPECT_EQ(report->cl_order_id, taker_cl_ord_id);
+                EXPECT_EQ(report->exec_type, core::ExecType::status_partially_filled);
+                EXPECT_EQ(report->ord_status, core::OrderStatus::status_partially_filled);
+                EXPECT_EQ(report->symbol, "AAPL");
+                EXPECT_EQ(report->side, core::Side::bid);
+                EXPECT_EQ(report->price, 100);
+                EXPECT_EQ(report->time_in_force, core::TimeInForce::gtc);
+                EXPECT_EQ(report->leaves_qty, 3);
+                EXPECT_EQ(report->cum_qty, 7);
+                EXPECT_EQ(report->avg_px, 99);
+                EXPECT_FALSE(report->exec_id.empty());
+                return std::expected<void, int>{};
+            }));
+        EXPECT_CALL(mock_inbound_server, send(9, _, _))
+            .WillOnce(Invoke([=](int, const std::string& payload,
+                                 transport::MessageFormat) -> std::expected<void, int> {
+                const auto serialized = transport::deserialize_container(payload);
+                const auto* report = std::get_if<core::ExecutionReportContainer>(&serialized);
+                EXPECT_NE(report, nullptr);
+                if (report == nullptr) {
+                    return std::unexpected{-1};
+                }
+
+                EXPECT_EQ(report->sender_comp_id, SERVER_NAME);
+                EXPECT_EQ(report->target_comp_id, "MAKER");
+                EXPECT_EQ(report->order_id, maker_order_id);
+                EXPECT_EQ(report->cl_order_id, maker_cl_ord_id);
+                EXPECT_EQ(report->exec_type, core::ExecType::status_filled);
+                EXPECT_EQ(report->ord_status, core::OrderStatus::status_filled);
+                EXPECT_EQ(report->symbol, "AAPL");
+                EXPECT_EQ(report->side, core::Side::ask);
+                EXPECT_EQ(report->price, 100);
+                EXPECT_EQ(report->time_in_force, core::TimeInForce::gtc);
+                EXPECT_EQ(report->leaves_qty, 0);
+                EXPECT_EQ(report->cum_qty, 5);
+                EXPECT_EQ(report->avg_px, 100);
+                EXPECT_FALSE(report->exec_id.empty());
+                return std::expected<void, int>{};
+            }));
+    }
+
+    return_execution_report(container, order_id_map, order_info_map, mock_inbound_server);
+}
+
+TEST_F(ReturnExecutionReportTest, CancelResponseContainerSendsExecutionReportToOriginalGateway) {
+    constexpr int order_id = 33;
+    constexpr int orig_cl_ord_id = 303;
+    constexpr int user_id = 8;
+    constexpr int arrival_gateway_id = 12;
+
+    order_id_map.insert(OrderManager::OrderIdPair(
+        order_id, orig_cl_ord_id * core::constants::max_user_count + user_id));
+    order_info_map.emplace(order_id, OrderInfo{.sender_comp_id = "CLIENT",
+                                               .symbol = "MSFT",
+                                               .side = core::Side::ask,
+                                               .price = 250,
+                                               .time_in_force = core::TimeInForce::gtc,
+                                               .leaves_qty = 2,
+                                               .cum_qty = 8,
+                                               .avg_px = 249,
+                                               .arrival_gateway_id = arrival_gateway_id});
+
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = order_id, .cl_ord_id = 404, .success = false};
+
+    core::Container container = cancel_response;
+
+    EXPECT_CALL(mock_inbound_server, send(arrival_gateway_id, _, _))
+        .WillOnce(Invoke([=](int, const std::string& payload,
+                             transport::MessageFormat) -> std::expected<void, int> {
+            const auto serialized = transport::deserialize_container(payload);
+            const auto* report = std::get_if<core::ExecutionReportContainer>(&serialized);
+            EXPECT_NE(report, nullptr);
+            if (report == nullptr) {
+                return std::unexpected{-1};
+            }
+
+            EXPECT_EQ(report->sender_comp_id, SERVER_NAME);
+            EXPECT_EQ(report->target_comp_id, "CLIENT");
+            EXPECT_EQ(report->order_id, order_id);
+            EXPECT_EQ(report->cl_order_id, 404);
+            EXPECT_EQ(report->orig_cl_ord_id, orig_cl_ord_id);
+            EXPECT_EQ(report->exec_trans_type, core::ExecTransType::exec_trans_new);
+            EXPECT_EQ(report->exec_type, core::ExecType::status_rejected);
+            EXPECT_EQ(report->ord_status, core::OrderStatus::status_rejected);
+            EXPECT_EQ(report->text, "Order had already been matched");
+            EXPECT_EQ(report->symbol, "MSFT");
+            EXPECT_EQ(report->side, core::Side::ask);
+            EXPECT_EQ(report->price, 250);
+            EXPECT_EQ(report->time_in_force, core::TimeInForce::gtc);
+            EXPECT_EQ(report->leaves_qty, 0);
+            EXPECT_EQ(report->cum_qty, 8);
+            EXPECT_EQ(report->avg_px, 249);
+            EXPECT_FALSE(report->exec_id.empty());
+            return std::expected<void, int>{};
+        }));
+
+    return_execution_report(container, order_id_map, order_info_map, mock_inbound_server);
+}
+
+class UpdateDatabaseTest : public testing::Test {
+  protected:
+    MockDatabaseClient mock_db;
+    int server_id = 1;
+    OrderManager::UsernameToUserIdMapContainer username_user_id_map;
+    OrderManager::OrderInfoMapContainer order_info_map;
+    BalanceChecker balance_checker;
+};
+
+using UpdateDatabaseDeathTest = UpdateDatabaseTest;
+
+TEST_F(UpdateDatabaseTest, NewOrderPersistsOrderWithValidationFlag) {
+    const core::NewOrderSingleContainer new_order{.sender_comp_id = "CLIENT",
+                                                  .target_comp_id = "OM",
+                                                  .order_id = 42,
+                                                  .cl_ord_id = 100,
+                                                  .symbol = "AAPL",
+                                                  .side = core::Side::ask,
+                                                  .order_qty = 10,
+                                                  .ord_type = core::OrderType::limit,
+                                                  .price = 123,
+                                                  .time_in_force = core::TimeInForce::gtc};
+
+    core::Container container = new_order;
+
+    EXPECT_CALL(mock_db, insert_order(_, _, _))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db, true);
+}
+
+TEST_F(UpdateDatabaseTest, CancelRequestPersistsRequestWithValidationFlag) {
+    const core::CancelOrderRequestContainer cancel_request{.sender_comp_id = "CLIENT",
+                                                           .target_comp_id = "OM",
+                                                           .order_id = 7,
+                                                           .orig_cl_ord_id = 100,
+                                                           .cl_ord_id = 101,
+                                                           .symbol = "AAPL",
+                                                           .side = core::Side::bid,
+                                                           .order_qty = 5};
+
+    core::Container container = cancel_request;
+
+    EXPECT_CALL(mock_db, insert_cancel_request(_, _))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db, false);
+}
+
+TEST_F(UpdateDatabaseTest, TradePersistsTradeWithoutValidationFlag) {
+    const core::TradeContainer trade{.ticker = "AAPL",
+                                     .price = 100,
+                                     .quantity = 4,
+                                     .trade_id = "T-1",
+                                     .taker_id = "TAKER",
+                                     .maker_id = "MAKER",
+                                     .taker_order_id = 11,
+                                     .maker_order_id = 22,
+                                     .is_taker_buyer = true};
+
+    username_user_id_map.emplace("TAKER", 11);
+    username_user_id_map.emplace("MAKER", 22);
+
+    balance_checker.update_balance("TAKER", USD_SYMBOL, 900);
+    balance_checker.update_balance("TAKER", "AAPL", 4);
+    balance_checker.update_balance("MAKER", USD_SYMBOL, 300);
+    balance_checker.update_balance("MAKER", "AAPL", 8);
+
+    core::Container container = trade;
+
+    {
+        InSequence seq;
+        EXPECT_CALL(mock_db, insert_trade(_)).WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 11, std::string_view{USD_SYMBOL}, 900))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 11, std::string_view{"AAPL"}, 4))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 22, std::string_view{USD_SYMBOL}, 300))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+        EXPECT_CALL(mock_db, update_balance(server_id, 22, std::string_view{"AAPL"}, 8))
+            .WillOnce(Return(std::expected<void, std::string>{}));
+    }
+
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
+}
+
+TEST_F(UpdateDatabaseTest, CancelResponsePersistsResponseWithoutValidationFlag) {
+    const core::CancelOrderResponseContainer cancel_response{
+        .order_id = 33, .cl_ord_id = 404, .success = true};
+
+    core::Container container = cancel_response;
+
+    username_user_id_map.emplace("CLIENT", 8);
+    order_info_map.emplace(33, OrderInfo{.sender_comp_id = "CLIENT",
+                                         .symbol = "AAPL",
+                                         .side = core::Side::ask,
+                                         .price = 250,
+                                         .time_in_force = core::TimeInForce::gtc,
+                                         .leaves_qty = 2,
+                                         .cum_qty = 8,
+                                         .avg_px = 249,
+                                         .arrival_gateway_id = 0});
+    balance_checker.update_balance("CLIENT", "AAPL", 2);
+
+    EXPECT_CALL(mock_db, insert_cancel_response(_))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    EXPECT_CALL(mock_db, update_balance(server_id, 8, std::string_view{"AAPL"}, 2))
+        .WillOnce(Return(std::expected<void, std::string>{}));
+
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
+}
+
+TEST_F(UpdateDatabaseTest, ExecutionReportDoesNotPersistAnything) {
+    const core::ExecutionReportContainer execution_report{
+        .sender_comp_id = SERVER_NAME,
+        .target_comp_id = "CLIENT",
+        .order_id = 11,
+        .cl_order_id = 22,
+        .orig_cl_ord_id = std::nullopt,
+        .exec_id = "exec-1",
+        .exec_trans_type = core::ExecTransType::exec_trans_new,
+        .exec_type = core::ExecType::status_new,
+        .ord_status = core::OrderStatus::status_new,
+        .text = std::nullopt,
+        .symbol = "AAPL",
+        .side = core::Side::ask,
+        .price = 123,
+        .time_in_force = core::TimeInForce::gtc,
+        .leaves_qty = 10,
+        .cum_qty = 0,
+        .avg_px = 0};
+
+    core::Container container = execution_report;
+
+    EXPECT_CALL(mock_db, insert_order(_, _, _)).Times(0);
+    EXPECT_CALL(mock_db, insert_cancel_request(_, _)).Times(0);
+    EXPECT_CALL(mock_db, insert_trade(_)).Times(0);
+    EXPECT_CALL(mock_db, insert_cancel_response(_)).Times(0);
+
+    update_database(container, server_id, username_user_id_map, order_info_map, balance_checker,
+                    mock_db);
+}
+
+TEST_F(UpdateDatabaseDeathTest, NewOrderWithoutValidityFlagDies) {
+    const core::NewOrderSingleContainer new_order{.sender_comp_id = "CLIENT",
+                                                  .target_comp_id = "OM",
+                                                  .order_id = 42,
+                                                  .cl_ord_id = 100,
+                                                  .symbol = "AAPL",
+                                                  .side = core::Side::ask,
+                                                  .order_qty = 10,
+                                                  .ord_type = core::OrderType::limit,
+                                                  .price = 123,
+                                                  .time_in_force = core::TimeInForce::gtc};
+
+    core::Container container = new_order;
+
+    EXPECT_DEATH(
+        update_database(container, server_id, username_user_id_map, order_info_map,
+                        balance_checker, mock_db, std::nullopt),
+        "");
+}
+
+TEST_F(UpdateDatabaseDeathTest, CancelRequestWithoutValidityFlagDies) {
+    const core::CancelOrderRequestContainer cancel_request{.sender_comp_id = "CLIENT",
+                                                           .target_comp_id = "OM",
+                                                           .order_id = 7,
+                                                           .orig_cl_ord_id = 100,
+                                                           .cl_ord_id = 101,
+                                                           .symbol = "AAPL",
+                                                           .side = core::Side::bid,
+                                                           .order_qty = 5};
+
+    core::Container container = cancel_request;
+
+    EXPECT_DEATH(
+        update_database(container, server_id, username_user_id_map, order_info_map,
+                        balance_checker, mock_db, std::nullopt),
+        "");
 }

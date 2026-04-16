@@ -494,7 +494,7 @@ class DatabaseClient {
     };
 
     struct HistoricalTradeRow {
-        int trade_id{};
+        std::string trade_id{};
         std::string symbol;
         int price{};
         int quantity{};
@@ -781,7 +781,7 @@ class DatabaseClient {
                 "FROM {} "
                 "WHERE symbol = {} "
                 "AND CAST(timestamp AS LONG) >= {} "
-                "ORDER BY timestamp ASC",
+                "ORDER BY timestamp ASC, trade_id ASC",
                 trades_table, quoted_symbol, after_ts_micros);
             auto res = txn.exec(query);
             txn.commit();
@@ -790,7 +790,7 @@ class DatabaseClient {
             result.reserve(res.size());
             for (const auto& row : res) {
                 HistoricalTradeRow trade;
-                trade.trade_id = row["trade_id"].as<int>(0);
+                trade.trade_id = row["trade_id"].as<std::string>("");
                 trade.symbol = row["symbol"].as<std::string>("");
                 trade.price = row["price"].as<int>(0);
                 trade.quantity = row["quantity"].as<int>(0);

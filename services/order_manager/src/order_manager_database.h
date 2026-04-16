@@ -20,6 +20,16 @@ struct DbUserBalanceInfo {
     std::vector<DbBalanceRow> balances;
 };
 
+struct DbServerRow {
+    int server_id{};
+    int admin_id{};
+    std::string server_name;
+    std::string admin_name;
+    std::vector<std::string> active_tickers;
+    std::string description;
+    int initial_usd{100000};
+};
+
 class OrderManagerDatabase {
   public:
     virtual ~OrderManagerDatabase() = default;
@@ -42,5 +52,11 @@ class OrderManagerDatabase {
 
     virtual std::expected<void, std::string>
     insert_cancel_response(const core::CancelOrderResponseContainer& cancel_response) = 0;
+
+    virtual std::expected<std::optional<DbServerRow>, std::string>
+    get_server(const std::string_view& server_name) = 0;
+
+    virtual std::expected<void, std::string>
+    update_balance(int user_id, int server_id, std::string_view symbol, std::int64_t balance) = 0;
 };
 } // namespace om

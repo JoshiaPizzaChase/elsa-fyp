@@ -1,0 +1,13 @@
+[Unit]
+Description=EduX Fundamental Oracle
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/oracle
+ExecStart=/usr/local/bin/oracle/create_oracle
+Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
+Environment="SPDLOG_LEVEL=info"
+
+[Install]
+Alias=oracle.service

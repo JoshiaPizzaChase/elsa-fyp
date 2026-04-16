@@ -8,6 +8,7 @@
 #include "websocket_client.h"
 
 #include <boost/bimap.hpp>
+#include <unordered_set>
 
 namespace om {
 inline const std::string USD_SYMBOL = "USD";
@@ -38,12 +39,12 @@ struct OrderManagerDependencyFactory {
 
 class OrderManager {
   public:
-    OrderManager(std::string_view host, int port,
+    OrderManager(std::string_view host, int port, const std::vector<std::string>& active_symbols,
                  const OrderManagerDependencyFactory& dependency_factory);
     void init();
     void wait_for_connections() const;
     void connect_matching_engine(std::string host, int port, int try_attempts = 5);
-    [[noreturn]] void start();
+    [[noreturn]] void run();
 
     using OrderIdMapContainer = boost::bimap<int, int>;
     using OrderIdPair = OrderIdMapContainer::value_type;
@@ -51,6 +52,8 @@ class OrderManager {
     using UsernameToUserIdMapContainer = std::unordered_map<std::string, int>;
 
   private:
+    const std::unordered_set<std::string> active_symbols;
+
     std::vector<int> gateway_connection_ids;
     int order_request_connection_id;
     int order_response_connection_id;
@@ -63,6 +66,7 @@ class OrderManager {
     UsernameToUserIdMapContainer username_user_id_map;
 
     std::unique_ptr<OrderManagerDatabase> database_client;
+    int server_id;
 
     // Left is internal order ID, Right is sender id + client order ID (for preventing a user
     // having duplicate client order ID)
@@ -82,7 +86,9 @@ preprocess_container(core::Container& container, OrderManager::OrderIdMapContain
                      int arrival_gateway_id, transport::OutboundClient& order_request_ws_client,
                      int order_request_connection_id);
 
-std::string validate_container(const core::Container& container, BalanceChecker& balance_checker,
+std::string validate_container(const core::Container& container,
+                               const std::unordered_set<std::string>& active_symbols,
+                               BalanceChecker& balance_checker,
                                std::optional<int> fill_cost = std::nullopt);
 
 void forward_and_reply(bool is_container_valid, const core::Container& container,
@@ -100,17 +106,20 @@ core::ExecutionReportContainer
 generate_success_report_container(const core::Container& container,
                                   const OrderManager::OrderInfoMapContainer& order_info_map);
 
-void update_database(const core::Container& container, OrderManagerDatabase& database_client,
+void update_database(const core::Container& container, int server_id,
+                     const OrderManager::UsernameToUserIdMapContainer& username_user_id_map,
+                     const OrderManager::OrderInfoMapContainer& order_info_map,
+                     const BalanceChecker& balance_checker, OrderManagerDatabase& database_client,
                      std::optional<bool> valid_container = std::nullopt);
 
-void update_order_info(const core::TradeContainer& trade_container,
-                       OrderManager::OrderInfoMapContainer& order_info_map);
+void update_internal_data(const core::Container& container,
+                          OrderManager::OrderInfoMapContainer& order_info_map,
+                          BalanceChecker& balance_checker);
 
 void return_execution_report(const core::Container& container,
                              const OrderManager::OrderIdMapContainer& order_id_map,
                              const OrderManager::OrderInfoMapContainer& order_info_map,
-                             transport::InboundServer& inbound_ws_server,
-                             OrderManagerDatabase& database_client);
+                             transport::InboundServer& inbound_ws_server);
 
 std::pair<core::ExecutionReportContainer, core::ExecutionReportContainer>
 generate_matched_order_report_containers(const core::TradeContainer& trade,

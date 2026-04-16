@@ -18,28 +18,49 @@ const BOT_META = {
     nt: {label: 'Noise Trader', shortLabel: 'NT', countLabel: 'Noise Traders'},
     it: {label: 'Informed Trader', shortLabel: 'IT', countLabel: 'Informed Traders'},
 };
+const DEFAULT_BOT_GROUP = {
+    count: 0,
+    initial_usd: DEFAULT_INITIAL_USD,
+    initial_inventory: 100,
+    inventory_by_symbol: {},
+    params: {},
+};
 const DEFAULT_BOT_CONFIG = {
     mm: {
-        count: 1,
-        initial_usd: DEFAULT_INITIAL_USD,
-        initial_inventory: 100,
-        inventory_by_symbol: {},
-        params: {lot_size: 1, gamma: 0.1, k: 1.5, terminal_time: 1},
+        groups: [{
+            ...DEFAULT_BOT_GROUP,
+            count: 4,
+            initial_usd: 300000,
+            initial_inventory: 300,
+            params: {lot_size: 1, gamma: 0.6, k: 8, terminal_time: 30},
+        }],
     },
     nt: {
-        count: 5,
-        initial_usd: DEFAULT_INITIAL_USD,
-        initial_inventory: 100,
-        inventory_by_symbol: {},
-        params: {lambda_eps: 20, bernoulli: 0.5, pareto_scale: 1, pareto_shape: 2},
+        groups: [{
+            ...DEFAULT_BOT_GROUP,
+            count: 4,
+            initial_usd: 80000,
+            initial_inventory: 20,
+            params: {lambda_eps: 0.6, bernoulli: 0.5, pareto_scale: 0.5, pareto_shape: 4},
+        }],
     },
     it: {
-        count: 1,
-        initial_usd: DEFAULT_INITIAL_USD,
-        initial_inventory: 100,
-        inventory_by_symbol: {},
-        params: {epsilon: 0.05, trade_qty: 10, max_inventory: 1000},
+        groups: [{
+            ...DEFAULT_BOT_GROUP,
+            count: 1,
+            initial_usd: 1500000,
+            initial_inventory: 150,
+            params: {epsilon: 0.12, trade_qty: 5, max_inventory: 1200},
+        }],
     },
+};
+const DEFAULT_ORACLE_CONFIG = {
+    mu: 0.0,
+    sigma: 0.003,
+    jump_intensity: 0.06,
+    jump_mean: 0.0,
+    jump_std: 0.01,
+    update_interval_ms: 60000,
 };
 
 const createDefaultBotConfig = () => JSON.parse(JSON.stringify(DEFAULT_BOT_CONFIG));
@@ -193,10 +214,15 @@ function AllowlistInput({label, tags, onChange, placeholder}) {
     );
 }
 
-function BotSettingsModal({botType, config, symbols, onChange, onClose}) {
+function BotSettingsModal({botType, config, symbols, onGroupChange, onAddGroup, onRemoveGroup, onClose}) {
     if (!botType || !config) return null;
     const botMeta = BOT_META[botType];
-    const paramEntries = Object.entries(config.params ?? {});
+    const groups = config.groups ?? [];
+    const [openGroupIndex, setOpenGroupIndex] = useState(0);
+
+    useEffect(() => {
+        setOpenGroupIndex(0);
+    }, [botType, groups.length]);
 
     return (
         <div className="sm-bot-settings-overlay" onClick={onClose}>
@@ -206,55 +232,94 @@ function BotSettingsModal({botType, config, symbols, onChange, onClose}) {
                     <button type="button" className="sm-x-btn" onClick={onClose} title="Close">✕</button>
                 </div>
 
-                <div className="sm-bot-settings-grid">
-                    <div className="sm-field">
-                        <label className="sm-label">Initial USD</label>
-                        <input
-                            className="sm-input"
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={config.initial_usd}
-                            onChange={e => onChange(botType, 'initial_usd', e.target.value)}
-                        />
-                    </div>
-                    <div className="sm-field">
-                        <label className="sm-label">Initial Inventory</label>
-                        <input
-                            className="sm-input"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={config.initial_inventory}
-                            onChange={e => onChange(botType, 'initial_inventory', e.target.value)}
-                        />
-                    </div>
-                    {symbols.map((symbol) => (
-                        <div className="sm-field" key={`inv-${symbol}`}>
-                            <label className="sm-label">Inventory ({symbol})</label>
-                            <input
-                                className="sm-input"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={config.inventory_by_symbol?.[symbol] ?? config.initial_inventory ?? 0}
-                                onChange={e => onChange(botType, `inventory_by_symbol.${symbol}`, e.target.value)}
-                            />
-                        </div>
-                    ))}
-                    {paramEntries.map(([paramKey, paramValue]) => (
-                        <div className="sm-field" key={paramKey}>
-                            <label className="sm-label">{paramKey.replaceAll('_', ' ')}</label>
-                            <input
-                                className="sm-input"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={paramValue}
-                                onChange={e => onChange(botType, `params.${paramKey}`, e.target.value)}
-                            />
-                        </div>
-                    ))}
+                <div className="sm-bot-groups-header">
+                    <span className="sm-label">Groups</span>
+                    <button type="button" className="sm-save-btn" onClick={() => onAddGroup(botType)}>
+                        + Add Group
+                    </button>
+                </div>
+
+                <div className="sm-bot-groups-list">
+                    {groups.map((group, groupIndex) => {
+                        const paramEntries = Object.entries(group.params ?? {});
+                        const isOpen = openGroupIndex === groupIndex;
+                        return (
+                            <div className="sm-bot-group-card" key={`grp-${groupIndex}`}>
+                                <div className="sm-bot-group-card-header">
+                                    <button
+                                        type="button"
+                                        className="sm-bot-group-toggle-btn"
+                                        onClick={() => setOpenGroupIndex(isOpen ? -1 : groupIndex)}
+                                    >
+                                        <span className="sm-bot-group-title">{`Group ${groupIndex + 1}`}</span>
+                                        <span className="sm-bot-group-meta">
+                                            {`${Number(group.count) || 0} bots ${isOpen ? '▾' : '▸'}`}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="sm-cancel-btn"
+                                        disabled={groups.length <= 1}
+                                        onClick={() => onRemoveGroup(botType, groupIndex)}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                                {isOpen && (
+                                    <div className="sm-bot-settings-grid">
+                                        <div className="sm-field">
+                                            <label className="sm-label">Bot Count</label>
+                                            <input
+                                                className="sm-input"
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={group.count}
+                                                onChange={e => onGroupChange(botType, groupIndex, 'count', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="sm-field">
+                                            <label className="sm-label">Initial USD</label>
+                                            <input
+                                                className="sm-input"
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={group.initial_usd}
+                                                onChange={e => onGroupChange(botType, groupIndex, 'initial_usd', e.target.value)}
+                                            />
+                                        </div>
+                                        {symbols.map((symbol) => (
+                                            <div className="sm-field" key={`inv-${groupIndex}-${symbol}`}>
+                                                <label className="sm-label">Inventory ({symbol})</label>
+                                                <input
+                                                    className="sm-input"
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={group.inventory_by_symbol?.[symbol] ?? 0}
+                                                    onChange={e => onGroupChange(botType, groupIndex, `inventory_by_symbol.${symbol}`, e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+                                        {paramEntries.map(([paramKey, paramValue]) => (
+                                            <div className="sm-field" key={`${groupIndex}-${paramKey}`}>
+                                                <label className="sm-label">{paramKey.replaceAll('_', ' ')}</label>
+                                                <input
+                                                    className="sm-input"
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={paramValue}
+                                                    onChange={e => onGroupChange(botType, groupIndex, `params.${paramKey}`, e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 <div className="sm-actions">
@@ -265,8 +330,9 @@ function BotSettingsModal({botType, config, symbols, onChange, onClose}) {
     );
 }
 
-function BotCard({botType, config, onCountChange, onOpenSettings}) {
+function BotCard({botType, config, onOpenSettings}) {
     const botMeta = BOT_META[botType];
+    const totalBots = (config.groups ?? []).reduce((sum, grp) => sum + (Number(grp.count) || 0), 0);
     return (
         <div className="sm-bot-card">
             <div className="sm-bot-card-header">
@@ -284,17 +350,7 @@ function BotCard({botType, config, onCountChange, onOpenSettings}) {
                     ⚙
                 </button>
             </div>
-            <div className="sm-field">
-                <label className="sm-label">{botMeta.countLabel}</label>
-                <input
-                    className="sm-input"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={config.count}
-                    onChange={e => onCountChange(botType, e.target.value)}
-                />
-            </div>
+            <div className="sm-hint">{`${config.groups?.length ?? 0} group(s), ${totalBots} total`}</div>
         </div>
     );
 }
@@ -307,8 +363,8 @@ function ServerModal({server, username, onClose, onSaved}) {
         if (value.length > SERVER_NAME_MAX_LENGTH) {
             return 'Server name must be less than 12 characters.';
         }
-        if (/\s/.test(value)) {
-            return 'Server name cannot contain spaces.';
+        if (!/^[A-Za-z0-9]+$/.test(value)) {
+            return 'Server name can only contain A-Z, a-z, and 0-9.';
         }
         return '';
     };
@@ -323,6 +379,7 @@ function ServerModal({server, username, onClose, onSaved}) {
         isNew ? DEFAULT_INITIAL_USD : (server.initial_usd ?? DEFAULT_INITIAL_USD)
     );
     const [botConfig, setBotConfig] = useState(createDefaultBotConfig());
+    const [oracleConfig, setOracleConfig] = useState({...DEFAULT_ORACLE_CONFIG});
     const [activeBotSettings, setActiveBotSettings] = useState(null);
 
     const [saving, setSaving] = useState(false);
@@ -340,14 +397,19 @@ function ServerModal({server, username, onClose, onSaved}) {
             const next = {...prev};
             BOT_TYPES.forEach((botType) => {
                 const current = next[botType] ?? createDefaultBotConfig()[botType];
-                const nextInventory = {};
-                symbols.forEach((symbol) => {
-                    nextInventory[symbol] =
-                        current.inventory_by_symbol?.[symbol] ?? current.initial_inventory ?? 100;
-                });
                 next[botType] = {
                     ...current,
-                    inventory_by_symbol: nextInventory,
+                    groups: (current.groups ?? []).map((group) => {
+                        const nextInventory = {};
+                        symbols.forEach((symbol) => {
+                            nextInventory[symbol] =
+                                group.inventory_by_symbol?.[symbol] ?? group.initial_inventory ?? 0;
+                        });
+                        return {
+                            ...group,
+                            inventory_by_symbol: nextInventory,
+                        };
+                    }),
                 };
             });
             return next;
@@ -368,28 +430,32 @@ function ServerModal({server, username, onClose, onSaved}) {
         setSaving(true);
         const normalizedBots = BOT_TYPES.reduce((acc, botType) => {
             const current = botConfig[botType];
-            const normalized = {
-                count: Number.isFinite(Number(current.count)) ? Math.max(0, Math.floor(Number(current.count))) : 0,
-                initial_usd: Number.isFinite(Number(current.initial_usd))
-                    ? Math.max(0, Math.floor(Number(current.initial_usd)))
-                    : DEFAULT_INITIAL_USD,
-                initial_inventory: 0,
-                inventory_by_symbol: {},
-                params: {},
-            };
-            const symbolInventories = symbols.reduce((inv, symbol) => {
-                const rawInventory = current.inventory_by_symbol?.[symbol];
-                inv[symbol] = Number.isFinite(Number(rawInventory)) ? Math.max(0, Number(rawInventory)) : 0;
-                return inv;
-            }, {});
-            normalized.inventory_by_symbol = symbolInventories;
-            const firstSymbol = symbols[0];
-            normalized.initial_inventory = firstSymbol
-                ? (symbolInventories[firstSymbol] ?? 0)
-                : (Number.isFinite(Number(current.initial_inventory)) ? Math.max(0, Number(current.initial_inventory)) : 0);
-            Object.entries(current.params ?? {}).forEach(([key, value]) => {
-                normalized.params[key] = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+            const groups = (current.groups ?? []).map((group) => {
+                const normalizedGroup = {
+                    count: Number.isFinite(Number(group.count)) ? Math.max(0, Math.floor(Number(group.count))) : 0,
+                    initial_usd: Number.isFinite(Number(group.initial_usd))
+                        ? Math.max(0, Math.floor(Number(group.initial_usd)))
+                        : DEFAULT_INITIAL_USD,
+                    initial_inventory: 0,
+                    inventory_by_symbol: {},
+                    params: {},
+                };
+                const symbolInventories = symbols.reduce((inv, symbol) => {
+                    const rawInventory = group.inventory_by_symbol?.[symbol];
+                    inv[symbol] = Number.isFinite(Number(rawInventory)) ? Math.max(0, Number(rawInventory)) : 0;
+                    return inv;
+                }, {});
+                normalizedGroup.inventory_by_symbol = symbolInventories;
+                const firstSymbol = symbols.find((symbol) => symbol !== 'USD') ?? symbols[0];
+                normalizedGroup.initial_inventory = firstSymbol
+                    ? (symbolInventories[firstSymbol] ?? 0)
+                    : 0;
+                Object.entries(group.params ?? {}).forEach(([key, value]) => {
+                    normalizedGroup.params[key] = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+                });
+                return normalizedGroup;
             });
+            const normalized = {groups};
             acc[botType] = normalized;
             return acc;
         }, {});
@@ -399,6 +465,22 @@ function ServerModal({server, username, onClose, onSaved}) {
             active_symbols: symbols,
             allowlist,
             initial_usd: Number.isFinite(Number(initialUsd)) ? Number(initialUsd) : DEFAULT_INITIAL_USD,
+            oracle: {
+                mu: Number.isFinite(Number(oracleConfig.mu)) ? Number(oracleConfig.mu) : DEFAULT_ORACLE_CONFIG.mu,
+                sigma: Number.isFinite(Number(oracleConfig.sigma)) ? Math.max(0, Number(oracleConfig.sigma)) : DEFAULT_ORACLE_CONFIG.sigma,
+                jump_intensity: Number.isFinite(Number(oracleConfig.jump_intensity))
+                    ? Math.max(0, Number(oracleConfig.jump_intensity))
+                    : DEFAULT_ORACLE_CONFIG.jump_intensity,
+                jump_mean: Number.isFinite(Number(oracleConfig.jump_mean))
+                    ? Number(oracleConfig.jump_mean)
+                    : DEFAULT_ORACLE_CONFIG.jump_mean,
+                jump_std: Number.isFinite(Number(oracleConfig.jump_std))
+                    ? Math.max(0, Number(oracleConfig.jump_std))
+                    : DEFAULT_ORACLE_CONFIG.jump_std,
+                update_interval_ms: Number.isFinite(Number(oracleConfig.update_interval_ms))
+                    ? Math.max(1, Math.floor(Number(oracleConfig.update_interval_ms)))
+                    : DEFAULT_ORACLE_CONFIG.update_interval_ms,
+            },
             ...(isNew ? {bots: normalizedBots} : {}),
         };
 
@@ -463,8 +545,8 @@ function ServerModal({server, username, onClose, onSaved}) {
                             value={serverName}
                             onChange={e => setServerName(e.target.value)}
                             placeholder="e.g. hk01"
-                            pattern="\S{1,11}"
-                            title="1-11 characters, no spaces"
+                            pattern="[A-Za-z0-9]{1,11}"
+                            title="1-11 characters, only A-Z, a-z, 0-9"
                             aria-invalid={serverNameError ? 'true' : 'false'}
                             disabled={!isNew}
                             required
@@ -515,6 +597,78 @@ function ServerModal({server, username, onClose, onSaved}) {
 
                     {isNew && (
                         <div className="sm-field">
+                            <label className="sm-label">Oracle Service</label>
+                            <div className="sm-bot-settings-grid">
+                                <div className="sm-field">
+                                    <label className="sm-label">mu</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        step="0.001"
+                                        value={oracleConfig.mu}
+                                        onChange={e => setOracleConfig(prev => ({...prev, mu: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">sigma</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="0"
+                                        step="0.001"
+                                        value={oracleConfig.sigma}
+                                        onChange={e => setOracleConfig(prev => ({...prev, sigma: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">jump intensity</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="0"
+                                        step="0.001"
+                                        value={oracleConfig.jump_intensity}
+                                        onChange={e => setOracleConfig(prev => ({...prev, jump_intensity: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">jump mean</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        step="0.001"
+                                        value={oracleConfig.jump_mean}
+                                        onChange={e => setOracleConfig(prev => ({...prev, jump_mean: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">jump std</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="0"
+                                        step="0.001"
+                                        value={oracleConfig.jump_std}
+                                        onChange={e => setOracleConfig(prev => ({...prev, jump_std: e.target.value}))}
+                                    />
+                                </div>
+                                <div className="sm-field">
+                                    <label className="sm-label">update interval (ms)</label>
+                                    <input
+                                        className="sm-input"
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={oracleConfig.update_interval_ms}
+                                        onChange={e => setOracleConfig(prev => ({...prev, update_interval_ms: e.target.value}))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {isNew && (
+                        <div className="sm-field">
                             <label className="sm-label">Simulation Bots</label>
                             <div className="sm-bot-grid">
                                 {BOT_TYPES.map((botType) => (
@@ -522,15 +676,6 @@ function ServerModal({server, username, onClose, onSaved}) {
                                         key={botType}
                                         botType={botType}
                                         config={botConfig[botType]}
-                                        onCountChange={(targetType, value) => {
-                                            setBotConfig(prev => ({
-                                                ...prev,
-                                                [targetType]: {
-                                                    ...prev[targetType],
-                                                    count: value,
-                                                },
-                                            }));
-                                        }}
                                         onOpenSettings={setActiveBotSettings}
                                     />
                                 ))}
@@ -562,23 +707,61 @@ function ServerModal({server, username, onClose, onSaved}) {
                     botType={activeBotSettings}
                     config={activeBotSettings ? botConfig[activeBotSettings] : null}
                     symbols={symbols}
-                    onClose={() => setActiveBotSettings(null)}
-                    onChange={(targetType, keyPath, rawValue) => {
+                    onAddGroup={(targetType) => {
                         setBotConfig(prev => {
                             const next = {...prev};
                             const target = {...next[targetType]};
+                            const templateGroup = target.groups?.[0] ?? {...DEFAULT_BOT_GROUP};
+                            const newInventory = {};
+                            symbols.forEach((symbol) => {
+                                newInventory[symbol] = templateGroup.inventory_by_symbol?.[symbol]
+                                    ?? templateGroup.initial_inventory
+                                    ?? 0;
+                            });
+                            const newGroup = {
+                                ...templateGroup,
+                                count: 0,
+                                inventory_by_symbol: newInventory,
+                            };
+                            target.groups = [...(target.groups ?? []), newGroup];
+                            next[targetType] = target;
+                            return next;
+                        });
+                    }}
+                    onRemoveGroup={(targetType, groupIndex) => {
+                        setBotConfig(prev => {
+                            const next = {...prev};
+                            const target = {...next[targetType]};
+                            const groups = [...(target.groups ?? [])];
+                            if (groups.length <= 1) return prev;
+                            groups.splice(groupIndex, 1);
+                            target.groups = groups;
+                            next[targetType] = target;
+                            return next;
+                        });
+                    }}
+                    onClose={() => setActiveBotSettings(null)}
+                    onGroupChange={(targetType, groupIndex, keyPath, rawValue) => {
+                        setBotConfig(prev => {
+                            const next = {...prev};
+                            const target = {...next[targetType]};
+                            const groups = [...(target.groups ?? [])];
+                            if (!groups[groupIndex]) return prev;
+                            const group = {...groups[groupIndex]};
                             if (keyPath.startsWith('params.')) {
                                 const paramKey = keyPath.slice('params.'.length);
-                                target.params = {...target.params, [paramKey]: rawValue};
+                                group.params = {...group.params, [paramKey]: rawValue};
                             } else if (keyPath.startsWith('inventory_by_symbol.')) {
                                 const symbolKey = keyPath.slice('inventory_by_symbol.'.length);
-                                target.inventory_by_symbol = {
-                                    ...(target.inventory_by_symbol ?? {}),
+                                group.inventory_by_symbol = {
+                                    ...(group.inventory_by_symbol ?? {}),
                                     [symbolKey]: rawValue,
                                 };
                             } else {
-                                target[keyPath] = rawValue;
+                                group[keyPath] = rawValue;
                             }
+                            groups[groupIndex] = group;
+                            target.groups = groups;
                             next[targetType] = target;
                             return next;
                         });

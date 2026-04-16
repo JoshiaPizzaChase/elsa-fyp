@@ -5,10 +5,14 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <filesystem>
+#include <format>
 
+#include "config.h"
 #include "../traders/oracle_service.h"
 #include "simulation_config.h"
 #include "rfl/toml/load.hpp"
+#include "logger/logger.h"
 #include <transport/websocket/websocket_server.h>
 
 using namespace simulation;
@@ -17,18 +21,25 @@ int main() {
     const auto oracle_config_path = "oracle_config.toml";
 
     simulation::OracleServerConfig config = rfl::toml::load<simulation::OracleServerConfig>(oracle_config_path).value();
+    const std::string log_dir =
+        std::format("{}/logs/{}", std::string(PROJECT_SOURCE_DIR), SERVER_NAME);
+    std::filesystem::create_directories(log_dir);
+    auto oracle_logger = logger::create_logger(
+        "oracle_logger", std::format("{}/oracle.log", log_dir));
 
     std::cout << "Deploying Fundamental Price Oracle..." << '\n';
+    oracle_logger->info("Deploying Fundamental Price Oracle...");
 
     // Create Websocket Server for Oracle broadcast
     // Typically, we want this on a separate port from the main exchange data
-    int port = 9005;
+    int port = config.oracle_ws_port;
     auto ws_server = std::make_shared<transport::WebsocketManagerServer>(port, "0.0.0.0", "oracle_ws_logger", true);
 
     // Start the Websocket Server
     auto start_res = ws_server->start();
     if (!start_res.has_value()) {
         std::cerr << "Failed to start Oracle websocket server on port " << port << '\n';
+        oracle_logger->error("Failed to start Oracle websocket server on port {}", port);
         return 1;
     }
 
@@ -52,12 +63,14 @@ int main() {
         config.tickers,
         initial_prices,
         ws_server,
-        svc_config
+        svc_config,
+        oracle_logger
     );
 
     oracle_service->start();
 
     std::cout << "Oracle deployed and broadcasting fundamental prices on port " << port << ".\n";
+    oracle_logger->info("Oracle deployed and broadcasting fundamental prices on port {}.", port);
     std::cout << "Press Ctrl+C to terminate." << '\n';
 
     // Keep the main deployment thread alive

@@ -41,6 +41,42 @@ SUPPORTED_SERVICES = {
         "template_toml": "gateway.toml",
         "template_service": "gateway.service",
     },
+    "mm": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_n_market_makers"),
+        "executable": "create_n_market_makers",
+        "template_toml": "mm_config.toml",
+        "template_service": "mm.service",
+    },
+    "nt": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_n_noise_traders"),
+        "executable": "create_n_noise_traders",
+        "template_toml": "nt_config.toml",
+        "template_service": "nt.service",
+    },
+    "it": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_n_informed_traders"),
+        "executable": "create_n_informed_traders",
+        "template_toml": "it_config.toml",
+        "template_service": "it.service",
+    },
+    "oracle": {
+        "build_base_dir": BUILD_SIMULATION_DEPLOYMENT_DIR,
+        "build_rel": Path("create_oracle"),
+        "executable": "create_oracle",
+        "template_toml": "oracle_config.toml",
+        "template_service": "oracle.service",
+    },
+}
+
+LISTEN_PORT_KEY_BY_SERVICE = {
+    "mdp": "ws_port",
+    "me": "matching_engine_port",
+    "oms": "order_manager_port",
+    "gateway": "fix_server_port",
+    "oracle": "oracle_ws_port",
 }
 
 
@@ -116,6 +152,146 @@ def _run_cmd(*cmd: str) -> None:
     if result.returncode != 0:
         stderr = result.stderr.strip() or "<no stderr>"
         raise DeploymentError(f"Command failed: {' '.join(cmd)}; stderr: {stderr}")
+    stdout = result.stdout.strip()
+    if stdout:
+        LOGGER.info("Command output (%s): %s", " ".join(cmd), stdout)
+
+
+def _is_service_active(service_unit: str) -> bool:
+    result = subprocess.run(
+        ("systemctl", "is-active", "--quiet", service_unit),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _parse_port(value: Any, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise DeploymentError(f"'{field_name}' must be a valid TCP port")
+
+    if isinstance(value, int):
+        port = value
+    elif isinstance(value, str):
+        try:
+            port = int(value.strip())
+        except ValueError as exc:
+            raise DeploymentError(f"'{field_name}' must be a valid TCP port") from exc
+    else:
+        raise DeploymentError(f"'{field_name}' must be a valid TCP port")
+
+    if not (1 <= port <= 65535):
+        raise DeploymentError(f"'{field_name}' must be in range 1..65535")
+    return port
+
+
+def _resolve_listen_port(
+    service_name: str, params: dict[str, Any], final_config: dict[str, Any]
+) -> int | None:
+    key = LISTEN_PORT_KEY_BY_SERVICE.get(service_name)
+    if key is None:
+        return None
+
+    if key in params:
+        return _parse_port(params[key], key)
+    if key in final_config:
+        return _parse_port(final_config[key], key)
+    return None
+
+
+def _parse_non_negative_int(value: Any, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise DeploymentError(f"'{field_name}' must be a non-negative integer")
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = int(value.strip())
+        except ValueError as exc:
+            raise DeploymentError(f"'{field_name}' must be a non-negative integer") from exc
+    else:
+        raise DeploymentError(f"'{field_name}' must be a non-negative integer")
+    if parsed < 0:
+        raise DeploymentError(f"'{field_name}' must be a non-negative integer")
+    return parsed
+
+
+def _validate_group_tag(tag: str) -> None:
+    if not tag:
+        raise DeploymentError("'group_tag' cannot be empty")
+    for ch in tag:
+        if not (ch.isalnum() or ch in {"-", "_"}):
+            raise DeploymentError("'group_tag' can only contain letters, digits, '-' and '_'")
+
+
+def _wait_until_port_released(port: int, timeout_seconds: float) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind(("0.0.0.0", port))
+            return
+        except OSError as exc:
+            if exc.errno != errno.EADDRINUSE:
+                raise DeploymentError(
+                    f"Failed to probe port {port} availability: {exc}"
+                ) from exc
+            if time.monotonic() >= deadline:
+                raise DeploymentError(
+                    f"Port {port} is still in use after waiting {timeout_seconds:.1f}s"
+                ) from exc
+            time.sleep(0.2)
+        finally:
+            sock.close()
+
+
+def _wait_until_service_ready(port: int, timeout_seconds: float) -> None:
+    """
+    Poll the given port until a connection can be established (service is listening)
+    or timeout is reached.
+    
+    Raises:
+        DeploymentError: If the service doesn't become ready within the timeout.
+    """
+    start = time.monotonic()
+    last_error = None
+    
+    while time.monotonic() - start < timeout_seconds:
+        try:
+            # Try to connect to the service
+            with socket.create_connection(("127.0.0.1", port), timeout=1.0):
+                LOGGER.info("Service is ready on port %d", port)
+                return  # Connection successful, service is ready!
+        except (socket.error, OSError) as exc:
+            last_error = exc
+            time.sleep(0.5)  # Wait 500ms before retry
+    
+    # Timeout reached
+    raise DeploymentError(
+        f"Service did not become ready on port {port} within {timeout_seconds}s. "
+        f"Last error: {last_error}"
+    )
+
+
+def _try_relabel_path(path: Path, recursive: bool = False) -> None:
+    restorecon_bin = shutil.which("restorecon")
+    if restorecon_bin is None:
+        LOGGER.warning("restorecon not found; skipping SELinux relabel for %s", path)
+        return
+
+    cmd: list[str] = [restorecon_bin]
+    if recursive:
+        cmd.append("-R")
+    cmd.append(str(path))
+
+    LOGGER.info("Relabeling path for SELinux: %s", " ".join(cmd))
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "<no stderr>"
+        raise DeploymentError(
+            f"Failed to relabel path '{path}' with restorecon: {stderr}"
+        )
 
 
 def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -147,7 +323,30 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
             f"Template TOML must be a flat key/value document: {toml_template_path}"
         )
 
-    unknown_keys = [k for k in params.keys() if k not in template_data]
+    gateway_special_keys = {"fix_server_port", "whitelist"}
+    me_mdp_oms_special_keys = {"active_symbols"}
+    simulation_special_keys = {
+        "gateway_host",
+        "gateway_port",
+        "active_symbols",
+        "group_tag",
+        "sender_comp_ids",
+    }
+    
+    if service_key == "gateway":
+        allowed_non_template_keys = gateway_special_keys
+    elif service_key in {"me", "mdp", "oms"}:
+        allowed_non_template_keys = me_mdp_oms_special_keys
+    elif service_key in {"mm", "nt", "it"}:
+        allowed_non_template_keys = simulation_special_keys
+    elif service_key == "oracle":
+        allowed_non_template_keys = {"active_symbols"}
+    else:
+        allowed_non_template_keys = set()
+    
+    unknown_keys = [
+        k for k in params.keys() if k not in template_data and k not in allowed_non_template_keys
+    ]
     if unknown_keys:
         raise DeploymentError(
             f"Unknown config fields for service '{service_name}': {', '.join(sorted(unknown_keys))}"
@@ -157,7 +356,13 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
     for key, value in params.items():
         final_config[key] = _convert_value_to_template_type(template_data[key], value)
 
-    instance_name = f"{service_name}-{server_name}"
+    group_tag: str | None = None
+    if service_key in {"mm", "nt", "it"} and "group_tag" in params:
+        group_tag = str(params["group_tag"]).strip()
+        _validate_group_tag(group_tag)
+    instance_name = (
+        f"{service_name}-{group_tag}-{server_name}" if group_tag else f"{service_name}-{server_name}"
+    )
     install_dir = INSTALL_BASE_DIR / instance_name
     install_dir.mkdir(parents=True, exist_ok=True)
 
@@ -167,6 +372,113 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
 
     config_dest = install_dir / spec["template_toml"]
     config_dest.write_text(_render_toml(final_config), encoding="utf-8")
+
+    gateway_cfg_dest: Path | None = None
+    simulation_cfg_files: list[str] = []
+    if service_key == "gateway":
+        if "fix_server_port" not in params:
+            raise DeploymentError("Gateway deployment requires 'fix_server_port'")
+        if "whitelist" not in params:
+            raise DeploymentError("Gateway deployment requires 'whitelist'")
+
+        gateway_cfg_template = TEMPLATE_DIR / "gateway_server.cfg"
+        if not gateway_cfg_template.is_file():
+            raise DeploymentError(f"Gateway cfg template not found: {gateway_cfg_template}")
+
+        fix_server_port = str(params["fix_server_port"]).strip()
+        if not fix_server_port:
+            raise DeploymentError("'fix_server_port' cannot be empty")
+
+        whitelist = _parse_csv_string(params["whitelist"], "whitelist")
+        LOGGER.info(
+            "Gateway cfg settings: fix_server_port=%s whitelist_count=%d",
+            fix_server_port,
+            len(whitelist),
+        )
+        cfg_text = gateway_cfg_template.read_text(encoding="utf-8")
+        cfg_text = cfg_text.replace("<port placeholder>", fix_server_port)
+        cfg_text = cfg_text.replace("<server id>", server_name)
+        cfg_text = cfg_text.replace("<server name>", server_name)
+
+        session_blocks = [
+            "[SESSION]\n"
+            "BeginString=FIX.4.2\n"
+            f"SenderCompID={server_name}\n"
+            f"TargetCompID={target_comp_id}"
+            for target_comp_id in whitelist
+        ]
+        cfg_text = cfg_text.rstrip() + "\n\n" + "\n\n".join(session_blocks) + "\n"
+
+        gateway_cfg_dest = install_dir / "gateway_server.cfg"
+        LOGGER.info("Writing gateway cfg: %s", gateway_cfg_dest)
+        gateway_cfg_dest.write_text(cfg_text, encoding="utf-8")
+    elif service_key in {"mm", "nt", "it"}:
+        if "gateway_host" not in params:
+            raise DeploymentError(f"{service_key} deployment requires 'gateway_host'")
+        if "gateway_port" not in params:
+            raise DeploymentError(f"{service_key} deployment requires 'gateway_port'")
+        gateway_host = str(params["gateway_host"]).strip()
+        if not gateway_host:
+            raise DeploymentError("'gateway_host' cannot be empty")
+        gateway_port = _parse_port(params["gateway_port"], "gateway_port")
+
+        count_key_by_service = {
+            "mm": "num_market_makers",
+            "nt": "num_noise_traders",
+            "it": "num_informed_traders",
+        }
+        count_key = count_key_by_service[service_key]
+        bot_count = _parse_non_negative_int(final_config.get(count_key, 0), count_key)
+        cfg_prefix_value = final_config.get("cfg_prefix", "")
+        if not isinstance(cfg_prefix_value, str) or not cfg_prefix_value.strip():
+            raise DeploymentError(f"'{count_key}' requires a non-empty cfg_prefix")
+        cfg_prefix = cfg_prefix_value.strip()
+
+        fix_cfg_template = TEMPLATE_DIR / "simulation_client.cfg"
+        if not fix_cfg_template.is_file():
+            raise DeploymentError(f"Simulation client cfg template not found: {fix_cfg_template}")
+        cfg_text_template = fix_cfg_template.read_text(encoding="utf-8")
+
+        store_dir = install_dir / "store"
+        log_dir = install_dir / "log"
+        store_dir.mkdir(parents=True, exist_ok=True)
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        sender_comp_ids_raw = params.get("sender_comp_ids")
+        sender_comp_ids: list[str] | None = None
+        if sender_comp_ids_raw is not None:
+            if not isinstance(sender_comp_ids_raw, list):
+                raise DeploymentError("'sender_comp_ids' must be a list of strings")
+            parsed_sender_ids: list[str] = []
+            for idx, sender in enumerate(sender_comp_ids_raw):
+                if not isinstance(sender, str) or not sender.strip():
+                    raise DeploymentError(
+                        f"'sender_comp_ids[{idx}]' must be a non-empty string"
+                    )
+                parsed_sender_ids.append(sender.strip())
+            if len(parsed_sender_ids) != bot_count:
+                raise DeploymentError(
+                    f"'sender_comp_ids' length ({len(parsed_sender_ids)}) must match "
+                    f"{count_key} ({bot_count})"
+                )
+            sender_comp_ids = parsed_sender_ids
+
+        for index in range(1, bot_count + 1):
+            sender_comp_id = (
+                sender_comp_ids[index - 1]
+                if sender_comp_ids is not None
+                else f"{service_key}{index}"
+            )
+            rendered = cfg_text_template
+            rendered = rendered.replace("<sender_comp_id>", sender_comp_id)
+            rendered = rendered.replace("<target_comp_id>", server_name)
+            rendered = rendered.replace("<gateway_host>", gateway_host)
+            rendered = rendered.replace("<gateway_port>", str(gateway_port))
+            rendered = rendered.replace("<store_path>", str(store_dir))
+            rendered = rendered.replace("<log_path>", str(log_dir))
+            cfg_path = install_dir / f"{cfg_prefix}_{index}.cfg"
+            cfg_path.write_text(rendered, encoding="utf-8")
+            simulation_cfg_files.append(str(cfg_path))
 
     service_template_text = service_template_path.read_text(encoding="utf-8")
     service_text = service_template_text
@@ -188,6 +500,78 @@ def deploy_service(service_name: str, server_name: str, params: dict[str, Any]) 
         "config_file": str(config_dest),
         "unit_file": str(service_dest),
     }
+    LOGGER.info("Deployment completed: %s", result)
+    return result
+
+
+def remove_service(service_type: str, server_name: str) -> dict[str, Any]:
+    LOGGER.info(
+        "Starting removal: service_type=%s server_name=%s",
+        service_type,
+        server_name,
+    )
+    if service_type not in SUPPORTED_SERVICES:
+        raise DeploymentError(
+            f"Unsupported service_type '{service_type}'. "
+            f"Supported values: {', '.join(sorted(SUPPORTED_SERVICES))}"
+        )
+    service_key = service_type
+
+    _validate_server_name(server_name)
+
+    grouped_service = service_type in {"mm", "nt", "it"}
+    if grouped_service:
+        pattern = f"{service_type}-*-{server_name}.service"
+        matching_service_paths = [p for p in SYSTEMD_DIR.glob(pattern) if p.is_file()]
+        legacy_service_path = SYSTEMD_DIR / f"{service_type}-{server_name}.service"
+        if legacy_service_path.is_file():
+            matching_service_paths.append(legacy_service_path)
+        seen_paths: set[str] = set()
+        deduped_service_paths: list[Path] = []
+        for path in matching_service_paths:
+            path_str = str(path)
+            if path_str in seen_paths:
+                continue
+            seen_paths.add(path_str)
+            deduped_service_paths.append(path)
+        matching_service_paths = deduped_service_paths
+    else:
+        matching_service_paths = [SYSTEMD_DIR / f"{service_type}-{server_name}.service"]
+
+    removed_instances: list[str] = []
+    for service_path in matching_service_paths:
+        if not service_path.is_file():
+            continue
+        service_unit = service_path.name
+        instance_name = service_unit[: -len(".service")]
+        install_dir = INSTALL_BASE_DIR / instance_name
+        LOGGER.info("Stopping and disabling service unit: %s", service_unit)
+        _run_cmd("systemctl", "stop", service_unit)
+        _run_cmd("systemctl", "disable", service_unit)
+        LOGGER.info("Removing unit file: %s", service_path)
+        service_path.unlink()
+        if install_dir.exists():
+            LOGGER.info("Removing install directory: %s", install_dir)
+            shutil.rmtree(install_dir)
+        removed_instances.append(instance_name)
+
+    LOGGER.info("Reloading systemd daemon after removal")
+    _run_cmd("systemctl", "daemon-reload")
+
+    default_instance_name = f"{service_type}-{server_name}"
+    result = {
+        "service_type": service_type,
+        "service_key": service_key,
+        "server_name": server_name,
+        "instance_name": default_instance_name,
+        "unit_file": str(SYSTEMD_DIR / f"{default_instance_name}.service"),
+        "install_dir": str(INSTALL_BASE_DIR / default_instance_name),
+        "removed_unit_file": len(removed_instances) > 0,
+        "removed_install_dir": len(removed_instances) > 0,
+        "removed_instances": removed_instances,
+    }
+    LOGGER.info("Removal completed: %s", result)
+    return result
 
 
 class DeployRequestHandler(BaseHTTPRequestHandler):

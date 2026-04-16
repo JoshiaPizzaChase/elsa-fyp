@@ -12,6 +12,7 @@
 #include <iostream>
 #include <chrono>
 #include <nlohmann/json.hpp>
+#include "logger/logger.h"
 
 #include <transport/websocket/websocket_client.h>
 #include "fix_client.h"
@@ -45,8 +46,9 @@ struct Trade {
 // Handles incoming market data over Websockets and updates internal state safely.
 class MarketDataHandler {
 public:
-    MarketDataHandler(std::shared_ptr<transport::WebsocketManagerClient> ws_client)
-        : m_ws_client(std::move(ws_client)), m_running(false) {}
+    MarketDataHandler(std::shared_ptr<transport::WebsocketManagerClient> ws_client,
+                      std::shared_ptr<spdlog::logger> logger = nullptr)
+        : m_ws_client(std::move(ws_client)), m_logger(std::move(logger)), m_running(false) {}
 
     ~MarketDataHandler() {
         stop();
@@ -54,7 +56,9 @@ public:
 
     void start() {
         if (!m_running) {
-            std::cout << "[MarketDataHandler] Starting consumer loop...\n";
+            if (m_logger) {
+                m_logger->info("[MarketDataHandler] Starting consumer loop...");
+            }
             m_running = true;
             m_thread = std::thread(&MarketDataHandler::consume_loop, this);
         }
@@ -132,11 +136,14 @@ private:
                 }
             }
         } catch (const std::exception& e) {
-            std::cerr << "Error parsing market data: " << e.what() << "\n";
+            if (m_logger) {
+                m_logger->error("Error parsing market data: {}", e.what());
+            }
         }
     }
 
     std::shared_ptr<transport::WebsocketManagerClient> m_ws_client;
+    std::shared_ptr<spdlog::logger> m_logger;
 
     struct TradeStats {
         double sum_x = 0.0;
@@ -176,19 +183,23 @@ private:
 
 class MMFixClient : public FixClient {
 public:
-    MMFixClient(const std::string& config_file) : FixClient(config_file) {}
+    MMFixClient(const std::string& config_file, std::shared_ptr<spdlog::logger> logger = nullptr)
+        : FixClient(config_file), m_logger(std::move(logger)) {}
 
     void send_order(const std::string& ticker, double price, double quantity, const std::string& side) {
         if (!is_connected()) {
-            std::cout << "[MMFixClient] Not connected...\n";
+            if (m_logger) {
+                m_logger->warn("[MMFixClient] Not connected...");
+            }
             return;
         }
         OrderSide order_side = (side == "BUY") ? OrderSide::BUY : OrderSide::SELL;
         int client_order_id = ++m_order_id_counter;
 
-        std::cout << "[MMFixClient] Submitting " << side << " order for " << ticker
-                  << " | Px: " << price << " | Qty: " << quantity
-                  << " | ID: " << client_order_id << "\n";
+        if (m_logger) {
+            m_logger->info("[MMFixClient] Submitting {} order for {} | Px: {} | Qty: {} | ID: {}",
+                           side, ticker, price, quantity, client_order_id);
+        }
 
         submit_limit_order(ticker, price, quantity, order_side, TimeInForce::GTC, client_order_id);
 
@@ -200,7 +211,10 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         auto& orders = m_active_orders[ticker];
         if (!orders.empty()) {
-            std::cout << "[MMFixClient] Cancelling " << orders.size() << " active orders for " << ticker << "\n";
+            if (m_logger) {
+                m_logger->info("[MMFixClient] Cancelling {} active orders for {}", orders.size(),
+                               ticker);
+            }
             for (const auto& order : orders) {
                 int cancel_id = ++m_order_id_counter;
                 cancel_order(ticker, order.side, order.id, cancel_id);
@@ -221,7 +235,9 @@ public:
 
 protected:
     void on_order_update(const ExecutionReport& report) override {
-        std::cout << "[MMFixClient] Order update...\n";
+        if (m_logger) {
+            m_logger->debug("[MMFixClient] Order update...");
+        }
         std::lock_guard<std::mutex> lock(m_mutex);
         if (report.status == OrderStatus::FILLED || report.status == OrderStatus::PARTIALLY_FILLED) {
             if (report.side == OrderSide::BUY) {
@@ -229,15 +245,18 @@ protected:
             } else {
                 m_inventory[report.ticker] -= report.filled_qty;
             }
-            std::cout << "[MMFixClient] Order filled! Ticker: " << report.ticker
-                      << " | Side: " << (report.side == OrderSide::BUY ? "BUY" : "SELL")
-                      << " | Qty: " << report.filled_qty
-                      << " | New Inv: " << m_inventory[report.ticker] << "\n";
+            if (m_logger) {
+                m_logger->info("[MMFixClient] Order filled! Ticker: {} | Side: {} | Qty: {} | New Inv: {}",
+                               report.ticker, (report.side == OrderSide::BUY ? "BUY" : "SELL"),
+                               report.filled_qty, m_inventory[report.ticker]);
+            }
         }
     }
 
     void on_order_cancel_rejected(int client_order_id, const std::string& reason) override {
-        std::cerr << "[FIX] Order cancel rejected for ID " << client_order_id << ": " << reason << "\n";
+        if (m_logger) {
+            m_logger->warn("[FIX] Order cancel rejected for ID {}: {}", client_order_id, reason);
+        }
     }
 
 private:
@@ -246,6 +265,7 @@ private:
         OrderSide side;
     };
     std::mutex m_mutex;
+    std::shared_ptr<spdlog::logger> m_logger;
     std::map<std::string, double> m_inventory;
     std::map<std::string, std::vector<ActiveOrder>> m_active_orders;
     std::atomic<int> m_order_id_counter{0};
@@ -263,7 +283,8 @@ public:
                 double lot_size = 1.0,
                 double gamma = 0.1,
                 double k = 1.5,
-                double terminal_time = 1.0)
+                double terminal_time = 1.0,
+                std::shared_ptr<spdlog::logger> logger = nullptr)
         : m_md_handler(std::move(md_handler)),
           m_fix_client(std::move(fix_client)),
           m_initial_inventory(initial_inventory),
@@ -271,6 +292,7 @@ public:
           m_gamma(gamma),
           m_k(k),
           m_terminal_time(terminal_time),
+          m_logger(std::move(logger)),
           m_running(false) {}
 
     ~MarketMaker() {
@@ -278,11 +300,17 @@ public:
     }
 
     void start(const std::vector<std::string>& tickers) {
-        std::cout << "[MarketMaker] Starting market maker agent for " << tickers.size() << " tickers...\n";
+        if (m_logger) {
+            m_logger->info("[MarketMaker] Starting market maker agent for {} tickers...",
+                           tickers.size());
+        }
         m_tickers = tickers;
         for (const auto& ticker : m_tickers) {
             m_fix_client->set_inventory(ticker, m_initial_inventory);
-            std::cout << "[MarketMaker] Seeded initial inventory for " << ticker << ": " << m_initial_inventory << "\n";
+            if (m_logger) {
+                m_logger->info("[MarketMaker] Seeded initial inventory for {}: {}", ticker,
+                               m_initial_inventory);
+            }
         }
         m_running = true;
         m_start_time = std::chrono::steady_clock::now();
@@ -340,9 +368,11 @@ private:
         double optimal_bid = reservation_price - (spread / 2.0);
         double optimal_ask = reservation_price + (spread / 2.0);
 
-        std::cout << "[MarketMaker] [" << ticker << "] Mid: " << mid_price
-                  << " | Var: " << variance << " | Inv: " << q
-                  << " | ResPx: " << reservation_price << " | Spread: " << spread << "\n";
+        if (m_logger) {
+            m_logger->info(
+                "[MarketMaker] [{}] Mid: {} | Var: {} | Inv: {} | ResPx: {} | Spread: {}",
+                ticker, mid_price, variance, q, reservation_price, spread);
+        }
 
         place_quotes(ticker, optimal_bid, optimal_ask, spread);
     }
@@ -378,6 +408,7 @@ private:
     double m_terminal_time; // T - t (time remaining)
 
     std::vector<std::string> m_tickers;
+    std::shared_ptr<spdlog::logger> m_logger;
 
     std::atomic<bool> m_running;
     std::thread m_worker_thread;

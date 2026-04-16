@@ -82,7 +82,12 @@ export async function getAccountDetails(user_name, server_name) {
 }
 
 export async function getHistoricalTrades(server, symbol, after_ts_ms) {
-    return fetchJSON('/get_historical_trades', {server, symbol, after_ts_ms});
+    return fetchJSON('/get_historical_trades', {
+        server,
+        server_name: server,
+        symbol,
+        after_ts_ms,
+    });
 }
 
 export async function getServerMdpEndpoint(server_name) {

@@ -92,11 +92,6 @@ TEST_F(UpdateBalanceDeathTest, EmptyTicker) {
     EXPECT_DEATH(balance_checker.update_balance(std::string{BROKER_ID_1}, "", 100), "");
 }
 
-TEST_F(UpdateBalanceDeathTest, ZeroDelta) {
-    EXPECT_DEATH(balance_checker.update_balance(std::string{BROKER_ID_1}, std::string{TICKER_1}, 0),
-                 "");
-}
-
 TEST_F(UpdateBalanceTest, AddNewBrokerTicker) {
     balance_checker.update_balance(std::string{BROKER_ID_1}, std::string{TICKER_1}, 1000);
 

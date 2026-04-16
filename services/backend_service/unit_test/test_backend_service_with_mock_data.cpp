@@ -497,6 +497,15 @@ TEST_F(BackendServiceTest, CreateServerSuccess) {
     EXPECT_EQ(bal[0]["balance"].as<int>(), 250000);
     EXPECT_EQ(bal[1]["user_id"].as<int>(), m_member_id);
     EXPECT_EQ(bal[1]["balance"].as<int>(), 250000);
+
+    auto equity_balances = txn.exec(
+        "SELECT user_id, balance FROM balances WHERE server_id = $1 AND symbol = 'TSLA' ORDER BY user_id",
+        pqxx::params{created_server_id});
+    ASSERT_EQ(equity_balances.size(), 2u);
+    EXPECT_EQ(equity_balances[0]["user_id"].as<int>(), m_admin_id);
+    EXPECT_EQ(equity_balances[0]["balance"].as<int>(), 0);
+    EXPECT_EQ(equity_balances[1]["user_id"].as<int>(), m_member_id);
+    EXPECT_EQ(equity_balances[1]["balance"].as<int>(), 0);
 }
 
 TEST_F(BackendServiceTest, CreateServerNoAuth) {

@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <transport/websocket/websocket_server.h>
 #include <transport/websocket/websocket_client.h>
+#include "logger/logger.h"
 
 namespace simulation {
 
@@ -36,13 +37,20 @@ public:
     OracleService(const std::vector<std::string>& tickers, 
                   const std::map<std::string, double>& initial_prices, 
                   std::shared_ptr<transport::WebsocketManagerServer> ws_server,
-                  const OracleConfig& config = OracleConfig())
-        : m_config(config), m_ws_server(std::move(ws_server)), m_running(false) {
-        std::cout << "[OracleService] Initializing with " << tickers.size() << " tickers.\n";
+                  const OracleConfig& config = OracleConfig(),
+                  std::shared_ptr<spdlog::logger> logger = nullptr)
+        : m_config(config), m_ws_server(std::move(ws_server)), m_logger(std::move(logger)),
+          m_running(false) {
+        if (m_logger) {
+            m_logger->info("[OracleService] Initializing with {} tickers.", tickers.size());
+        }
         for (const auto& ticker : tickers) {
             auto it = initial_prices.find(ticker);
             m_true_prices[ticker] = (it != initial_prices.end()) ? it->second : 100.0;
-            std::cout << "[OracleService] Initial price for " << ticker << ": " << m_true_prices[ticker] << "\n";
+            if (m_logger) {
+                m_logger->info("[OracleService] Initial price for {}: {}", ticker,
+                               m_true_prices[ticker]);
+            }
         }
     }
 
@@ -52,7 +60,9 @@ public:
 
     void start() {
         if (!m_running) {
-            std::cout << "[OracleService] Starting fundamental price broadcast loop...\n";
+            if (m_logger) {
+                m_logger->info("[OracleService] Starting fundamental price broadcast loop...");
+            }
             m_running = true;
             m_thread = std::thread(&OracleService::run_loop, this);
         }
@@ -87,8 +97,10 @@ private:
 
                     if (uniform_dist(gen) < (m_config.jump_intensity * dt)) {
                         double jump_factor = jump_dist(gen);
-                        std::cout << "[OracleService] *** JUMP EVENT *** " << ticker 
-                                  << " shifted by factor: " << jump_factor << "\n";
+                        if (m_logger) {
+                            m_logger->info("[OracleService] *** JUMP EVENT *** {} shifted by factor: {}",
+                                           ticker, jump_factor);
+                        }
                         ds += price * jump_factor;
                     }
 
@@ -110,6 +122,16 @@ private:
                     if (m_ws_server) {
                         m_ws_server->send(0, j.dump());
                     }
+
+                    const auto now = std::chrono::steady_clock::now();
+                    auto& last_log_time = m_last_true_price_log_time[ticker];
+                    if (now - last_log_time >= std::chrono::seconds(1)) {
+                        if (m_logger) {
+                            m_logger->info("[OracleService] True price update [{}]: {}", ticker,
+                                           price);
+                        }
+                        last_log_time = now;
+                    }
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(m_config.update_interval_ms));
@@ -119,7 +141,10 @@ private:
     OracleConfig m_config;
     std::map<std::string, double> m_true_prices;
     std::shared_ptr<transport::WebsocketManagerServer> m_ws_server;
+    std::shared_ptr<spdlog::logger> m_logger;
     std::mutex m_mutex;
+    std::map<std::string, std::chrono::time_point<std::chrono::steady_clock>>
+        m_last_true_price_log_time;
     std::atomic<bool> m_running;
     std::thread m_thread;
 };
@@ -130,8 +155,9 @@ private:
  */
 class OracleClient {
 public:
-    OracleClient(std::shared_ptr<transport::WebsocketManagerClient> ws_client)
-        : m_ws_client(std::move(ws_client)), m_running(false) {}
+    OracleClient(std::shared_ptr<transport::WebsocketManagerClient> ws_client,
+                 std::shared_ptr<spdlog::logger> logger = nullptr)
+        : m_ws_client(std::move(ws_client)), m_logger(std::move(logger)), m_running(false) {}
 
     ~OracleClient() {
         stop();
@@ -139,7 +165,9 @@ public:
 
     void start() {
         if (!m_running) {
-            std::cout << "[OracleClient] Starting to listen for true prices...\n";
+            if (m_logger) {
+                m_logger->info("[OracleClient] Starting to listen for true prices...");
+            }
             m_running = true;
             m_thread = std::thread(&OracleClient::consume_loop, this);
         }
@@ -170,14 +198,18 @@ private:
             if (msg_opt) {
                 try {
                     auto j = nlohmann::json::parse(*msg_opt);
-                    std::cout << "[OracleClient] Received update: " << *msg_opt << "\n";
+                    if (m_logger) {
+                        m_logger->debug("[OracleClient] Received update: {}", *msg_opt);
+                    }
                     if (j.contains("ticker") && j.contains("true_price")) {
                         std::string ticker = j["ticker"].get<std::string>();
                         std::lock_guard<std::mutex> lock(m_mutex);
                         m_true_prices[ticker] = j["true_price"].get<double>();
                     }
                 } catch (const std::exception& e) {
-                    std::cerr << "Error parsing oracle data: " << e.what() << "\n";
+                    if (m_logger) {
+                        m_logger->error("Error parsing oracle data: {}", e.what());
+                    }
                 }
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -186,6 +218,7 @@ private:
     }
 
     std::shared_ptr<transport::WebsocketManagerClient> m_ws_client;
+    std::shared_ptr<spdlog::logger> m_logger;
     std::mutex m_mutex;
     std::map<std::string, double> m_true_prices;
     std::atomic<bool> m_running;

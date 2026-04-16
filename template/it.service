@@ -1,0 +1,13 @@
+[Unit]
+Description=EduX Informed Trader Bot Runner
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/it
+ExecStart=/usr/local/bin/it/create_n_informed_traders
+Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
+Environment="SPDLOG_LEVEL=info"
+
+[Install]
+Alias=it.service

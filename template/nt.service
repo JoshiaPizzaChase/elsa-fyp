@@ -1,0 +1,13 @@
+[Unit]
+Description=EduX Noise Trader Bot Runner
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/local/bin/nt
+ExecStart=/usr/local/bin/nt/create_n_noise_traders
+Restart=always
+Environment="SERVER_NAME=<server name placeholder>"
+Environment="SPDLOG_LEVEL=info"
+
+[Install]
+Alias=nt.service
