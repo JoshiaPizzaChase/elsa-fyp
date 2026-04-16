@@ -24,3 +24,7 @@ target_precompile_headers(order_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/prec
 if (BUILD_TESTS)
     add_subdirectory(unit_test)
 endif ()
+
+if (BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif ()
