@@ -8,116 +8,123 @@
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {1.1.2}Need for Trading Simulation}{4}{subsubsection.1.1.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {1.1.3}Project Contributions}{4}{subsubsection.1.1.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Objective}{5}{subsection.1.2}\protected@file@percent }
+\citation{ref4}
+\citation{ref6}
 \@writefile{toc}{\contentsline {subsection}{\numberline {1.3}Literature Survey}{6}{subsection.1.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {1.3.1}Limit Order Book architecture}{6}{subsubsection.1.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {1.3.2}System-level architecture}{6}{subsubsection.1.3.2}\protected@file@percent }
+\citation{ref4}
+\citation{ref1}
+\citation{ref5}
+\citation{ref2}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {1.3.2}System-level architecture}{7}{subsubsection.1.3.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {1.3.3}Simulation methodologies}{7}{subsubsection.1.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2}Methodology}{8}{section.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Design}{8}{subsection.2.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces High-level system architecture of the exchange backend.}}{8}{figure.1}\protected@file@percent }
-\newlabel{fig:design_arch}{{1}{8}{High-level system architecture of the exchange backend}{figure.1}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.1}User Access Layer: SDK \& Graphical Interface}{8}{subsubsection.2.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.2}External Facing API Layer: FIX Gateways}{9}{subsubsection.2.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.3}Order Validation \& Persistence Layer: Order Manager}{9}{subsubsection.2.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.4}The Core: Matching Engine \& LOB Data Structures}{9}{subsubsection.2.1.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.5}Distribution Layer: Market Data Processor}{10}{subsubsection.2.1.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.6}Simulation Layer: Agents \& Market Regimes}{10}{subsubsection.2.1.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Implementation}{12}{subsection.2.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Detailed technical implementation of the exchange backend components.}}{12}{figure.2}\protected@file@percent }
-\newlabel{fig:impl_arch}{{2}{12}{Detailed technical implementation of the exchange backend components}{figure.2}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}User Access Layer: SDK \& Graphical Interface}{13}{subsubsection.2.2.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Server configuration and deployment interface.}}{14}{figure.3}\protected@file@percent }
-\newlabel{fig:ui_create_server}{{3}{14}{Server configuration and deployment interface}{figure.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces User portfolio and order management dashboard.}}{15}{figure.4}\protected@file@percent }
-\newlabel{fig:ui_portfolio}{{4}{15}{User portfolio and order management dashboard}{figure.4}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Real-time K-line charting and market depth visualization.}}{15}{figure.5}\protected@file@percent }
-\newlabel{fig:ui_kline}{{5}{15}{Real-time K-line charting and market depth visualization}{figure.5}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}External Facing API Layer: FIX Gateways}{16}{subsubsection.2.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.3}Order Validation \& Persistence Layer: Order Manager}{16}{subsubsection.2.2.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces QuestDB Schema for the Orders Table.}}{17}{table.1}\protected@file@percent }
-\newlabel{tab:questdb_orders}{{1}{17}{QuestDB Schema for the Orders Table}{table.1}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces QuestDB Schema for the Trades Table.}}{17}{table.2}\protected@file@percent }
-\newlabel{tab:questdb_trades}{{2}{17}{QuestDB Schema for the Trades Table}{table.2}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.4}The Core: Matching Engine \& LOB Data Structures}{17}{subsubsection.2.2.4}\protected@file@percent }
-\newlabel{lst:match_order}{{1}{18}{Limit Order Book Matching Algorithm}{lstlisting.1}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}Limit Order Book Matching Algorithm}{18}{lstlisting.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.5}Distribution Layer: Market Data Processor}{19}{subsubsection.2.2.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.6}Simulation Layer: Agents \& Market Regimes}{19}{subsubsection.2.2.6}\protected@file@percent }
-\newlabel{lst:market_maker}{{2}{20}{Avellaneda-Stoikov Market Maker Strategy}{lstlisting.2}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}Avellaneda-Stoikov Market Maker Strategy}{20}{lstlisting.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.7}Server Setup and Deployment}{20}{subsubsection.2.2.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.8}Software Engineering Practices}{21}{subsubsection.2.2.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Testing}{22}{subsection.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.1}Test Plan and Methodology}{22}{subsubsection.2.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{22}{subsubsection.2.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Evaluation}{23}{subsection.2.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}Benchmarking}{23}{subsubsection.2.4.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Matching-engine latency comparison across optimization branches at workload size 10,000 (log-scale y-axis).}}{24}{figure.6}\protected@file@percent }
-\newlabel{fig:branch_benchmark_10k}{{6}{24}{Matching-engine latency comparison across optimization branches at workload size 10,000 (log-scale y-axis)}{figure.6}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces LOB data-structure scaling in realistic mixed-flow benchmarks testing alternative structures (log-scale axes).}}{25}{figure.7}\protected@file@percent }
-\newlabel{fig:lob_dsa_scaling}{{7}{25}{LOB data-structure scaling in realistic mixed-flow benchmarks testing alternative structures (log-scale axes)}{figure.7}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Baseline matching-engine throughput in the default configuration.}}{25}{table.3}\protected@file@percent }
-\newlabel{tab:me_throughput}{{3}{25}{Baseline matching-engine throughput in the default configuration}{table.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Order Manager preprocessing latency by input amount (new-order versus cancel-order paths; log-scale axes).}}{26}{figure.8}\protected@file@percent }
-\newlabel{fig:om_preprocess_latency_input}{{8}{26}{Order Manager preprocessing latency by input amount (new-order versus cancel-order paths; log-scale axes)}{figure.8}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Order Manager validation latency by input amount (new-order versus cancel-order paths; log-scale axes).}}{27}{figure.9}\protected@file@percent }
-\newlabel{fig:om_validation_latency_input}{{9}{27}{Order Manager validation latency by input amount (new-order versus cancel-order paths; log-scale axes)}{figure.9}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Baseline Order Manager throughput on separated operation paths.}}{27}{table.4}\protected@file@percent }
-\newlabel{tab:om_throughput}{{4}{27}{Baseline Order Manager throughput on separated operation paths}{table.4}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces MPSC ring buffer average latency by configured input amount.}}{28}{figure.10}\protected@file@percent }
-\newlabel{fig:ring_latency_input}{{10}{28}{MPSC ring buffer average latency by configured input amount}{figure.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Methodology}{9}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Design}{9}{subsection.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces High-level system architecture of the exchange backend.}}{9}{figure.1}\protected@file@percent }
+\newlabel{fig:design_arch}{{1}{9}{High-level system architecture of the exchange backend}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.1}User Access Layer: SDK \& Graphical Interface}{9}{subsubsection.2.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.2}External Facing API Layer: FIX Gateways}{10}{subsubsection.2.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.3}Order Validation \& Persistence Layer: Order Manager}{10}{subsubsection.2.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.4}The Core: Matching Engine \& Limit Order Book Data Structures}{11}{subsubsection.2.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.5}Distribution Layer: Market Data Processor}{11}{subsubsection.2.1.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.6}Simulation Layer: Agents \& Market Regimes}{11}{subsubsection.2.1.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Implementation}{13}{subsection.2.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Detailed technical implementation of the exchange backend components.}}{13}{figure.2}\protected@file@percent }
+\newlabel{fig:impl_arch}{{2}{13}{Detailed technical implementation of the exchange backend components}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}User Access Layer: SDK \& Graphical Interface}{14}{subsubsection.2.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Server configuration and deployment interface.}}{15}{figure.3}\protected@file@percent }
+\newlabel{fig:ui_create_server}{{3}{15}{Server configuration and deployment interface}{figure.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces User portfolio and order management dashboard.}}{16}{figure.4}\protected@file@percent }
+\newlabel{fig:ui_portfolio}{{4}{16}{User portfolio and order management dashboard}{figure.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Real-time K-line charting and market depth visualization.}}{16}{figure.5}\protected@file@percent }
+\newlabel{fig:ui_kline}{{5}{16}{Real-time K-line charting and market depth visualization}{figure.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}External Facing API Layer: FIX Gateways}{17}{subsubsection.2.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.3}Order Validation \& Persistence Layer: Order Manager}{17}{subsubsection.2.2.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces QuestDB Schema for the Orders Table.}}{18}{table.1}\protected@file@percent }
+\newlabel{tab:questdb_orders}{{1}{18}{QuestDB Schema for the Orders Table}{table.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces QuestDB Schema for the Trades Table.}}{18}{table.2}\protected@file@percent }
+\newlabel{tab:questdb_trades}{{2}{18}{QuestDB Schema for the Trades Table}{table.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.4}The Core: Matching Engine \& LOB Data Structures}{18}{subsubsection.2.2.4}\protected@file@percent }
+\newlabel{lst:match_order}{{1}{19}{LOB Matching Algorithm}{lstlisting.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}LOB Matching Algorithm}{19}{lstlisting.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.5}Distribution Layer: Market Data Processor}{20}{subsubsection.2.2.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.6}Simulation Layer: Agents \& Market Regimes}{21}{subsubsection.2.2.6}\protected@file@percent }
+\newlabel{lst:market_maker}{{2}{21}{Avellaneda-Stoikov Market Maker Strategy}{lstlisting.2}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}Avellaneda-Stoikov Market Maker Strategy}{21}{lstlisting.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.7}Server Setup and Deployment}{22}{subsubsection.2.2.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.8}Software Engineering Practices}{22}{subsubsection.2.2.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Testing}{23}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.1}Test Plan and Methodology}{23}{subsubsection.2.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{24}{subsubsection.2.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Evaluation}{24}{subsection.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}Benchmarking}{24}{subsubsection.2.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Matching-engine latency comparison across optimization branches at workload size 10,000 (log-scale y-axis).}}{25}{figure.6}\protected@file@percent }
+\newlabel{fig:branch_benchmark_10k}{{6}{25}{Matching-engine latency comparison across optimization branches at workload size 10,000 (log-scale y-axis)}{figure.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces LOB data-structure scaling in realistic mixed-flow benchmarks testing alternative structures (log-scale axes).}}{26}{figure.7}\protected@file@percent }
+\newlabel{fig:lob_dsa_scaling}{{7}{26}{LOB data-structure scaling in realistic mixed-flow benchmarks testing alternative structures (log-scale axes)}{figure.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Baseline matching-engine throughput in the default configuration.}}{26}{table.3}\protected@file@percent }
+\newlabel{tab:me_throughput}{{3}{26}{Baseline matching-engine throughput in the default configuration}{table.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Order Manager preprocessing latency by input amount (new-order versus cancel-order paths; log-scale axes).}}{27}{figure.8}\protected@file@percent }
+\newlabel{fig:om_preprocess_latency_input}{{8}{27}{Order Manager preprocessing latency by input amount (new-order versus cancel-order paths; log-scale axes)}{figure.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Order Manager validation latency by input amount (new-order versus cancel-order paths; log-scale axes).}}{28}{figure.9}\protected@file@percent }
+\newlabel{fig:om_validation_latency_input}{{9}{28}{Order Manager validation latency by input amount (new-order versus cancel-order paths; log-scale axes)}{figure.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Baseline Order Manager throughput on separated operation paths.}}{28}{table.4}\protected@file@percent }
+\newlabel{tab:om_throughput}{{4}{28}{Baseline Order Manager throughput on separated operation paths}{table.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces MPSC ring buffer average latency by configured input amount.}}{29}{figure.10}\protected@file@percent }
+\newlabel{fig:ring_latency_input}{{10}{29}{MPSC ring buffer average latency by configured input amount}{figure.10}{}}
 \citation{ref3}
-\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces WebSocket average round-trip latency by input amount.}}{29}{figure.11}\protected@file@percent }
-\newlabel{fig:websocket_latency_input}{{11}{29}{WebSocket average round-trip latency by input amount}{figure.11}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{29}{subsubsection.2.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Fat-Tailed Returns}{29}{subsubsection.2.4.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Distribution of \texttt  {GME} trade returns showing fat tails.}}{30}{figure.12}\protected@file@percent }
-\newlabel{fig:return_dist}{{12}{30}{Distribution of \texttt {GME} trade returns showing fat tails}{figure.12}{}}
-\@writefile{toc}{\contentsline {paragraph}{Volatility Clustering}{30}{figure.12}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {13}{\ignorespaces Autocorrelation of absolute returns demonstrating volatility clustering.}}{30}{figure.13}\protected@file@percent }
-\newlabel{fig:vol_cluster}{{13}{30}{Autocorrelation of absolute returns demonstrating volatility clustering}{figure.13}{}}
-\@writefile{toc}{\contentsline {paragraph}{Bid-Ask Spread and Price Trajectory}{31}{figure.13}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {14}{\ignorespaces Bid-Ask spread distribution.}}{31}{figure.14}\protected@file@percent }
-\newlabel{fig:spread_dist}{{14}{31}{Bid-Ask spread distribution}{figure.14}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {15}{\ignorespaces \texttt  {GME} price trajectory.}}{31}{figure.15}\protected@file@percent }
-\newlabel{fig:price_traj}{{15}{31}{\texttt {GME} price trajectory}{figure.15}{}}
-\@writefile{toc}{\contentsline {paragraph}{Raw Return Autocorrelation}{31}{figure.15}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {16}{\ignorespaces Autocorrelation of raw returns showing negative first lag (bid-ask bounce).}}{32}{figure.16}\protected@file@percent }
-\newlabel{fig:return_acf}{{16}{32}{Autocorrelation of raw returns showing negative first lag (bid-ask bounce)}{figure.16}{}}
-\@writefile{toc}{\contentsline {paragraph}{Average Shape of the Order Book}{32}{figure.16}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {17}{\ignorespaces Average shape of the limit order book relative to mid-price.}}{32}{figure.17}\protected@file@percent }
-\newlabel{fig:lob_shape}{{17}{32}{Average shape of the limit order book relative to mid-price}{figure.17}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Discussion}{33}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{33}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}System Limitations}{33}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Conclusions}{35}{section.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces WebSocket average round-trip latency by input amount.}}{30}{figure.11}\protected@file@percent }
+\newlabel{fig:websocket_latency_input}{{11}{30}{WebSocket average round-trip latency by input amount}{figure.11}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{30}{subsubsection.2.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Fat-Tailed Returns}{30}{subsubsection.2.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Distribution of \texttt  {GME} trade returns showing fat tails.}}{31}{figure.12}\protected@file@percent }
+\newlabel{fig:return_dist}{{12}{31}{Distribution of \texttt {GME} trade returns showing fat tails}{figure.12}{}}
+\@writefile{toc}{\contentsline {paragraph}{Volatility Clustering}{31}{figure.12}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {13}{\ignorespaces Autocorrelation of absolute returns demonstrating volatility clustering.}}{31}{figure.13}\protected@file@percent }
+\newlabel{fig:vol_cluster}{{13}{31}{Autocorrelation of absolute returns demonstrating volatility clustering}{figure.13}{}}
+\@writefile{toc}{\contentsline {paragraph}{Bid-Ask Spread and Price Trajectory}{32}{figure.13}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {14}{\ignorespaces Bid-Ask spread distribution.}}{32}{figure.14}\protected@file@percent }
+\newlabel{fig:spread_dist}{{14}{32}{Bid-Ask spread distribution}{figure.14}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {15}{\ignorespaces \texttt  {GME} price trajectory.}}{32}{figure.15}\protected@file@percent }
+\newlabel{fig:price_traj}{{15}{32}{\texttt {GME} price trajectory}{figure.15}{}}
+\@writefile{toc}{\contentsline {paragraph}{Raw Return Autocorrelation}{32}{figure.15}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {16}{\ignorespaces Autocorrelation of raw returns showing negative first lag (bid-ask bounce).}}{33}{figure.16}\protected@file@percent }
+\newlabel{fig:return_acf}{{16}{33}{Autocorrelation of raw returns showing negative first lag (bid-ask bounce)}{figure.16}{}}
+\@writefile{toc}{\contentsline {paragraph}{Average Shape of the Order Book}{33}{figure.16}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {17}{\ignorespaces Average shape of the LOB relative to mid-price.}}{33}{figure.17}\protected@file@percent }
+\newlabel{fig:lob_shape}{{17}{33}{Average shape of the LOB relative to mid-price}{figure.17}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Discussion}{34}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Project Evaluation and Reflections}{34}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}System Limitations}{34}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Conclusions and Future Work}{36}{section.4}\protected@file@percent }
 \bibcite{ref1}{1}
 \bibcite{ref2}{2}
 \bibcite{ref3}{3}
 \bibcite{ref4}{4}
 \bibcite{ref5}{5}
 \bibcite{ref6}{6}
-\@writefile{toc}{\contentsline {section}{\numberline {5}References}{36}{section.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6}Appendix}{37}{section.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Minutes of Project Meeting}{37}{subsection.6.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.1}Minutes of the 1st Project Meeting}{37}{subsubsection.6.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.2}Minutes of the 2nd Project Meeting}{38}{subsubsection.6.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.3}Minutes of the 3rd Project Meeting}{39}{subsubsection.6.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.4}Minutes of the 4th Project Meeting}{40}{subsubsection.6.1.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.5}Minutes of the 5th Project Meeting}{41}{subsubsection.6.1.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.6}Minutes of the 6th Project Meeting}{42}{subsubsection.6.1.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.7}Minutes of the 7th Project Meeting}{43}{subsubsection.6.1.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.8}Minutes of the 8th Project Meeting}{44}{subsubsection.6.1.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.9}Minutes of the 9th Project Meeting}{45}{subsubsection.6.1.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.10}Minutes of the 10th Project Meeting}{46}{subsubsection.6.1.10}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.11}Minutes of the 11th Project Meeting}{47}{subsubsection.6.1.11}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.12}Minutes of the 12th Project Meeting}{48}{subsubsection.6.1.12}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.13}Minutes of the 13th Project Meeting}{49}{subsubsection.6.1.13}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.14}Minutes of the 14th Project Meeting}{50}{subsubsection.6.1.14}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Explanation on Limit Order Books}{51}{subsection.6.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Project Planning}{52}{subsection.6.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.3.1}Distribution of Work \& Gantt Chart}{52}{subsubsection.6.3.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Project Timeline and Task Distribution}}{52}{table.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}References}{37}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Appendix}{38}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Minutes of Project Meeting}{38}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.1}Minutes of the 1st Project Meeting}{38}{subsubsection.6.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.2}Minutes of the 2nd Project Meeting}{39}{subsubsection.6.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.3}Minutes of the 3rd Project Meeting}{40}{subsubsection.6.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.4}Minutes of the 4th Project Meeting}{41}{subsubsection.6.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.5}Minutes of the 5th Project Meeting}{42}{subsubsection.6.1.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.6}Minutes of the 6th Project Meeting}{43}{subsubsection.6.1.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.7}Minutes of the 7th Project Meeting}{44}{subsubsection.6.1.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.8}Minutes of the 8th Project Meeting}{45}{subsubsection.6.1.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.9}Minutes of the 9th Project Meeting}{46}{subsubsection.6.1.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.10}Minutes of the 10th Project Meeting}{47}{subsubsection.6.1.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.11}Minutes of the 11th Project Meeting}{48}{subsubsection.6.1.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.12}Minutes of the 12th Project Meeting}{49}{subsubsection.6.1.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.13}Minutes of the 13th Project Meeting}{50}{subsubsection.6.1.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.14}Minutes of the 14th Project Meeting}{51}{subsubsection.6.1.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Explanation on Limit Order Books}{52}{subsection.6.2}\protected@file@percent }
+\newlabel{sec:lob_appendix}{{6.2}{52}{Explanation on Limit Order Books}{subsection.6.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Project Planning}{53}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.3.1}Distribution of Work \& Gantt Chart}{53}{subsubsection.6.3.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Project Timeline and Task Distribution}}{53}{table.5}\protected@file@percent }
 \gdef \LT@i {\LT@entry 
     {1}{92.46779pt}\LT@entry 
     {1}{74.99596pt}\LT@entry 
@@ -125,14 +132,14 @@
     {1}{77.84142pt}\LT@entry 
     {1}{77.84142pt}\LT@entry 
     {1}{46.54321pt}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Required hardware \& software}{53}{subsection.6.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.4.1}Hardware}{53}{subsubsection.6.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.4.2}Software}{53}{subsubsection.6.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.5}Comprehensive Test Cases}{53}{subsection.6.5}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {6}{Comprehensive execution matrix of test cases across backend services and common libraries.}}{53}{table.6}\protected@file@percent }
-\newlabel{tab:comprehensive_test_cases}{{6}{53}{Comprehensive execution matrix of test cases across backend services and common libraries}{table.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.6}Simulation Default Configuration}{57}{subsection.6.6}\protected@file@percent }
-\newlabel{sec:appendix_sim_config}{{6.6}{57}{Simulation Default Configuration}{subsection.6.6}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Complete default configuration parameters for the simulation components.}}{58}{table.7}\protected@file@percent }
-\newlabel{tab:full_sim_configs}{{7}{58}{Complete default configuration parameters for the simulation components}{table.7}{}}
-\gdef \@abspage@last{60}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Required hardware \& software}{54}{subsection.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.4.1}Hardware}{54}{subsubsection.6.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.4.2}Software}{54}{subsubsection.6.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.5}Comprehensive Test Cases}{54}{subsection.6.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{Comprehensive execution matrix of test cases across backend services and common libraries.}}{54}{table.6}\protected@file@percent }
+\newlabel{tab:comprehensive_test_cases}{{6}{54}{Comprehensive execution matrix of test cases across backend services and common libraries}{table.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.6}Simulation Default Configuration}{58}{subsection.6.6}\protected@file@percent }
+\newlabel{sec:appendix_sim_config}{{6.6}{58}{Simulation Default Configuration}{subsection.6.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Complete default configuration parameters for the simulation components.}}{59}{table.7}\protected@file@percent }
+\newlabel{tab:full_sim_configs}{{7}{59}{Complete default configuration parameters for the simulation components}{table.7}{}}
+\gdef \@abspage@last{61}
