@@ -118,7 +118,7 @@ We were inspired by algorithmic trading competitions such as IMC Prosperity that
 \subsubsection{Project Contributions}
 This project contributes an extensible algorithmic trading simulator and a systematic empirical study of Limit Order Book implementations, with particular emphasis on data structure design and low-latency performance characteristics in high-volume settings. The simulator recreates the environment of real-world trading by supporting multiple assets, heterogeneous agent populations, and configurable market regimes, thereby providing a controlled testbed for both strategy evaluation and microstructure experimentation.
 
-The primary technical contribution lies in successfully ``white-boxing'' the traditionally opaque and highly complex architecture of public financial exchanges. While real-world exchanges operate as proprietary black boxes, this project scales these massive systems down into an accessible educational format---a process of systematic architectural downscaling. By synthesizing industry research and structural estimations, we engineered a transparent, functional system. Specifically, we contribute the design, implementation, and comparative evaluation of several financial exchange backends that realize the same matching logic over different underlying data structures, such as node-based containers (e.g. balanced binary search tree-style price maps with per-level linked queues) versus contiguously stored containers (e.g. vector-like arrays of price levels with in-place order queues). This enables a direct comparison of how memory layout, pointer indirection, and CPU cache locality affect core operations such as insertion, cancellation, best-quote retrieval, and full-book traversal. We also experimented with and implemented modular architectures which utilize concurrency techniques such as lock-free ring buffers.
+The primary technical contribution lies in successfully ``white-boxing'' the traditionally opaque and highly complex architecture of public financial exchanges. While real-world exchanges operate as proprietary black boxes, this project scales these massive systems down into an accessible educational format. By synthesizing industry research and structural estimations, we engineered a transparent, functional system. Specifically, we contribute the design, implementation, and comparative evaluation of several financial exchange backends that realize the same matching logic over different underlying data structures, such as node-based containers (e.g. balanced binary search tree-style price maps with per-level linked queues) versus contiguously stored containers (e.g. vector-like arrays of price levels with in-place order queues). This enables a direct comparison of how memory layout, pointer indirection, and CPU cache locality affect core operations such as insertion, cancellation, best-quote retrieval, and full-book traversal. We also experimented with and implemented modular architectures which utilize concurrency techniques such as lock-free ring buffers.
 
 The secondary educational contribution is the parameterizable multi-scenario configurations that expose microstructural variables to the user, such as agent order-submission intensities, volatility and regime dynamics, tick size, and artificial latency. These scenarios support different classes of agents (e.g. market makers, noise traders, momentum and value strategies) and can be instantiated per symbol and per ``trading day''. Alongside the simulations, the project contributes a visual analytics layer that presents a time series of prices, spreads, depths, and selected microstructural indicators derived from the simulated LOB state. The simulation and visualizations make the platform suitable for instructional use in courses on market microstructure and algorithmic trading.
 
@@ -183,7 +183,7 @@ Once a request passes the gateway, it moves to the Order Manager, which serves a
     \item \textbf{Semantic Validation:} The manager performs critical checks that the gateway cannot, such as balance checking (verifying sufficient funds for a buy order) and position tracking (verifying sufficient inventory for a sell order).
     \item \textbf{Database Integration:} It interfaces with two distinct databases: a relational database for user profiles, credentials, and account balances; and a time-series database for high-frequency order data. Every order and trade event is persisted to ensure a robust audit trail and to allow for historical simulation replays.
 \end{itemize}
-After validation, the manager synchronously routes requests to the matching engine and subsequently passes trade confirmations back to the gateway to notify the originating user.
+After validation, the manager synchronously routes requests to the matching engine and subsequently passes confirmations back to the gateway to notify the originating user.
 
 \subsubsection{The Core: Matching Engine \& LOB Data Structures}
 This layer is the performance-critical heart of the exchange. The engine receives a validated request, attempts to match it against the opposite side of the Limit Order Book (LOB), generates trade events if a match occurs, and updates the LOB state.
@@ -240,10 +240,10 @@ For the graphical trading interface, we built a responsive single-page applicati
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{assets/create_server_step_1_fig.png}
+    \includegraphics[width=\textwidth]{assets/create_server_step_1_fig.png}
 
     \vspace{0.5cm}
-    \includegraphics[width=0.85\textwidth]{assets/create_server_step_2_fig.png}
+    \includegraphics[width=\textwidth]{assets/create_server_step_2_fig.png}
     \caption{Server configuration and deployment interface.}
     \label{fig:ui_create_server}
 \end{figure}
@@ -266,7 +266,7 @@ For the graphical trading interface, we built a responsive single-page applicati
 The FIX Gateway was implemented using the QuickFIX C++ engine. It serves as the external-facing API, parsing incoming FIX protocol messages and translating them into internal data structures. By leveraging QuickFIX, the gateway natively handles session management, message sequencing, and heartbeat mechanisms, ensuring reliable communication with connected clients.
 
 \subsubsection{Order Validation \& Persistence Layer: Order Manager}
-The Order Manager acts as a synchronous validator and router. To eliminate race conditions---such as a single user submitting two massive orders simultaneously---the manager processes incoming messages sequentially within a single-threaded event loop. This guarantees that balance constraints and position limits are checked and updated atomically before any request is forwarded to the Matching Engine. To ensure durability without blocking this critical trading path, the persistence layer utilizes a dual-database architecture managed by a custom \texttt{DatabaseClient}.
+The Order Manager acts as a synchronous validator and router. To eliminate race conditions such as a single user submitting two massive orders simultaneously, the manager processes incoming messages sequentially within a single-threaded event loop. This guarantees that balance constraints and position limits are checked and updated atomically before any request is forwarded to the Matching Engine. To ensure durability without blocking this critical trading path, the persistence layer utilizes a dual-database architecture managed by a custom \texttt{DatabaseClient}.
 
 Relational data, such as account states and user configurations, is managed using a PostgreSQL database accessed via the \texttt{libpqxx} client. Conversely, high-throughput market events and tick data are logged to a QuestDB time-series database. To prevent database I/O from bottlenecking the system, we implemented an \texttt{AsyncWriter} for QuestDB ingestion. This module offloads database writes to a dedicated background thread, buffering operations like order insertions and trade logs into a thread-safe queue. The background thread batches these tasks and flushes them to QuestDB over the Ingress Line Protocol based on configurable thresholds and intervals. While validation and matching engine forwarding are synchronous to ensure correctness, this asynchronous persistence guarantees that database latency does not degrade order processing times.
 
@@ -330,9 +330,7 @@ Listing \ref{lst:match_order} demonstrates the critical path logic for crossing 
 
 \vspace{1em}
 \begin{lstlisting}[caption={Limit Order Book Matching Algorithm}, label={lst:match_order}]
-void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_side, int price,
-                                 int remaining_quantity, int order_id, Side side,
-                                 std::string_view broker_id) {
+void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_side, int price, int remaining_quantity, int order_id, Side side, std::string_view broker_id) {
     // 1. Iterate through the opposing side of the book as long as we have quantity to fill
     while (!far_side.empty() && remaining_quantity > 0) {
         const auto best_level = (side == Side::bid) ? far_side.begin() : std::prev(far_side.end());
@@ -353,9 +351,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
                 remaining_quantity >= order_quantity) {
                 // 3a. Incoming order fully consumes the resting order
                 remaining_quantity -= order_quantity;
-                Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
-                                               front_order.get_trader_id(), ticker,
-                                               front_order.get_price(), order_quantity, side);
+                Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id, front_order.get_trader_id(), ticker, front_order.get_price(), order_quantity, side);
                 trade_publisher->try_publish(new_trade);
                 trade_events.emplace(std::move(new_trade));
                 order_id_map.erase(best_level_orders.front().get_order_id());
@@ -363,9 +359,7 @@ void LimitOrderBook::match_order(SideContainer& near_side, SideContainer& far_si
             } else {
                 // 3b. Resting order partially fills the incoming order
                 front_order.fill(remaining_quantity);
-                Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id,
-                                               front_order.get_trader_id(), ticker,
-                                               front_order.get_price(), remaining_quantity, side);
+                Trade new_trade = create_trade(order_id, front_order.get_order_id(), broker_id, front_order.get_trader_id(), ticker, front_order.get_price(), remaining_quantity, side);
                 trade_publisher->try_publish(new_trade);
                 trade_events.emplace(std::move(new_trade));
                 remaining_quantity = 0;
@@ -413,8 +407,7 @@ void MarketMaker::make_market(const std::string& ticker) {
     double reservation_price = mid_price - (q_centered * m_gamma * variance * time_left);
 
     // Calculate Optimal Spread
-    double spread = (m_gamma * variance * time_left) +
-                    ((2.0 / m_gamma) * std::log(1.0 + (m_gamma / m_k)));
+    double spread = (m_gamma * variance * time_left) + ((2.0 / m_gamma) * std::log(1.0 + (m_gamma / m_k)));
 
     double optimal_bid = reservation_price - (spread / 2.0);
     double optimal_ask = reservation_price + (spread / 2.0);
@@ -424,7 +417,7 @@ void MarketMaker::make_market(const std::string& ticker) {
 \end{lstlisting}
 
 \subsubsection{Server Setup and Deployment}
-To orchestrate the system across a Linux environment, we developed a custom Python-based deployment script. This application functions as a localized control plane that parses TOML configuration files to manage the lifecycle of the various microservices. It automatically validates service names, resolves listening ports, and ensures services are fully ready or safely terminated. By handling the automated startup and teardown of the components—including the FIX Gateway, Order Manager, Matching Engine, and Market Data Processor—the deployment server provides a reliable and reproducible environment for running extensive market simulations.
+To orchestrate the system across a Linux environment, we developed a custom Python-based deployment script. This application functions as a localized control plane that parses TOML configuration files to manage the lifecycle of the various microservices. It automatically validates service names, resolves listening ports, and ensures services are fully ready or safely terminated. By handling the automated startup and teardown of the components, including the FIX Gateway, Order Manager, Matching Engine, and Market Data Processor, the deployment server provides a reliable and reproducible environment for running extensive market simulations.
 
 \subsubsection{Software Engineering Practices}
 Throughout the development of this complex system, we adhered to modern C++ software engineering principles and best practices to ensure robustness, maintainability, and performance:
@@ -445,14 +438,14 @@ Throughout the development of this complex system, we adhered to modern C++ soft
 \subsubsection{Test Plan and Methodology}
 Our testing strategy encompassed three primary phases: unit testing, integration testing, and performance benchmarking. We initially utilized the Catch2 library for our unit testing framework due to its lightweight and expressive nature. However, as the system's complexity grew, we migrated our test suite to Google Test (gtest). This transition was motivated by Google Test's robust mock-testing facilities (via Google Mock), which allowed us to effectively isolate components using dependency injection.
 
-For unit testing, we verified the core components—including the Client SDK, FIX Gateway, Order Manager, Matching Engine, and Market Data Processor—by simulating diverse order scenarios. A key focus was validating the Price-Time Priority algorithm to ensure orders were filled in the correct sequence. We also performed ``death testing'' using Google Test's \texttt{EXPECT\_DEATH} macro (as seen in our \texttt{limit\_order\_book\_test.cpp}) to verify that the system correctly terminates or asserts when encountering unrecoverable states, such as querying invalid order IDs.
+For unit testing, we verified the core components by simulating diverse order scenarios. A key focus was validating the Price-Time Priority algorithm to ensure orders were filled in the correct sequence. We also performed ``death testing'' using Google Test's \texttt{EXPECT\_DEATH} macro (as seen in our \texttt{limit\_order\_book\_test.cpp}) to verify that the system correctly terminates or asserts when encountering unrecoverable states, such as querying invalid order IDs.
 
 Integration testing focused on the data flow from the Client SDK through the FIX Gateway and Order Manager to ensure that Protobuf serialization and WebSocket communication maintained data integrity. We tested the trade events emitted by the Matching Engine to ensure the end-to-end flow functioned correctly. Regarding stress testing, our high-load evaluations were scoped strictly to individual component benchmarking, such as isolating the Matching Engine's throughput and latency under massive order bursts.
 
 A comprehensive execution matrix of the system's test suite, detailing critical scenarios and expected outcomes across multiple microservices, can be found in Appendix 6.5.
 
 \subsubsection{Locating Logic Errors and Bugs}
-Our testing procedures were critical in identifying flaws that were not initially apparent. A significant logic error was discovered regarding a Limit Order Book (LOB) invariant violation. During early testing, the Matching Engine incorrectly attempted to match against the worst ask price rather than the best ask price, as the engine was accessing the end of the ascending price list instead of the beginning. While simple unit tests missed this edge case, running a randomized order submission simulation revealed that ``Ask'' prices were crossing below ``Bid'' prices—a clear violation of market invariants.
+Our testing procedures were critical in identifying flaws that were not initially apparent. A significant logic error was discovered regarding a Limit Order Book (LOB) invariant violation. During early testing, the Matching Engine incorrectly attempted to match against the worst ask price rather than the best ask price, as the engine was accessing the end of the ascending price list instead of the beginning. While simple unit tests missed this edge case, running a randomized order submission simulation revealed that ``Ask'' prices were crossing below ``Bid'' prices, which is a clear violation of market invariants.
 
 This discovery prompted us to adopt the Design by Contract principle, writing more detailed test cases and enforcing preconditions, postconditions, and invariant assertions throughout the Matching Engine code to catch logic bugs early.
 
