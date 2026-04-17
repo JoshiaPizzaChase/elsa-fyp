@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1776428992.84601 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776428995.2009 0
-  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776428992.71867 110622 ebaad9a76ae2f18d0fbef149ea9fdb38 ""
+["pdflatex"] 1776434485.45101 "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" "final_report.pdf" "final_report" 1776434488.60745 0
+  "/home/ombhandari/Projects/elsa/elsa-fyp/report/final_report.tex" 1776434485.34662 110250 28be7bb33c2d43de99da0213eed2e521 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -228,10 +228,10 @@
   "assets/simulation_results/gme_volatility_clustering.png" 1776356260.50839 24999 e5a8d76d59402b3eb16de7a6aeb8be29 ""
   "assets/trading_view_fig.jpeg" 1776353420.15597 177825 a30fc9ea00f10b3c6c47de360b6ef519 ""
   "assets/websocket_latency_by_input.png" 1776351642.31699 71295 b51a9458ecf3a3d6bce66bb54097c6d5 ""
-  "final_report.aux" 1776428994.96574 17478 90be81ab7a32be7719d1bb8491310370 "pdflatex"
-  "final_report.out" 1776428994.96674 13181 c7a1ef1487f9e8d5c3157e5dddbc1f65 "pdflatex"
-  "final_report.tex" 1776428992.71867 110622 ebaad9a76ae2f18d0fbef149ea9fdb38 ""
-  "final_report.toc" 1776428994.96774 6604 ebc2f3f3dda90fd225d472c79f35e460 "pdflatex"
+  "final_report.aux" 1776434488.34674 17504 8a09f4e3070717b4460835b1853aa233 "pdflatex"
+  "final_report.out" 1776434488.34874 13181 c7a1ef1487f9e8d5c3157e5dddbc1f65 "pdflatex"
+  "final_report.tex" 1776434485.34662 110250 28be7bb33c2d43de99da0213eed2e521 ""
+  "final_report.toc" 1776434488.34874 6604 b1de4c84ed9de531f93bab67e9de4b6b "pdflatex"
   (generated)
   "final_report.aux"
   "final_report.log"

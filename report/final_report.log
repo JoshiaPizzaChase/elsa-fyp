@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  17 APR 2026 20:29
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.10)  17 APR 2026 22:01
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -927,13 +927,13 @@ File: assets/create_server_step_1_fig.png Graphic file (type png)
 <use assets/create_server_step_1_fig.png>
 Package pdftex.def Info: assets/create_server_step_1_fig.png  used on input lin
 e 243.
-(pdftex.def)             Requested size: 385.02547pt x 205.81381pt.
+(pdftex.def)             Requested size: 452.9679pt x 242.14023pt.
 <assets/create_server_step_2_fig.png, id=452, 1893.0725pt x 1006.76125pt>
 File: assets/create_server_step_2_fig.png Graphic file (type png)
 <use assets/create_server_step_2_fig.png>
 Package pdftex.def Info: assets/create_server_step_2_fig.png  used on input lin
 e 246.
-(pdftex.def)             Requested size: 385.02547pt x 204.75902pt.
+(pdftex.def)             Requested size: 452.9679pt x 240.89026pt.
 [14]
 <assets/portfolio_view_fig.png, id=460, 1892.06876pt x 1026.83624pt>
 File: assets/portfolio_view_fig.png Graphic file (type png)
@@ -985,228 +985,224 @@ nput line 332.
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <10> not available
 (Font)              Font shape `T1/cmtt/m/n' tried instead on input line 333.
  [19]
-Overfull \hbox (29.62764pt too wide) in paragraph at lines 393--394
+Overfull \hbox (29.62764pt too wide) in paragraph at lines 387--388
 \T1/cmtt/m/n/12 std::mt19937\T1/cmr/m/n/12 ) to model the stochas-tic ar-rival 
 of re-tail or-ders. Mean-while, the \T1/cmtt/m/n/12 InformedTrader
  []
 
 [20] [21]
 LaTeX Font Info:    Font shape `T1/cmtt/bx/n' in size <12> not available
-(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 435.
+(Font)              Font shape `T1/cmtt/m/n' tried instead on input line 428.
  [22]
-Overfull \hbox (3.5788pt too wide) in paragraph at lines 441--442
+Overfull \hbox (3.5788pt too wide) in paragraph at lines 434--435
 \T1/cmr/m/n/12 cu-tion threads, we con-fig-ured it with asyn-chronous sinks (\T
 1/cmtt/m/n/12 spdlog::async_factory\T1/cmr/m/n/12 ).
  []
 
-[23] [24]
-Overfull \hbox (28.29224pt too wide) in paragraph at lines 470--471
+[23]
+Overfull \hbox (28.29224pt too wide) in paragraph at lines 463--464
 []\T1/cmtt/m/n/12 lob-dsa\T1/cmr/m/n/12 : Ex-per-i-ment re-plac-ing node-based 
 data struc-tures with con-tigu-ous \T1/cmtt/m/n/12 std::vector
  []
 
-<assets/benchmark_branch_comparison_10k.png, id=599, 1254.6875pt x 593.21625pt>
+[24]
+<assets/benchmark_branch_comparison_10k.png, id=592, 1254.6875pt x 593.21625pt>
 
 File: assets/benchmark_branch_comparison_10k.png Graphic file (type png)
 <use assets/benchmark_branch_comparison_10k.png>
 Package pdftex.def Info: assets/benchmark_branch_comparison_10k.png  used on in
-put line 477.
+put line 470.
 (pdftex.def)             Requested size: 452.9679pt x 214.16415pt.
-[25
+<assets/lob_dsa_structure_scaling.png, id=595, 621.522pt x 375.804pt>
+File: assets/lob_dsa_structure_scaling.png Graphic file (type png)
+<use assets/lob_dsa_structure_scaling.png>
+Package pdftex.def Info: assets/lob_dsa_structure_scaling.png  used on input li
+ne 479.
+(pdftex.def)             Requested size: 407.66833pt x 246.50035pt.
+ [25
 pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
 l.483 
-       <./assets/benchmark_branch_comparison_10k.png>]
-<assets/lob_dsa_structure_scaling.png, id=608, 621.522pt x 375.804pt>
-File: assets/lob_dsa_structure_scaling.png Graphic file (type png)
-<use assets/lob_dsa_structure_scaling.png>
-Package pdftex.def Info: assets/lob_dsa_structure_scaling.png  used on input li
-ne 486.
-(pdftex.def)             Requested size: 407.66833pt x 246.50035pt.
- [26
+       <./assets/benchmark_branch_comparison_10k.png>] [26
 pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.513 
+l.506 
       
 pdfTeX warning (ext4): destination with the same identifier (name{table.3}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.513 
+l.506 
        <./assets/lob_dsa_structure_scaling.png>]
-<assets/order_manager_preprocess_latency_by_input.png, id=616, 578.16pt x 346.8
+<assets/order_manager_preprocess_latency_by_input.png, id=609, 578.16pt x 346.8
 96pt>
 File: assets/order_manager_preprocess_latency_by_input.png Graphic file (type p
 ng)
 <use assets/order_manager_preprocess_latency_by_input.png>
 Package pdftex.def Info: assets/order_manager_preprocess_latency_by_input.png  
-used on input line 520.
+used on input line 513.
 (pdftex.def)             Requested size: 385.02547pt x 231.01111pt.
-<assets/order_manager_validation_latency_by_input.png, id=617, 578.16pt x 346.8
+<assets/order_manager_validation_latency_by_input.png, id=610, 578.16pt x 346.8
 96pt>
 File: assets/order_manager_validation_latency_by_input.png Graphic file (type p
 ng)
 <use assets/order_manager_validation_latency_by_input.png>
 Package pdftex.def Info: assets/order_manager_validation_latency_by_input.png  
-used on input line 527.
+used on input line 520.
 (pdftex.def)             Requested size: 385.02547pt x 231.01111pt.
  [27
 pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.531 
+l.524 
        <./assets/order_manager_preprocess_latency_by_input.png>]
-Overfull \hbox (51.72198pt too wide) in paragraph at lines 537--547
- [][] 
- []
-
-<assets/ring_buffer_latency_by_input.png, id=625, 491.436pt x 332.0405pt>
+<assets/ring_buffer_latency_by_input.png, id=618, 491.436pt x 332.0405pt>
 File: assets/ring_buffer_latency_by_input.png Graphic file (type png)
 <use assets/ring_buffer_latency_by_input.png>
 Package pdftex.def Info: assets/ring_buffer_latency_by_input.png  used on input
- line 557.
+ line 550.
 (pdftex.def)             Requested size: 317.07614pt x 214.24301pt.
-[28
+ [28
 pdfTeX warning (ext4): destination with the same identifier (name{figure.9}) ha
 s been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.561 
+l.554 
       
 pdfTeX warning (ext4): destination with the same identifier (name{table.4}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.561 
+l.554 
        <./assets/order_manager_validation_latency_by_input.png>]
-<assets/websocket_latency_by_input.png, id=634, 542.025pt x 346.896pt>
+<assets/websocket_latency_by_input.png, id=627, 542.025pt x 346.896pt>
 File: assets/websocket_latency_by_input.png Graphic file (type png)
 <use assets/websocket_latency_by_input.png>
 Package pdftex.def Info: assets/websocket_latency_by_input.png  used on input l
-ine 574.
+ine 567.
 (pdftex.def)             Requested size: 385.02547pt x 246.42491pt.
  [29
 pdfTeX warning (ext4): destination with the same identifier (name{figure.10}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.578 
+l.571 
        <./assets/ring_buffer_latency_by_input.png>]
-<assets/simulation_results/gme_return_distribution.png, id=644, 722.7pt x 433.6
+<assets/simulation_results/gme_return_distribution.png, id=637, 722.7pt x 433.6
 2pt>
 File: assets/simulation_results/gme_return_distribution.png Graphic file (type 
 png)
 <use assets/simulation_results/gme_return_distribution.png>
 Package pdftex.def Info: assets/simulation_results/gme_return_distribution.png 
- used on input line 589.
+ used on input line 582.
 (pdftex.def)             Requested size: 339.72592pt x 203.8345pt.
  [30
 pdfTeX warning (ext4): destination with the same identifier (name{figure.11}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.593 
+l.586 
        <./assets/websocket_latency_by_input.png>]
-<assets/simulation_results/gme_volatility_clustering.png, id=654, 462.528pt x 3
+<assets/simulation_results/gme_volatility_clustering.png, id=647, 462.528pt x 3
 46.896pt>
 File: assets/simulation_results/gme_volatility_clustering.png Graphic file (typ
 e png)
 <use assets/simulation_results/gme_volatility_clustering.png>
 Package pdftex.def Info: assets/simulation_results/gme_volatility_clustering.pn
-g  used on input line 599.
+g  used on input line 592.
 (pdftex.def)             Requested size: 339.72592pt x 254.80405pt.
  [31
 pdfTeX warning (ext4): destination with the same identifier (name{figure.12}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.606 
+l.599 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.13}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.606 
+l.599 
        <./assets/simulation_results/gme_return_distribution.png> <./assets/simu
 lation_results/gme_volatility_clustering.png>]
-<assets/simulation_results/gme_spread_distribution.png, id=664, 722.7pt x 433.6
+<assets/simulation_results/gme_spread_distribution.png, id=657, 722.7pt x 433.6
 2pt>
 File: assets/simulation_results/gme_spread_distribution.png Graphic file (type 
 png)
 <use assets/simulation_results/gme_spread_distribution.png>
 Package pdftex.def Info: assets/simulation_results/gme_spread_distribution.png 
- used on input line 611.
+ used on input line 604.
 (pdftex.def)             Requested size: 217.42265pt x 130.45091pt.
-<assets/simulation_results/gme_price_trajectory.png, id=665, 867.24pt x 433.62p
+<assets/simulation_results/gme_price_trajectory.png, id=658, 867.24pt x 433.62p
 t>
 File: assets/simulation_results/gme_price_trajectory.png Graphic file (type png
 )
 <use assets/simulation_results/gme_price_trajectory.png>
 Package pdftex.def Info: assets/simulation_results/gme_price_trajectory.png  us
-ed on input line 617.
+ed on input line 610.
 (pdftex.def)             Requested size: 217.42265pt x 108.70909pt.
-<assets/simulation_results/gme_return_acf.png, id=667, 462.528pt x 346.896pt>
+<assets/simulation_results/gme_return_acf.png, id=660, 462.528pt x 346.896pt>
 File: assets/simulation_results/gme_return_acf.png Graphic file (type png)
 <use assets/simulation_results/gme_return_acf.png>
 Package pdftex.def Info: assets/simulation_results/gme_return_acf.png  used on 
-input line 628.
+input line 621.
 (pdftex.def)             Requested size: 339.72592pt x 254.80405pt.
  [32
 pdfTeX warning (ext4): destination with the same identifier (name{figure.14}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.632 
+l.625 
       
 pdfTeX warning (ext4): destination with the same identifier (name{figure.15}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.632 
+l.625 
        <./assets/simulation_results/gme_spread_distribution.png> <./assets/simu
 lation_results/gme_price_trajectory.png>]
-<assets/simulation_results/gme_lob_shape.png, id=678, 722.7pt x 433.62pt>
+<assets/simulation_results/gme_lob_shape.png, id=671, 722.7pt x 433.62pt>
 File: assets/simulation_results/gme_lob_shape.png Graphic file (type png)
 <use assets/simulation_results/gme_lob_shape.png>
 Package pdftex.def Info: assets/simulation_results/gme_lob_shape.png  used on i
-nput line 638.
+nput line 631.
 (pdftex.def)             Requested size: 339.72592pt x 203.8345pt.
  [33
 pdfTeX warning (ext4): destination with the same identifier (name{figure.16}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.643 \section{Discussion}
+l.636 \section{Discussion}
                           
 pdfTeX warning (ext4): destination with the same identifier (name{figure.17}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.643 \section{Discussion}
+l.636 \section{Discussion}
                            <./assets/simulation_results/gme_return_acf.png> <./
 assets/simulation_results/gme_lob_shape.png>] [34
 
 ] [35] [36
 
 ]
-Underfull \hbox (badness 1748) in paragraph at lines 699--700
+Underfull \hbox (badness 1748) in paragraph at lines 692--693
 []\T1/cmr/m/n/12 wkselph, ``How to Build a Fast Limit Or-der Book,'' \T1/cmr/m/
 it/12 WK's High Fre-quency
  []
 
 
-Underfull \hbox (badness 4981) in paragraph at lines 699--700
+Underfull \hbox (badness 4981) in paragraph at lines 692--693
 \T1/cmr/m/it/12 Trad-ing Blog\T1/cmr/m/n/12 , Feb. 15, 2011. [On-line]. Avail-a
 ble: []$\T1/cmtt/m/n/12 https : / / web . archive .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 699--700
+Underfull \hbox (badness 10000) in paragraph at lines 692--693
 \T1/cmtt/m/n/12 org / web / 20110219163448 / http : / / howtohft . wordpress . 
 com / 2011 / 02 / 15 /
  []
@@ -1214,7 +1210,27 @@ com / 2011 / 02 / 15 /
 [37
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 718--720
+Underfull \hbox (badness 10000) in paragraph at lines 711--713
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 715--716
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 716--717
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 720--721
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 721--722
 
  []
 
@@ -1224,64 +1240,64 @@ Underfull \hbox (badness 10000) in paragraph at lines 722--723
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 723--724
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 727--728
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 728--729
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 729--730
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 731--734
+Underfull \hbox (badness 10000) in paragraph at lines 724--727
 
  []
 
 [38
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 748--750
+Underfull \hbox (badness 10000) in paragraph at lines 741--743
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 752--753
+Underfull \hbox (badness 10000) in paragraph at lines 745--746
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 753--754
+Underfull \hbox (badness 10000) in paragraph at lines 746--747
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 757--758
+Underfull \hbox (badness 10000) in paragraph at lines 750--751
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 758--759
+Underfull \hbox (badness 10000) in paragraph at lines 751--752
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 760--762
+Underfull \hbox (badness 10000) in paragraph at lines 753--755
 
  []
 
 [39]
-Underfull \hbox (badness 10000) in paragraph at lines 775--777
+Underfull \hbox (badness 10000) in paragraph at lines 768--770
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 772--773
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 773--774
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 777--778
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 778--779
 
  []
 
@@ -1291,32 +1307,32 @@ Underfull \hbox (badness 10000) in paragraph at lines 779--780
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 780--781
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 784--785
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 785--786
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 786--787
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 788--790
+Underfull \hbox (badness 10000) in paragraph at lines 781--783
 
  []
 
 [40]
-Underfull \hbox (badness 10000) in paragraph at lines 803--805
+Underfull \hbox (badness 10000) in paragraph at lines 796--798
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 800--801
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 801--802
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 805--806
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 806--807
 
  []
 
@@ -1326,37 +1342,37 @@ Underfull \hbox (badness 10000) in paragraph at lines 807--808
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 808--809
+Underfull \hbox (badness 10000) in paragraph at lines 811--812
 
  []
 
-
+[41]
 Underfull \hbox (badness 10000) in paragraph at lines 812--813
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 813--814
+Underfull \hbox (badness 10000) in paragraph at lines 827--829
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 814--815
+Underfull \hbox (badness 10000) in paragraph at lines 831--832
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 818--819
-
- []
-
-[41]
-Underfull \hbox (badness 10000) in paragraph at lines 819--820
+Underfull \hbox (badness 10000) in paragraph at lines 832--833
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 834--836
+Underfull \hbox (badness 10000) in paragraph at lines 836--837
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 837--838
 
  []
 
@@ -1370,7 +1386,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 839--840
 
  []
 
-
+[42]
 Underfull \hbox (badness 10000) in paragraph at lines 843--844
 
  []
@@ -1381,27 +1397,27 @@ Underfull \hbox (badness 10000) in paragraph at lines 844--845
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 845--846
+Underfull \hbox (badness 10000) in paragraph at lines 859--861
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 846--847
-
- []
-
-[42]
-Underfull \hbox (badness 10000) in paragraph at lines 850--851
+Underfull \hbox (badness 10000) in paragraph at lines 863--864
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 851--852
+Underfull \hbox (badness 10000) in paragraph at lines 864--865
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 866--868
+Underfull \hbox (badness 10000) in paragraph at lines 868--869
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 869--870
 
  []
 
@@ -1410,7 +1426,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 870--871
 
  []
 
-
+[43]
 Underfull \hbox (badness 10000) in paragraph at lines 871--872
 
  []
@@ -1426,27 +1442,27 @@ Underfull \hbox (badness 10000) in paragraph at lines 876--877
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 877--878
-
- []
-
-[43]
-Underfull \hbox (badness 10000) in paragraph at lines 878--879
+Underfull \hbox (badness 10000) in paragraph at lines 891--893
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 882--883
+Underfull \hbox (badness 10000) in paragraph at lines 895--896
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 883--884
+Underfull \hbox (badness 10000) in paragraph at lines 896--897
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 898--900
+Underfull \hbox (badness 10000) in paragraph at lines 897--898
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 901--902
 
  []
 
@@ -1455,7 +1471,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 902--903
 
  []
 
-
+[44]
 Underfull \hbox (badness 10000) in paragraph at lines 903--904
 
  []
@@ -1475,33 +1491,33 @@ Underfull \hbox (badness 10000) in paragraph at lines 909--910
 
  []
 
-[44]
+
 Underfull \hbox (badness 10000) in paragraph at lines 910--911
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 911--912
+Underfull \hbox (badness 10000) in paragraph at lines 925--927
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 915--916
+Underfull \hbox (badness 10000) in paragraph at lines 929--930
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 916--917
+Underfull \hbox (badness 10000) in paragraph at lines 930--931
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 917--918
+Underfull \hbox (badness 10000) in paragraph at lines 931--932
 
  []
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 932--934
+[45]
+Underfull \hbox (badness 10000) in paragraph at lines 935--936
 
  []
 
@@ -1520,7 +1536,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 938--939
 
  []
 
-[45]
+
 Underfull \hbox (badness 10000) in paragraph at lines 942--943
 
  []
@@ -1536,101 +1552,101 @@ Underfull \hbox (badness 10000) in paragraph at lines 944--945
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 945--946
+Underfull \hbox (badness 10000) in paragraph at lines 959--961
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 949--950
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 950--951
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 951--952
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 966--968
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 968--970
+Underfull \hbox (badness 10000) in paragraph at lines 961--963
 
  []
 
 [46]
-Underfull \hbox (badness 10000) in paragraph at lines 972--973
+Underfull \hbox (badness 10000) in paragraph at lines 965--966
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 973--974
+Underfull \hbox (badness 10000) in paragraph at lines 966--967
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 977--978
+Underfull \hbox (badness 10000) in paragraph at lines 970--971
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 978--979
+Underfull \hbox (badness 10000) in paragraph at lines 971--972
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 993--995
+Underfull \hbox (badness 10000) in paragraph at lines 986--988
 
  []
 
 
+Underfull \hbox (badness 10000) in paragraph at lines 990--991
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 991--992
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 992--993
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 996--997
+
+ []
+
+[47]
 Underfull \hbox (badness 10000) in paragraph at lines 997--998
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 998--999
+Underfull \hbox (badness 10000) in paragraph at lines 1001--1002
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 999--1000
+Underfull \hbox (badness 10000) in paragraph at lines 1002--1003
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1003--1004
-
- []
-
-[47]
-Underfull \hbox (badness 10000) in paragraph at lines 1004--1005
+Underfull \hbox (badness 10000) in paragraph at lines 1017--1019
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1008--1009
+Underfull \hbox (badness 10000) in paragraph at lines 1021--1022
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1009--1010
+Underfull \hbox (badness 10000) in paragraph at lines 1022--1023
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1024--1026
+Underfull \hbox (badness 10000) in paragraph at lines 1023--1024
 
  []
 
 
+Underfull \hbox (badness 10000) in paragraph at lines 1024--1025
+
+ []
+
+[48]
 Underfull \hbox (badness 10000) in paragraph at lines 1028--1029
 
  []
@@ -1646,37 +1662,37 @@ Underfull \hbox (badness 10000) in paragraph at lines 1030--1031
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1031--1032
+Underfull \hbox (badness 10000) in paragraph at lines 1034--1035
 
  []
 
-[48]
+
 Underfull \hbox (badness 10000) in paragraph at lines 1035--1036
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1036--1037
+Underfull \hbox (badness 10000) in paragraph at lines 1050--1052
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1037--1038
+Underfull \hbox (badness 10000) in paragraph at lines 1054--1055
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1041--1042
+Underfull \hbox (badness 10000) in paragraph at lines 1055--1056
+
+ []
+
+[49]
+Underfull \hbox (badness 10000) in paragraph at lines 1059--1060
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1042--1043
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1057--1059
+Underfull \hbox (badness 10000) in paragraph at lines 1060--1061
 
  []
 
@@ -1686,37 +1702,37 @@ Underfull \hbox (badness 10000) in paragraph at lines 1061--1062
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1062--1063
+Underfull \hbox (badness 10000) in paragraph at lines 1065--1066
 
  []
 
-[49]
+
 Underfull \hbox (badness 10000) in paragraph at lines 1066--1067
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1067--1068
+Underfull \hbox (badness 10000) in paragraph at lines 1081--1083
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1068--1069
+Underfull \hbox (badness 10000) in paragraph at lines 1085--1086
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1072--1073
+Underfull \hbox (badness 10000) in paragraph at lines 1086--1087
+
+ []
+
+[50]
+Underfull \hbox (badness 10000) in paragraph at lines 1090--1091
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1073--1074
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1088--1090
+Underfull \hbox (badness 10000) in paragraph at lines 1091--1092
 
  []
 
@@ -1726,37 +1742,37 @@ Underfull \hbox (badness 10000) in paragraph at lines 1092--1093
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1093--1094
+Underfull \hbox (badness 10000) in paragraph at lines 1096--1097
 
  []
 
-[50]
+
 Underfull \hbox (badness 10000) in paragraph at lines 1097--1098
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1098--1099
+Underfull \hbox (badness 10000) in paragraph at lines 1112--1114
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1099--1100
+Underfull \hbox (badness 10000) in paragraph at lines 1116--1117
+
+ []
+
+[51]
+Underfull \hbox (badness 10000) in paragraph at lines 1117--1118
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1103--1104
+Underfull \hbox (badness 10000) in paragraph at lines 1121--1122
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1104--1105
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1119--1121
+Underfull \hbox (badness 10000) in paragraph at lines 1122--1123
 
  []
 
@@ -1765,8 +1781,8 @@ Underfull \hbox (badness 10000) in paragraph at lines 1123--1124
 
  []
 
-[51]
-Underfull \hbox (badness 10000) in paragraph at lines 1124--1125
+
+Underfull \hbox (badness 10000) in paragraph at lines 1127--1128
 
  []
 
@@ -1775,65 +1791,45 @@ Underfull \hbox (badness 10000) in paragraph at lines 1128--1129
 
  []
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 1129--1130
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1130--1131
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1134--1135
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 1135--1136
-
- []
-
 [52] [53
 pdfTeX warning (ext4): destination with the same identifier (name{table.5}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.1212     \item C
+l.1205     \item C
                   PU: AMD Ryzen 5 6600H (6 cores / 12 threads, up to 4.57 GHz)]
 
-Overfull \hbox (0.80455pt too wide) in paragraph at lines 1234--1234
+Overfull \hbox (0.80455pt too wide) in paragraph at lines 1227--1227
 []|\T1/cmr/bx/n/10.95 Component|  
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 1231--1236
+Overfull \hbox (20.17061pt too wide) in alignment at lines 1224--1229
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (0.80455pt too wide) in paragraph at lines 1239--1239
+Overfull \hbox (0.80455pt too wide) in paragraph at lines 1232--1232
 []|\T1/cmr/bx/n/10.95 Component|  
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 1236--1241
+Overfull \hbox (20.17061pt too wide) in alignment at lines 1229--1234
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 1241--1243
+Overfull \hbox (20.17061pt too wide) in alignment at lines 1234--1236
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 1243--1245
+Overfull \hbox (20.17061pt too wide) in alignment at lines 1236--1238
  [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (20.17061pt too wide) in alignment at lines 1245--1270
+Overfull \hbox (20.17061pt too wide) in alignment at lines 1238--1263
  [] [] [] [] [] [] 
  []
 
@@ -1848,7 +1844,7 @@ pdfTeX warning (ext4): destination with the same identifier (name{table.7}) has
  been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.1317 \end{document}
+l.1310 \end{document}
                      ] (./final_report.aux)
  ***********
 LaTeX2e <2025-11-01>
@@ -1858,13 +1854,13 @@ Package rerunfilecheck Info: File `final_report.out' has not changed.
 (rerunfilecheck)             Checksum: C7A1EF1487F9E8D5C3157E5DDDBC1F65;13181.
  ) 
 Here is how much of TeX's memory you used:
- 26356 strings out of 467349
- 488639 string characters out of 5415641
- 1328232 words of memory out of 5000000
+ 26349 strings out of 467349
+ 488541 string characters out of 5415641
+ 1372232 words of memory out of 5000000
  54589 multiletter control sequences out of 15000+600000
  647502 words of font info for 86 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 99i,11n,108p,1800b,2122s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 99i,16n,108p,1800b,2122s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
 pdfTeX warning (dest): name{Hfootnote.12} has been referenced but does not exis
 t, replaced by a fixed one
@@ -1937,10 +1933,10 @@ nts/type1/public/cm-super/sfti1200.pfb></usr/local/texlive/2026/texmf-dist/font
 s/type1/public/cm-super/sftt1000.pfb></usr/local/texlive/2026/texmf-dist/fonts/
 type1/public/cm-super/sftt1095.pfb></usr/local/texlive/2026/texmf-dist/fonts/ty
 pe1/public/cm-super/sftt1200.pfb>
-Output written on final_report.pdf (61 pages, 1759867 bytes).
+Output written on final_report.pdf (61 pages, 1759200 bytes).
 PDF statistics:
- 1178 PDF objects out of 1200 (max. 8388607)
- 1025 compressed objects within 11 object streams
- 422 named destinations out of 1000 (max. 500000)
+ 1170 PDF objects out of 1200 (max. 8388607)
+ 1017 compressed objects within 11 object streams
+ 415 named destinations out of 1000 (max. 500000)
  599 words of extra memory for PDF output out of 10000 (max. 10000000)
 

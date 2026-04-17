@@ -22,12 +22,12 @@
 \contentsline {subsubsection}{\numberline {2.2.3}Order Validation \& Persistence Layer: Order Manager}{17}{subsubsection.2.2.3}%
 \contentsline {subsubsection}{\numberline {2.2.4}The Core: Matching Engine \& LOB Data Structures}{18}{subsubsection.2.2.4}%
 \contentsline {subsubsection}{\numberline {2.2.5}Distribution Layer: Market Data Processor}{20}{subsubsection.2.2.5}%
-\contentsline {subsubsection}{\numberline {2.2.6}Simulation Layer: Agents \& Market Regimes}{21}{subsubsection.2.2.6}%
-\contentsline {subsubsection}{\numberline {2.2.7}Server Setup and Deployment}{22}{subsubsection.2.2.7}%
+\contentsline {subsubsection}{\numberline {2.2.6}Simulation Layer: Agents \& Market Regimes}{20}{subsubsection.2.2.6}%
+\contentsline {subsubsection}{\numberline {2.2.7}Server Setup and Deployment}{21}{subsubsection.2.2.7}%
 \contentsline {subsubsection}{\numberline {2.2.8}Software Engineering Practices}{22}{subsubsection.2.2.8}%
 \contentsline {subsection}{\numberline {2.3}Testing}{23}{subsection.2.3}%
 \contentsline {subsubsection}{\numberline {2.3.1}Test Plan and Methodology}{23}{subsubsection.2.3.1}%
-\contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{24}{subsubsection.2.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.2}Locating Logic Errors and Bugs}{23}{subsubsection.2.3.2}%
 \contentsline {subsection}{\numberline {2.4}Evaluation}{24}{subsection.2.4}%
 \contentsline {subsubsection}{\numberline {2.4.1}Benchmarking}{24}{subsubsection.2.4.1}%
 \contentsline {subsubsection}{\numberline {2.4.2}Simulation Realism}{30}{subsubsection.2.4.2}%
