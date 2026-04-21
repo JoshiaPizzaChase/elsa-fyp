@@ -364,7 +364,7 @@ std::string validate_container(const core::Container& container,
         if (new_order.price.has_value() && new_order.price.value() <= 0) {
             return "Price is not positive";
         }
- if (new_order.order_qty <= 0) {
+        if (new_order.order_qty <= 0) {
             return "Quantity is not positive";
         }
 
@@ -670,7 +670,7 @@ void update_database(const core::Container& container, int server_id,
         const auto& buyer_usd_balance = balance_checker.get_balance(buyer_id, USD_SYMBOL);
         const auto& buyer_symbol_balance = balance_checker.get_balance(buyer_id, symbol);
 
-        database_client.update_balance(server_id, buyer_user_id, USD_SYMBOL, buyer_usd_balance)
+        database_client.update_balance(buyer_user_id, server_id, USD_SYMBOL, buyer_usd_balance)
             .transform([&] {
                 logger->info("[OM] Updating {}'s {} balance to {} in DB", buyer_id, USD_SYMBOL,
                              buyer_usd_balance);
@@ -679,7 +679,7 @@ void update_database(const core::Container& container, int server_id,
                 logger->error(err);
                 return err;
             });
-        database_client.update_balance(server_id, buyer_user_id, symbol, buyer_symbol_balance)
+        database_client.update_balance(buyer_user_id, server_id, symbol, buyer_symbol_balance)
             .transform([&] {
                 logger->info("[OM] Updating {}'s {} balance to {} in DB", buyer_id, symbol,
                              buyer_symbol_balance);
@@ -694,7 +694,7 @@ void update_database(const core::Container& container, int server_id,
         const auto& seller_usd_balance = balance_checker.get_balance(seller_id, USD_SYMBOL);
         const auto& seller_symbol_balance = balance_checker.get_balance(seller_id, symbol);
 
-        database_client.update_balance(server_id, seller_user_id, USD_SYMBOL, seller_usd_balance)
+        database_client.update_balance(seller_user_id, server_id, USD_SYMBOL, seller_usd_balance)
             .transform([&] {
                 logger->info("[OM] Updating {}'s {} balance to {} in DB", seller_id, USD_SYMBOL,
                              seller_usd_balance);
@@ -703,7 +703,7 @@ void update_database(const core::Container& container, int server_id,
                 logger->error(err);
                 return err;
             });
-        database_client.update_balance(server_id, seller_user_id, symbol, seller_symbol_balance)
+        database_client.update_balance(seller_user_id, server_id, symbol, seller_symbol_balance)
             .transform([&] {
                 logger->info("[OM] Updating {}'s {} balance to {} in DB", seller_id, symbol,
                              seller_symbol_balance);
@@ -725,13 +725,13 @@ void update_database(const core::Container& container, int server_id,
                 assert(order_info.price.has_value() && "Only limit order should be cancellable");
 
                 database_client.update_balance(
-                    server_id, username_user_id_map.at(order_info.sender_comp_id), USD_SYMBOL,
+                    username_user_id_map.at(order_info.sender_comp_id), server_id, USD_SYMBOL,
                     balance_checker.get_balance(order_info.sender_comp_id, USD_SYMBOL));
             } else {
                 assert(order_info.price.has_value() && "Only limit order should be cancellable");
 
                 database_client.update_balance(
-                    server_id, username_user_id_map.at(order_info.sender_comp_id),
+                    username_user_id_map.at(order_info.sender_comp_id), server_id,
                     order_info.symbol,
                     balance_checker.get_balance(order_info.sender_comp_id, order_info.symbol));
             }
