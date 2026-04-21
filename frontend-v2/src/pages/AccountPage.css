@@ -522,8 +522,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 16px;
     z-index: 1000;
     backdrop-filter: blur(2px);
+    box-sizing: border-box;
 }
 
 .modal-box {
@@ -533,6 +535,8 @@
     padding: 36px;
     width: 100%;
     max-width: 460px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
@@ -580,10 +584,13 @@
 
 /* Wider box for the full form */
 .sm-box {
-    max-width: 560px !important;
+    width: min(860px, calc(100vw - 32px)) !important;
+    max-width: none !important;
+    max-height: calc(100vh - 32px) !important;
     align-items: stretch !important;
     gap: 0 !important;
-    padding: 28px 32px 32px !important;
+    padding: clamp(16px, 2.2vw, 32px) !important;
+    overflow-y: auto !important;
 }
 
 /* Header row */

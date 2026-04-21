@@ -22,6 +22,7 @@ using tcp = net::ip::tcp;
 namespace {
 
 constexpr std::size_t kServerNameMaxLength = 11;
+constexpr std::int64_t kDefaultInitialTickerPriceUsd = 100;
 
 bool is_server_name_valid(const std::string& server_name) {
     if (server_name.empty() || server_name.size() > kServerNameMaxLength) {
@@ -442,6 +443,10 @@ bj::object RequestHandler::handle_account_details(const boost::urls::params_view
 
     const int initial_usd = details.initial_usd;
     res["initial_usd"] = initial_usd;
+    if (details.initial_bot_portfolio_balance.has_value()) {
+        res["initial_bot_portfolio_balance"] =
+            static_cast<double>(*details.initial_bot_portfolio_balance) / balance_multiplier_squared;
+    }
     res["pnl"] = total_value - initial_usd;
     res["pnl_pct"] = initial_usd != 0
                          ? static_cast<double>(total_value - initial_usd) / initial_usd * 100.0
@@ -1038,6 +1043,7 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             net::io_context ioc;
             tcp::resolver resolver{ioc};
             beast::tcp_stream stream{ioc};
+            stream.expires_after(std::chrono::seconds(8));
             stream.connect(resolver.resolve(machine_ip, std::to_string(deployment_port)));
 
             bj::object payload;
@@ -1052,10 +1058,12 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
             deploy_req.body() = bj::serialize(payload);
             deploy_req.prepare_payload();
 
+            stream.expires_after(std::chrono::seconds(8));
             http::write(stream, deploy_req);
 
             beast::flat_buffer buffer;
             http::response<http::string_body> deploy_res;
+            stream.expires_after(std::chrono::seconds(8));
             http::read(stream, buffer, deploy_res);
 
             beast::error_code ec;
@@ -1171,6 +1179,8 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     for (const auto& bot_cfg : bot_configs) {
         for (const auto& group : bot_cfg.groups) {
             for (const int bot_user_id : group.user_ids) {
+                std::int64_t bot_initial_portfolio_balance_scaled =
+                    static_cast<std::int64_t>(group.initial_usd) * usd_multiplier;
                 for (const auto& symbol : symbols) {
                     if (symbol == "USD") {
                         continue;
@@ -1187,6 +1197,14 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
                         res["error"] = balance_result.error();
                         return res;
                     }
+                    bot_initial_portfolio_balance_scaled +=
+                        inventory_scaled * kDefaultInitialTickerPriceUsd * balance_multiplier;
+                }
+                auto init_portfolio_result = m_db_client.upsert_init_bot_portfolio_balance(
+                    bot_user_id, server_id, bot_initial_portfolio_balance_scaled);
+                if (!init_portfolio_result.has_value()) {
+                    res["error"] = init_portfolio_result.error();
+                    return res;
                 }
             }
         }
@@ -1290,8 +1308,9 @@ bj::object RequestHandler::handle_create_server(const http::request<http::string
     }
     auto create_table_res = m_db_client.create_quest_tables(server_name);
     if (!create_table_res.has_value()) {
-        res["error"] = create_table_res.error();
-        return res;
+        std::cerr << "Warning: failed to initialize QuestDB tables for server "
+                  << server_name << ": " << create_table_res.error() << '\n';
+        res["warning"] = create_table_res.error();
     }
 
     res["success"] = true;
@@ -1492,6 +1511,7 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
             net::io_context ioc;
             tcp::resolver resolver{ioc};
             beast::tcp_stream stream{ioc};
+            stream.expires_after(std::chrono::seconds(8));
             stream.connect(resolver.resolve(endpoint.ip, std::to_string(deployment_port)));
 
             bj::object payload;
@@ -1505,10 +1525,12 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
             remove_req.body() = bj::serialize(payload);
             remove_req.prepare_payload();
 
+            stream.expires_after(std::chrono::seconds(8));
             http::write(stream, remove_req);
 
             beast::flat_buffer buffer;
             http::response<http::string_body> remove_res;
+            stream.expires_after(std::chrono::seconds(8));
             http::read(stream, buffer, remove_res);
 
             beast::error_code ec;
@@ -1533,7 +1555,6 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
                 return std::unexpected{
                     std::format("Remove failed for {}: {}", service_type, remove_res.body())};
             }
-            m_db_client.drop_quest_tables(server_name);
             return {};
         } catch (const std::exception& e) {
             return std::unexpected{
@@ -1548,6 +1569,7 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
             net::io_context ioc;
             tcp::resolver resolver{ioc};
             beast::tcp_stream stream{ioc};
+            stream.expires_after(std::chrono::seconds(8));
             stream.connect(resolver.resolve(deployment_server_ip, std::to_string(deployment_port)));
 
             bj::object payload;
@@ -1561,10 +1583,12 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
             remove_req.body() = bj::serialize(payload);
             remove_req.prepare_payload();
 
+            stream.expires_after(std::chrono::seconds(8));
             http::write(stream, remove_req);
 
             beast::flat_buffer buffer;
             http::response<http::string_body> remove_res;
+            stream.expires_after(std::chrono::seconds(8));
             http::read(stream, buffer, remove_res);
 
             beast::error_code ec;
@@ -1643,6 +1667,13 @@ bj::object RequestHandler::handle_remove_server(const http::request<http::string
     if (!oracle_remove_result.has_value()) {
         res["error"] = oracle_remove_result.error();
         return res;
+    }
+
+    auto drop_quest_tables_result = m_db_client.drop_quest_tables(server_name);
+    if (!drop_quest_tables_result.has_value()) {
+        std::cerr << "Warning: failed to drop QuestDB tables for server "
+                  << server_name << ": " << drop_quest_tables_result.error() << '\n';
+        res["warning"] = drop_quest_tables_result.error();
     }
 
     auto delete_result = m_db_client.delete_server(server_name);

@@ -55,6 +55,17 @@ CREATE TABLE IF NOT EXISTS balances
     PRIMARY KEY(user_id, symbol, server_id)
 );
 -- 5. machines
+CREATE TABLE IF NOT EXISTS init_bot_portfolio_balances
+(
+    user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+    server_id INT REFERENCES servers(server_id) ON DELETE CASCADE,
+    balance BIGINT NOT NULL,
+    created_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    modified_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(user_id, server_id)
+);
+
+-- 6. machines
 CREATE TABLE IF NOT EXISTS machines
 (
     machine_id SERIAL PRIMARY KEY,
@@ -70,7 +81,7 @@ SELECT 'localhost', '127.0.0.1'
     SELECT 1 FROM machines WHERE machine_name = 'localhost' OR ip = '127.0.0.1'
 );
 
--- 6. services
+-- 7. services
 CREATE TABLE IF NOT EXISTS services
 (
     server_id INT REFERENCES servers(server_id) ON DELETE CASCADE,

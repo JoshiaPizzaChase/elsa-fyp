@@ -3,6 +3,7 @@ import {useAuth} from '../context/AuthContext';
 import {
     getUserServers,
     getAccountDetails,
+    getHistoricalTrades,
     createServer,
     configureServer,
     removeServer,
@@ -11,6 +12,7 @@ import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend} from 'rechart
 import './AccountPage.css';
 
 const DEFAULT_INITIAL_USD = 100000;
+const DEFAULT_INITIAL_TICKER_PRICE = 100;
 const SERVER_NAME_MAX_LENGTH = 11;
 const BOT_TYPES = ['mm', 'nt', 'it'];
 const BOT_META = {
@@ -69,6 +71,67 @@ const PIE_COLORS = [
     '#a29bfe', '#6c5ce7', '#74b9ff', '#0984e3',
     '#55efc4', '#00b894', '#ffeaa7', '#fdcb6e',
 ];
+const EMPTY_BALANCES = [];
+
+const toNumber = (value, fallback = 0) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+};
+
+const normalizeTsMs = (rawTs) => {
+    const ts = Number(rawTs);
+    if (!Number.isFinite(ts) || ts <= 0) return null;
+    if (ts >= 1e14) return Math.floor(ts / 1000);
+    if (ts <= 1e11) return Math.floor(ts * 1000);
+    return Math.floor(ts);
+};
+
+const getLatestTradePrice = (trades) => {
+    if (!Array.isArray(trades) || trades.length === 0) return null;
+    let latest = null;
+    let latestTs = -1;
+    for (const trade of trades) {
+        const price = toNumber(trade?.price ?? trade?.px, NaN);
+        if (!Number.isFinite(price) || price <= 0) continue;
+        const tsMs = normalizeTsMs(
+            trade?.create_timestamp ?? trade?.timestamp_ms ?? trade?.ts_ms ?? trade?.timestamp ?? trade?.ts
+        );
+        if (tsMs !== null && tsMs >= latestTs) {
+            latestTs = tsMs;
+            latest = price;
+        } else if (latest === null) {
+            latest = price;
+        }
+    }
+    return latest;
+};
+
+const fetchLatestPriceForSymbol = async (serverName, symbol) => {
+    const symbolCandidates = Array.from(
+        new Set([symbol, symbol.toUpperCase(), symbol.toLowerCase()])
+    );
+    let firstSuccessTrades = null;
+    for (const candidateSymbol of symbolCandidates) {
+        try {
+            const response = await getHistoricalTrades(serverName, candidateSymbol, 0);
+            if (response?.error) {
+                continue;
+            }
+            const trades = response?.trades ?? [];
+            if (firstSuccessTrades === null) {
+                firstSuccessTrades = trades;
+            }
+            const latestPrice = getLatestTradePrice(trades);
+            if (latestPrice !== null) {
+                return latestPrice;
+            }
+        } catch (_) {
+            // Try the next candidate symbol casing.
+        }
+    }
+    const fallbackPrice = getLatestTradePrice(firstSuccessTrades ?? []);
+    return fallbackPrice ?? DEFAULT_INITIAL_TICKER_PRICE;
+};
 
 // ── TagInput ──────────────────────────────────────────────────────────────────
 // A small reusable tag-input: split by comma/space/Enter, click × to remove.
@@ -497,9 +560,10 @@ function ServerModal({server, username, onClose, onSaved}) {
             } else if (data.error) {
                 showToast('error', data.error);
             } else {
-                showToast('success', isNew
+                const successMsg = isNew
                     ? `Server "${data.server_name}" created!`
-                    : `Server "${data.server_name}" updated!`);
+                    : `Server "${data.server_name}" updated!`;
+                showToast('success', data.warning ? `${successMsg} (Warning: ${data.warning})` : successMsg);
                 if (onSaved) onSaved(data);
                 // Close after a brief moment so the toast is visible
                 setTimeout(onClose, 1500);
@@ -779,6 +843,7 @@ function AccountPage() {
     const [modalServer, setModalServer] = useState(undefined);
     const [loading, setLoading] = useState(true);
     const [accountDetails, setAccountDetails] = useState(null);
+    const [latestTickerPrices, setLatestTickerPrices] = useState({});
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [removeLoading, setRemoveLoading] = useState(false);
 
@@ -823,21 +888,71 @@ function AccountPage() {
     const adminServers = servers.filter((s) => s.role === 'admin');
     const memberServers = servers.filter((s) => s.role === 'member');
     // Merge server list data with the richer account details response.
-    // accountDetails shape: { server: {...}, role, balances, total_value, pnl, pnl_pct }
+    // accountDetails shape: { server: {...}, role, balances, total_value, pnl, pnl_pct, initial_bot_portfolio_balance? }
     // Hoist accountDetails.server one level up so selected.active_symbols etc. work directly.
     const selected = selectedServer
         ? {...selectedServer, ...(accountDetails?.server ?? {}), ...(accountDetails ?? {})}
         : null;
-    const balances = accountDetails?.balances ?? selected?.balances ?? [];
-    const totalValue = accountDetails?.total_value
-        ?? balances.reduce((sum, b) => sum + (b.balance ?? 0), 0);
+    const balances = accountDetails?.balances ?? selected?.balances ?? EMPTY_BALANCES;
+
+    useEffect(() => {
+        if (!selected?.server_name) {
+            setLatestTickerPrices({});
+            return;
+        }
+        const symbols = Array.from(
+            new Set(
+                balances
+                    .map((b) => String(b?.symbol ?? '').toUpperCase())
+                    .filter((symbol) => symbol && symbol !== 'USD')
+            )
+        );
+        if (symbols.length === 0) {
+            setLatestTickerPrices({});
+            return;
+        }
+        let cancelled = false;
+        Promise.all(
+            symbols.map(async (symbol) => {
+                try {
+                    const latestPrice = await fetchLatestPriceForSymbol(selected.server_name, symbol);
+                    return [symbol, latestPrice];
+                } catch (err) {
+                    console.error(`Failed to fetch latest trade price for ${symbol}:`, err);
+                    return [symbol, DEFAULT_INITIAL_TICKER_PRICE];
+                }
+            })
+        ).then((entries) => {
+            if (cancelled) return;
+            setLatestTickerPrices(Object.fromEntries(entries));
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [selected?.server_name, balances]);
+
     const initialUsd = accountDetails?.initial_usd
         ?? selected?.initial_usd
         ?? selected?.server?.initial_usd
         ?? DEFAULT_INITIAL_USD;
-    const pnl = accountDetails?.pnl ?? (totalValue - initialUsd);
-    const pnlPct = accountDetails?.pnl_pct
-        ?? (initialUsd !== 0 ? (pnl / initialUsd) * 100 : 0);
+    const totalValue = balances.reduce((sum, b) => {
+        const symbol = String(b?.symbol ?? '').toUpperCase();
+        const qtyOrUsd = toNumber(b?.balance, 0);
+        if (symbol === 'USD') return sum + qtyOrUsd;
+        const markPrice = latestTickerPrices[symbol] ?? DEFAULT_INITIAL_TICKER_PRICE;
+        return sum + (qtyOrUsd * markPrice);
+    }, 0);
+    const defaultInitialPortfolioValue = balances.reduce((sum, b) => {
+        const symbol = String(b?.symbol ?? '').toUpperCase();
+        if (!symbol || symbol === 'USD') return sum;
+        return sum + (toNumber(b?.balance, 0) * DEFAULT_INITIAL_TICKER_PRICE);
+    }, initialUsd);
+    const initialBotPortfolioBalance = toNumber(accountDetails?.initial_bot_portfolio_balance, NaN);
+    const initialPortfolioValue = Number.isFinite(initialBotPortfolioBalance)
+        ? initialBotPortfolioBalance
+        : defaultInitialPortfolioValue;
+    const pnl = totalValue - initialPortfolioValue;
+    const pnlPct = initialPortfolioValue !== 0 ? (pnl / initialPortfolioValue) * 100 : 0;
 
     const handleRemoveServer = async () => {
         if (!selected || selected.role !== 'admin' || !user?.username || removeLoading) return;

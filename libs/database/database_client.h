@@ -490,6 +490,7 @@ class DatabaseClient {
         std::vector<std::string> active_tickers;
         std::string role;
         int initial_usd{100000};
+        std::optional<std::int64_t> initial_bot_portfolio_balance;
         std::vector<BalanceRow> balances;
     };
 
@@ -754,8 +755,16 @@ class DatabaseClient {
             auto bal_res = txn.exec("SELECT symbol, balance FROM balances "
                                     "WHERE user_id = $1 AND server_id = $2",
                                     pqxx::params{user_id, server_id});
+            auto bot_init_balance_res = txn.exec(
+                "SELECT balance FROM init_bot_portfolio_balances "
+                "WHERE user_id = $1 AND server_id = $2",
+                pqxx::params{user_id, server_id});
             txn.commit();
 
+            if (!bot_init_balance_res.empty()) {
+                details.initial_bot_portfolio_balance =
+                    bot_init_balance_res[0]["balance"].as<std::int64_t>();
+            }
             for (const auto& brow : bal_res)
                 details.balances.push_back(
                     {brow["symbol"].as<std::string>(), brow["balance"].as<std::int64_t>()});
@@ -1228,6 +1237,23 @@ class DatabaseClient {
         }
     }
 
+    auto upsert_init_bot_portfolio_balance(int user_id, int server_id, std::int64_t balance)
+        -> std::expected<void, std::string> {
+        try {
+            pqxx::work txn{*m_core_db_sql_connection};
+            txn.exec("INSERT INTO init_bot_portfolio_balances (user_id, server_id, balance) "
+                     "VALUES ($1, $2, $3) "
+                     "ON CONFLICT (user_id, server_id) DO UPDATE SET balance = EXCLUDED.balance, "
+                     "modified_ts = CURRENT_TIMESTAMP",
+                     pqxx::params{user_id, server_id, balance});
+            txn.commit();
+            return {};
+        } catch (const std::exception& e) {
+            return std::unexpected{
+                std::format("Error upserting initial bot portfolio balance: {}", e.what())};
+        }
+    }
+
     // Get all user_ids from allowlist for a given server_id
     auto get_users_by_server(int server_id) -> std::expected<std::vector<int>, std::string> {
         try {
@@ -1520,7 +1546,7 @@ class DatabaseClient {
     void ensure_timeseries_connection() {
         if (!m_timeseries_db_sql_connection || !m_timeseries_db_sql_connection->is_open()) {
             m_timeseries_db_sql_connection = std::make_unique<pqxx::connection>(
-                "host=localhost port=8812 user=admin password=quest dbname=qdb");
+                "host=localhost port=8812 user=admin password=quest dbname=qdb connect_timeout=3");
         }
     }
 
