@@ -870,19 +870,43 @@ function AccountPage() {
     useEffect(() => {
         if (!user?.username || !selectedId || servers.length === 0) {
             setAccountDetails(null);
+            setDetailsLoading(false);
             return;
         }
         const srv = servers.find((s) => s.server_id === selectedId);
         if (!srv) return;
-        setDetailsLoading(true);
-        setAccountDetails(null);
-        getAccountDetails(user.username, srv.server_name)
-            .then((data) => setAccountDetails(data))
-            .catch((err) => {
-                console.error('Failed to fetch account details:', err);
+        let cancelled = false;
+        const loadAccountDetails = async (showLoading) => {
+            if (showLoading) {
+                setDetailsLoading(true);
                 setAccountDetails(null);
-            })
-            .finally(() => setDetailsLoading(false));
+            }
+            try {
+                const data = await getAccountDetails(user.username, srv.server_name);
+                if (!cancelled) {
+                    setAccountDetails(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch account details:', err);
+                if (showLoading && !cancelled) {
+                    setAccountDetails(null);
+                }
+            } finally {
+                if (showLoading && !cancelled) {
+                    setDetailsLoading(false);
+                }
+            }
+        };
+
+        loadAccountDetails(true);
+        const refreshIntervalId = window.setInterval(() => {
+            loadAccountDetails(false);
+        }, 1000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(refreshIntervalId);
+        };
     }, [user?.username, selectedId, servers]);
 
     const adminServers = servers.filter((s) => s.role === 'admin');
