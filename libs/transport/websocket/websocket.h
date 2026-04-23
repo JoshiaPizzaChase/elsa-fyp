@@ -7,6 +7,7 @@
 #include "transport/message_format.h"
 #include <concepts>
 #include <expected>
+#include <mutex>
 #include <fstream>
 #include <string_view>
 #include <unordered_map>
@@ -30,6 +31,7 @@ concept ClientOrServer = std::same_as<T, Client> || std::same_as<T, Server>;
 enum class ConnectionStatus {
     connecting,
     open,
+    closing,
     failed,
     closed,
 };
@@ -82,7 +84,6 @@ struct ConnectionMetadata {
         m_message_queue.enqueue(std::move(msg->get_payload()));
     }
 
-    // Getters
     websocketpp::connection_hdl get_handle() const {
         return m_handle;
     }
@@ -101,6 +102,11 @@ struct ConnectionMetadata {
 
     ConnectionStatus get_status() const {
         return m_status;
+    }
+
+    void set_status(ConnectionStatus status) {
+        std::lock_guard<std::mutex> lock(m_mtx);
+        m_status = status;
     }
 
     std::string get_error_reason() const {
@@ -143,12 +149,11 @@ struct ConnectionMetadata {
     }
 
   private:
+    std::mutex m_mtx;
     int m_id;
     websocketpp::connection_hdl m_handle;
     ConnectionStatus m_status;
     std::string m_uri;
-    // TODO: m_counter_party may either be server or client, how would we handle these cases
-    // separately? We may have to change the config...
     std::string m_counter_party;
     std::string m_error_reason;
     std::vector<std::string> m_message_store;
@@ -251,6 +256,8 @@ class WebsocketManager {
             if (error_code) {
                 m_logger->error("Error closing connection {}: {}", id, error_code.message());
                 failed_ids.push_back(id);
+            } else {
+                it.second->set_status(ConnectionStatus::closing);
             }
         }
 

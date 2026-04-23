@@ -34,13 +34,16 @@ class WebsocketManagerServer : public WebsocketManager<Server> {
     }
 
     ~WebsocketManagerServer() {
-        websocketpp::lib::error_code error_code;
-        m_endpoint.stop_listening(error_code);
+        // If the server was stopped already, calling stop_listening again will produce an error.
+        if (m_endpoint.is_listening()) {
+            websocketpp::lib::error_code error_code;
+            m_endpoint.stop_listening(error_code);
 
-        if (error_code) {
-            m_logger->error(
-                "Websocket manager server failed to stop listening during destruction: {}",
-                error_code.message());
+            if (error_code) {
+                m_logger->error(
+                    "Websocket manager server failed to stop listening during destruction: {}",
+                    error_code.message());
+            }
         }
     }
 
