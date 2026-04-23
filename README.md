@@ -8,7 +8,7 @@ FIX Version: FIX4.2
 
 Note: Please make sure the boost version >= 1.86.0
 
-## Dependencies Installation
+## C++ Dependencies Installation
 
 ```
 ./scripts/setup.sh
@@ -38,6 +38,13 @@ mkdir deps
 cd deps
 git clone https://github.com/questdb/c-questdb-client.git
 cd ..
+```
+
+## Frontend dependencies installation
+
+```
+cd frontend-v2
+npm install
 ```
 
 ## Store machine info into database
